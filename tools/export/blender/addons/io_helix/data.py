@@ -93,6 +93,13 @@ def write_float32_array_prop(file, prop, value):
         file.write(struct.pack("<f", v))
 
 
+def write_affine_matrix_prop(file, prop, mat):
+    start_property(file, prop)
+    for c in range(0, 4):
+        file.write(struct.pack("<fff", mat[0][c], mat[1][c], mat[2][c]))
+
+
+
 def write_vector_prop(file, prop, vec):
     file.write(struct.pack("<Lfff", prop, vec.x, vec.y, vec.z))
 

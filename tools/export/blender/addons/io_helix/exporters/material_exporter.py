@@ -1,9 +1,18 @@
 import math
-import struct
 from .. import data, property_types, object_types
+from . import texture_exporter
 from mathutils import Color
 
+
 def write(material, file, object_map):
+    if object_map.has_mapped_indices(material):
+        return
+
+    for slot in material.texture_slots:
+        if not slot or not slot.use:
+            continue
+        texture_exporter.write(slot.texture, file, object_map)
+
     material_id = data.start_object(file, object_types.MATERIAL, object_map)
     # store the index where this material was written, since we need to grab it elsewhere
     object_map.map(material, material_id)
@@ -11,7 +20,7 @@ def write(material, file, object_map):
     data.write_string_prop(file, property_types.NAME, material.name)
     data.write_color_prop(file, property_types.COLOR, material.diffuse_color)
 
-    roughness = math.sqrt(2.0 / (material.specular_hardness + 2.0))
+    roughness = math.pow(2.0 / (material.specular_hardness + 2.0), .25)
     data.write_float32_prop(file, property_types.ROUGHNESS, roughness)
 
     if material.game_settings.alpha_blend == "ADD":
@@ -34,7 +43,8 @@ def write(material, file, object_map):
         data.write_color_prop(file, property_types.EMISSIVE_COLOR, Color((material.emit, material.emit, material.emit)))
 
     for slot in material.texture_slots:
-        if not slot or not slot.use:
+        # unsupported texture types
+        if not slot or not object_map.has_mapped_indices(slot.texture):
             continue
 
         tex_id = object_map.get_mapped_indices(slot.texture)[0]
@@ -53,10 +63,3 @@ def write(material, file, object_map):
             object_map.link(material_id, tex_id, 5)
 
     data.end_object(file)
-
-
-def write_attribute(file, name, num_components, data_type, stream_index = 0):
-    data.start_property(file, property_types.VERTEX_ATTRIBUTE)
-    file.write(name.encode("utf-8"))
-    # write end-of-string, and attribute info
-    file.write(struct.pack("<BBBB", 0, num_components, data_type, stream_index))

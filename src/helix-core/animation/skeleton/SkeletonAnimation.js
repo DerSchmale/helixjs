@@ -31,6 +31,7 @@ function SkeletonAnimation(rootNode)
     Component.call(this);
     if (rootNode instanceof AnimationClip)
         rootNode = new SkeletonClipNode(rootNode);
+
     this._blendTree = new SkeletonBlendTree(rootNode);
 }
 

@@ -61,6 +61,9 @@ class ExportHelix(Operator, ExportHelper):
         row = layout.row()
         row.prop(self, "lighting_mode")
 
+        row = layout.row()
+        row.prop(self, "export_shadows")
+
 
 # Only needed if you want to add into a dynamic menu
 def menu_func_export(self, context):

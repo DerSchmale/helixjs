@@ -25,6 +25,11 @@ import {AssetLibrary} from "./AssetLibrary";
 import {JPG} from "./JPG_PNG";
 import {BlendState} from "../render/BlendState";
 import {Quaternion} from "../math/Quaternion";
+import {Matrix4x4} from "../math/Matrix4x4";
+import {Skeleton} from "../animation/skeleton/Skeleton";
+import {AnimationClip} from "../animation/AnimationClip";
+import {SkeletonAnimation} from "../animation/skeleton/SkeletonAnimation";
+import {SkeletonXFadeNode} from "../animation/skeleton/SkeletonXFadeNode";
 
 /**
  * The data provided by the HX loader
@@ -76,17 +81,20 @@ var ObjectTypes = {
 	MESH: 4,
 	MATERIAL: 5,
 	MESH_INSTANCE: 6,
-	SKELETON_JOINT: 7,
-	DIR_LIGHT: 8,
-	SPOT_LIGHT: 9,
-	POINT_LIGHT: 10,
-	AMBIENT_LIGHT: 11,
-	LIGHT_PROBE: 12,
-	PERSPECTIVE_CAMERA: 13,
-	ORTHOGRAPHIC_CAMERA: 14,		// not currently supported
-	TEXTURE_2D: 15,
-	TEXTURE_CUBE: 16,
-	BLEND_STATE: 17
+	SKELETON: 7,
+	SKELETON_JOINT: 8,				// must be linked to SKELETON in order of their index!
+	DIR_LIGHT: 9,
+	SPOT_LIGHT: 10,
+	POINT_LIGHT: 11,
+	AMBIENT_LIGHT: 12,
+	LIGHT_PROBE: 13,
+	PERSPECTIVE_CAMERA: 14,
+	ORTHOGRAPHIC_CAMERA: 15,		// not currently supported
+	TEXTURE_2D: 16,
+	TEXTURE_CUBE: 17,
+	BLEND_STATE: 18,
+	ANIMATION_CLIP: 19,
+	SKELETON_ANIMATION: 20
 };
 
 var ObjectTypeMap = {
@@ -94,14 +102,17 @@ var ObjectTypeMap = {
 	3: Entity,
 	4: Mesh,
 	6: MeshInstance,
-	7: SkeletonJoint,
-	8: DirectionalLight,
-	9: SpotLight,
-	10: PointLight,
-	11: AmbientLight,
-	12: LightProbe,
-	13: PerspectiveCamera,
-	17: BlendState
+	7: Skeleton,
+	8: SkeletonJoint,
+	9: DirectionalLight,
+	10: SpotLight,
+	11: PointLight,
+	12: AmbientLight,
+	13: LightProbe,
+	14: PerspectiveCamera,
+	18: BlendState,
+	19: AnimationClip,
+	20: SkeletonAnimation
 };
 
 // most ommitted properties take on their default value in Helix.
@@ -174,6 +185,9 @@ var PropertyTypes = {
 	// camera properties:
 	CLIP_DISTANCES: 90,					// 2 float32: near, far
 	FOV: 91,							// float32: vertical fov
+
+	// skeleton / bone properties:
+	INVERSE_BIND_POSE: 100				// 12 float32s: a matrix in column-major order ignoring the last row (affine matrix always contains 0, 0, 0, 1)
 };
 
 var MaterialLinkMetaProp = {
@@ -326,6 +340,10 @@ HX.prototype._parseObjectList = function()
 HX.prototype._parseLinkList = function()
 {
 	var data = this._stream;
+	var skeletons = {};	// keeps track of which skeletons the bones belong to
+	var skeletonLinks = [];
+	var skeletonAnimationLinks = [];
+
 	while (data.bytesAvailable) {
 		var parentId = data.getUint32();
 		var childId = data.getUint32();
@@ -333,18 +351,24 @@ HX.prototype._parseLinkList = function()
 		var parent = this._objects[parentId];
 		var child = this._objects[childId];
 
+
 		if (child instanceof Material)
 			parent.material = child;
-		else if (child instanceof Mesh)
+		else if (child instanceof Mesh) {
 			parent.mesh = child;
+		}
 		else if (child instanceof Entity) {
 			parent.attach(child);
 			if (parent === this._target.defaultScene && meta === 1) {
 				this._target.defaultCamera = child;
 			}
 		}
-		else if (child instanceof Component)
-			parent.addComponent(child);
+		else if (child instanceof Component) {
+			if (child instanceof SkeletonAnimation)
+				skeletonAnimationLinks.push(child);
+			else
+				parent.addComponent(child);
+		}
 		else if (child instanceof Texture2D) {
 			if (parent instanceof BasicMaterial) {
 				parent[MaterialLinkMetaProp[meta]] = child;
@@ -352,6 +376,62 @@ HX.prototype._parseLinkList = function()
 			else
 				console.warn("Only BasicMaterial is currently supported. How did you even get in here?");
 		}
+		else if (child instanceof Skeleton) {
+			skeletonLinks.push({child: child, parent: parent, meta: meta});
+		}
+		else if (child instanceof SkeletonJoint) {
+			var skeleton;
+			if (parent instanceof Skeleton) {
+				skeleton = parent;
+				child.parentIndex = skeleton.joints.indexOf(parent);
+			}
+			else {
+				skeleton = skeletons[parentId];
+				child.parentIndex = -1;
+			}
+
+			skeleton.joints.push(child);
+			skeletons[childId] = skeleton;
+		}
+		else if (child instanceof AnimationClip) {
+			if (parent instanceof SkeletonAnimation) {
+				if (!parent._blendTree.rootNode)
+					parent._blendTree.rootNode = new SkeletonXFadeNode();
+
+				console.assert(parent._blendTree.rootNode instanceof SkeletonXFadeNode, "Can't assign clip directly to skeleton when also assigning blend trees");
+
+				parent._blendTree.rootNode.addClip(child);
+
+				// if (meta === 1)
+					// parent._blendTree.rootNode.fadeTo(child, 0, false)
+			}
+			else {
+				// TODO: Implement importing blend trees
+			}
+		}
+	}
+
+	// all joints are assigned now:
+	for (var i = 0, len = skeletonLinks.length; i < len; ++i) {
+		var link = skeletonLinks[i];
+		parent = link.parent;
+		child = link.child;
+		meta = link.meta;
+		if (parent instanceof Mesh) {
+			parent.skeleton = child;
+		}
+		else if (parent instanceof MeshInstance)
+			parent.mesh.skeleton = child;
+		else if (parent instanceof SceneNode)
+			parent.assignSkeletonToChildren(child);
+	}
+
+	for (var i = 0, len = skeletonAnimationLinks.length; i < len; ++i) {
+		var link = skeletonAnimationLinks[i];
+		parent = link.parent;
+		child = link.child;
+		meta = link.meta;
+		// parent.addComponent(child);
 	}
 };
 
@@ -523,6 +603,9 @@ HX.prototype._readProperties = function(data, target)
 			case PropertyTypes.FOV:
 				target.verticalFOV = data.getFloat32();
 				break;
+			case PropertyTypes.INVERSE_BIND_POSE:
+				parseAffineMatrix(data, target.inverseBindPose);
+				break;
 		}
 	} while (type !== PropertyTypes.NULL)
 };
@@ -562,6 +645,21 @@ function parseColorRGBA(data, target)
 {
 	target = parseColor(data, target);
 	target.a = data.getFloat32();
+	return target;
+}
+
+function parseAffineMatrix(data, target)
+{
+	if (target)
+		target.copyFrom(Matrix4x4.IDENTITY);
+	else
+		target = new Matrix4x4();
+
+	for (var c = 0; c < 4; ++c) {
+		for (var r = 0; r < 3; ++r) {
+			target.setElement(r, c, data.getFloat32())
+		}
+	}
 	return target;
 }
 

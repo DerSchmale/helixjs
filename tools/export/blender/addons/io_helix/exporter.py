@@ -2,13 +2,14 @@ HX_VERSION = "0.1.0"
 
 import bpy, struct
 from .exporters import scene_exporter
-from .exporters import material_exporter
-from .exporters import mesh_exporter
 from .exporters import mesh_object_exporter
 from .exporters import light_exporter
-from .exporters import texture_exporter
 from .exporters import camera_exporter
+from .exporters import armature_object_exporter
 from . import data, object_map, property_types
+
+
+file_path = None
 
 
 def write_header(file, lighting_mode):
@@ -25,21 +26,6 @@ def write_header(file, lighting_mode):
     data.end_header(file)
 
 
-def write_meshes(file, obj_map):
-    for mesh in bpy.data.meshes:
-        mesh_exporter.write(mesh, file, obj_map)
-
-
-def write_textures(file, obj_map, filepath):
-    for tex in bpy.data.textures:
-        texture_exporter.write(tex, file, obj_map, filepath)
-
-
-def write_materials(file, obj_map):
-    for material in bpy.data.materials:
-        material_exporter.write(material, file, obj_map)
-
-
 def write_object(obj, file, obj_map, parent_id, scene, export_shadows):
     index = None
     visible = obj.is_visible(scene)
@@ -49,13 +35,19 @@ def write_object(obj, file, obj_map, parent_id, scene, export_shadows):
         index = light_exporter.write(obj, file, obj_map, visible, export_shadows)
     elif obj.type == "CAMERA":
         index = camera_exporter.write(obj, file, obj_map)
+    elif obj.type == "ARMATURE":
+        # In Blender, the armature is a scene object, linked to armature data.
+        # but it can also have a position etc.
+        index = armature_object_exporter.write(obj, file, obj_map, visible)
+        pass
 
     if index is not None:
         link_meta = int(obj == scene.camera)
         obj_map.link(parent_id, index, link_meta)
 
-    for child in obj.children:
-        write_object(child, file, obj_map, index, scene)
+        # can't parse the children of an unknown object
+        for child in obj.children:
+            write_object(child, file, obj_map, index, scene, export_shadows)
 
 
 def write_scene_graphs(file, obj_map, export_shadows):
@@ -76,13 +68,13 @@ def write_hx(context, filepath, lighting_mode="FIXED", export_shadows=False):
     print("Writing Helix file...")
     f = open(filepath, 'wb')
 
+    global file_path
+    file_path = filepath
+
     obj_map = object_map.ObjectMap()
     data.reset()
 
     write_header(f, lighting_mode)
-    write_meshes(f, obj_map)
-    write_textures(f, obj_map, filepath)
-    write_materials(f, obj_map)
     write_scene_graphs(f, obj_map, export_shadows)
 
     data.end_object_list(f)

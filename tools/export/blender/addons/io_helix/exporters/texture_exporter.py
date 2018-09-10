@@ -1,6 +1,6 @@
 import os
 
-from .. import data, property_types, object_types
+from .. import data, property_types, object_types, exporter
 
 extensionMap = {
     "CHECKER": 0,
@@ -10,7 +10,11 @@ extensionMap = {
     "REPEAT": 1
 }
 
-def write(tex, file, object_map, filepath):
+
+def write(tex, file, object_map):
+    if object_map.has_mapped_indices(tex):
+        return
+
     if tex.type != "IMAGE":
         if tex.type != "NONE":
             print ("Only texture type 'IMAGE' is supported; skipping texture '" + tex.name + "'")
@@ -26,7 +30,7 @@ def write(tex, file, object_map, filepath):
         data.write_uint8_prop(file, property_types.FILTER, 3)   # anisoptropic as default
 
     target_file = "textures\\" + os.path.basename(tex.image.filepath)
-    tex.image.save_render(os.path.dirname(filepath) + "\\" + target_file)
+    tex.image.save_render(os.path.dirname(exporter.file_path) + "\\" + target_file)
 
     data.write_string_prop(file, property_types.URL, target_file)
 

@@ -1464,7 +1464,7 @@ Matrix4x4.prototype =
         if (scale)
             this.fromScale(scale);
         else
-            this.identity();
+            this.copyFrom(Matrix4x4.IDENTITY);
 
         this.appendQuaternion(rotation);
         this.appendTranslation(position);

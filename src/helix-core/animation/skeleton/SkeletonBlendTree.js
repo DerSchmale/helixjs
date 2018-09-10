@@ -14,7 +14,7 @@ function SkeletonBlendTree(rootNode, skeleton)
 {
 	this.skeleton = skeleton;
 	this.transferRootJoint = false;
-	this._rootNode = rootNode;
+	this.rootNode = rootNode;
 }
 
 SkeletonBlendTree.prototype =
@@ -23,14 +23,11 @@ SkeletonBlendTree.prototype =
 
     get rootJointDeltaPosition() { return this._rootNode.rootJointDeltaPosition; },
 
-    get rootNode() { return this._rootNode; },
-    set rootNode(value) { this._rootNode = value; },
-
     update: function(dt)
     {
-        var updated = this._rootNode.update(dt, this.transferRootJoint);
+        var updated = this.rootNode.update(dt, this.transferRootJoint);
         if (updated)
-            this._rootNode.pose.invalidateGlobalPose();
+            this.rootNode.pose.invalidateGlobalPose();
 
         return updated;
     },
@@ -40,7 +37,7 @@ SkeletonBlendTree.prototype =
      */
     getNode: function(name)
     {
-        return this._rootNode.findNode(name);
+        return this.rootNode.findNode(name);
     }
 };
 

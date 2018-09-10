@@ -358,4 +358,18 @@ Entity.prototype.clone = function()
 	return clone;
 };
 
+/**
+ * @inheritDoc
+ */
+Entity.prototype.assignSkeletonToChildren = function(skeleton, pose)
+{
+	pose = SceneNode.prototype.assignSkeletonToChildren.call(this, skeleton, pose);
+
+	var components = this.getComponentsByType(MeshInstance);
+	for (var i = 0, len = components.length; i < len; ++i) {
+		components[i].mesh.skeleton = skeleton;
+		components[i].skeletonPose = pose;
+	}
+};
+
 export { Entity };

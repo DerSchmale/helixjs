@@ -20,6 +20,9 @@ class ObjectMap:
         else:
             self.obj_map[key] = [target_index]
 
+    def has_mapped_indices(self, src_object):
+        return str(src_object) in self.obj_map
+
     def get_mapped_indices(self, src_object):
         return self.obj_map[str(src_object)]
 
@@ -28,4 +31,9 @@ class ObjectMap:
     # object that was the parent
     # returns the new index
     def link(self, parent_index: int, child_index: int, meta: int=0):
+        if parent_index is None:
+            raise ValueError("parent_index cannot be None!")
+        if child_index is None:
+            raise ValueError("child_index cannot be None!")
+
         self.links.append((parent_index, child_index, meta))

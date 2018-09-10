@@ -3,26 +3,34 @@ from .. import data, data_types, property_types, object_types
 
 
 class SubMesh:
-    stc = None
-    name = None
-    num_uvs = 0
-    vertex_stride = 0
-    material_index = 0
-    vertex_data = []
-    index_data = []
-    hash_index_map = {}
-    index_count = 0
+    def __init__(self):
+        self.name = None
+        self.num_uvs = 0
+        self.vertex_stride = 0
+        self.material_index = 0
+        self.has_skinning_data = 0
+        self.skinning_data = []
+        self.vertex_data = []
+        self.index_data = []
+        self.hash_index_map = {}
+        self.index_count = 0
 
-    def get_vertex_hash(self, pos, normal, uvs):
+    def get_vertex_hash(self, pos, normal, uvs, bind_data):
         vertex_hash = "/" + str(pos) + "/" + str(normal) + "/"
-        for i in range(0, self.num_uvs):
-            vertex_hash = vertex_hash + str(uvs[i]) + "/"
+
+        for uv in uvs:
+            vertex_hash = vertex_hash + str(uv) + "/"
+
+        if bind_data:
+            for j in bind_data:
+                vertex_hash = vertex_hash + str(j) + "/"
+
         return vertex_hash
 
-    def add_vertex(self, pos, normal, uvs):
+    def add_vertex(self, pos, normal, uvs, bind_data):
         assert len(uvs) == self.num_uvs
 
-        vertex_hash = self.get_vertex_hash(pos, normal, uvs)
+        vertex_hash = self.get_vertex_hash(pos, normal, uvs, bind_data)
 
         if vertex_hash in self.hash_index_map:
             index = self.hash_index_map[vertex_hash]
@@ -32,8 +40,13 @@ class SubMesh:
             self.index_count += 1
             self.vertex_data.extend(list(pos))
             self.vertex_data.extend(list(normal))
+
             for uv in uvs:
                 self.vertex_data.extend(list(uv))
+
+            if self.has_skinning_data:
+                self.skinning_data.extend([j[0] for j in bind_data])
+                self.skinning_data.extend([j[1] for j in bind_data])
 
         self.index_data.append(index)
 
@@ -54,6 +67,11 @@ def write_submesh(sub_mesh, file, object_map, src_mesh):
             name = name + str(i)
         write_attribute(file, name, 2, data_types.FLOAT32)
 
+    # skinning data in stream 1
+    if sub_mesh.has_skinning_data:
+        write_attribute(file, "hx_jointIndices", 4, data_types.FLOAT32, 1)
+        write_attribute(file, "hx_jointWeights", 4, data_types.FLOAT32, 1)
+
     if num_vertices > 65535:
         # we'll need 32 bit to index all vertices
         index_type = data_types.UINT32
@@ -72,10 +90,14 @@ def write_submesh(sub_mesh, file, object_map, src_mesh):
 
     # TODO: Handle skinning data in multiple streams?
     data.write_float32_array_prop(file, property_types.VERTEX_STREAM_DATA, sub_mesh.vertex_data)
+
+    if sub_mesh.has_skinning_data:
+        data.write_float32_array_prop(file, property_types.VERTEX_STREAM_DATA, sub_mesh.skinning_data)
+
     data.end_object(file)
 
 
-def get_submesh(src, material_index, list):
+def get_submesh(src, material_index, list, has_skinned_data):
     for s in list:
         if s.material_index == material_index:
             return s
@@ -85,6 +107,7 @@ def get_submesh(src, material_index, list):
     sub.name = src.name
     sub.material_index = material_index
     sub.num_uvs = len(src.uv_layers)
+    sub.has_skinning_data = has_skinned_data
     # positions (3), normals (3), uvs (2 per layer)
     sub.vertex_stride = 6 + sub.num_uvs * 2
 
@@ -96,7 +119,38 @@ def get_submesh(src, material_index, list):
     return sub
 
 
+def get_skinned_data(mesh):
+    data = []
+    has_groups = False
+    for v in mesh.vertices:
+        joints = []
+
+        # select all vertex groups from skinned_object that contain the given vertex
+        for g in v.groups:
+            has_groups = True
+            joints.append((g.group, g.weight))
+
+        # sort descending on weight
+        joints.sort(key=lambda joint: -joint[1])
+
+        # need 4
+        joints = joints[:4]
+        for n in range(len(joints), 4):
+            joints.append((0, 0))
+
+        data.append(joints)
+
+    if not has_groups:
+        return None
+
+    return data
+
+
 def write(mesh, file, object_map):
+    if object_map.has_mapped_indices(mesh):
+        return
+
+    skinned_data = get_skinned_data(mesh)
     sub_meshes = []
 
     def add_vertex(loop_index):
@@ -111,10 +165,14 @@ def write(mesh, file, object_map):
         for uv_layer in mesh.uv_layers:
             uvs.append(uv_layer.data[loop_index].uv)
 
-        sub_mesh.add_vertex(v, n, uvs)
+        bind_data = None
+        if skinned_data:
+            bind_data = skinned_data[vi]
+
+        sub_mesh.add_vertex(v, n, uvs, bind_data)
 
     for p in mesh.polygons:
-        sub_mesh = get_submesh(mesh, p.material_index, sub_meshes)
+        sub_mesh = get_submesh(mesh, p.material_index, sub_meshes, bool(skinned_data))
         for i, loop_index in enumerate(p.loop_indices):
             # triangulation
             if i >= 2:

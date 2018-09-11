@@ -70,3 +70,7 @@ FOV = 91
 
 # skeleton / bone properties
 INVERSE_BIND_POSE = 100
+
+# animation properties
+TIME = 110
+NUM_FRAMES = 111

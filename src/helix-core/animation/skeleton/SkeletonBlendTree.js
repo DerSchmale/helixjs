@@ -6,22 +6,20 @@
  *
  * @constructor
  * @param {SkeletonBlendNode} rootNode The root node of the tree.
- * @param {Skeleton} skeleton The skeleton to animate.
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function SkeletonBlendTree(rootNode, skeleton)
+function SkeletonBlendTree(rootNode)
 {
-	this.skeleton = skeleton;
 	this.transferRootJoint = false;
 	this.rootNode = rootNode;
 }
 
 SkeletonBlendTree.prototype =
 {
-    get skeletonPose() { return this._rootNode.pose; },
+    get skeletonPose() { return this.rootNode.pose; },
 
-    get rootJointDeltaPosition() { return this._rootNode.rootJointDeltaPosition; },
+    get rootJointDeltaPosition() { return this.rootNode.rootJointDeltaPosition; },
 
     update: function(dt)
     {

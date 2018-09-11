@@ -1,8 +1,6 @@
 // basic version is non-hierarchical, for use with lights etc
 import {Matrix4x4} from "../math/Matrix4x4";
 import {Transform} from "../math/Transform";
-import {SkeletonJointPose} from "../animation/skeleton/SkeletonJointPose";
-import {SkeletonPose} from "../animation/skeleton/SkeletonPose";
 
 
 var nameCounter = 0;
@@ -384,22 +382,6 @@ SceneNode.prototype.copyFrom = function(src)
 };
 
 /**
- * Assigns the skeleton to all Meshes in this hierarchy, sharing the same pose. Returns the pose.
- */
-SceneNode.prototype.assignSkeletonToChildren = function(skeleton, pose)
-{
-    if (!pose) {
-        pose = new SkeletonPose();
-        pose.copyBindPose(skeleton);
-	}
-
-	for (var i = 0, len = this._children.length; i < len; ++i)
-	    this._children[i].assignSkeletonToChildren(skeleton, pose);
-
-	return pose;
-};
-
-/**
  * @inheritDoc
  */
 SceneNode.prototype.clone = function()
@@ -407,6 +389,15 @@ SceneNode.prototype.clone = function()
     var clone = new SceneNode();
 	clone.copyFrom(this);
     return clone;
+};
+
+/**
+ * Assigns the same skeleton pose to all children in this node
+ */
+SceneNode.prototype.assignSkeletonPose = function(pose)
+{
+	for (var i = 0, len = this._children.length; i < len; ++i)
+		this._children[i].assignSkeletonPose(pose);
 };
 
 export { SceneNode };

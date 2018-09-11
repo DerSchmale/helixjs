@@ -80,8 +80,7 @@ Component.create(SkeletonAnimation,
  */
 SkeletonAnimation.prototype.onAdded = function()
 {
-    this._blendTree.skeleton = this.entity.skeleton;
-    this.entity.skeletonPose = this._blendTree.skeletonPose;
+    this.entity.assignSkeletonPose(this._blendTree.skeletonPose);
 };
 
 /**
@@ -89,8 +88,8 @@ SkeletonAnimation.prototype.onAdded = function()
  */
 SkeletonAnimation.prototype.onUpdate = function(dt)
 {
-    if (this._blendTree.update(dt)) {
-        var matrix = this.entity.matrix;
+	if (this._blendTree.update(dt)) {
+		var matrix = this.entity.matrix;
         var d = this._blendTree.rootJointDeltaPosition;
         matrix.prependTranslation(d);
         this.entity.matrix = matrix;

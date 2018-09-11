@@ -4,7 +4,8 @@ from .. import data, property_types, object_types
 def write_bone(bone, file, object_map):
     bone_id = data.start_object(file, object_types.SKELETON_JOINT, object_map)
     data.write_string_prop(file, property_types.NAME, bone.name)
-    data.write_affine_matrix_prop(file, property_types.INVERSE_BIND_POSE, bone.matrix_local)
+    inverse_bind_matrix = bone.matrix_local.inverted()
+    data.write_affine_matrix_prop(file, property_types.INVERSE_BIND_POSE, inverse_bind_matrix)
     data.end_object(file)
     object_map.map(bone, bone_id)
     return bone_id

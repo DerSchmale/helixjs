@@ -3599,6 +3599,12 @@
 
 	ShaderLibrary._files['debug_bounds_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
 
+	ShaderLibrary._files['lighting_blinn_phong.glsl'] = '/*// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}*/\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*pow(cosAngle, 5.0);\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
+
+	ShaderLibrary._files['lighting_debug.glsl'] = 'void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	diffuseColor = vec3(0.0);\n	specularColor = vec3(0.0);\n}';
+
+	ShaderLibrary._files['lighting_ggx.glsl'] = '#ifdef HX_VISIBILITY_TERM\nfloat hx_geometryTerm(vec3 normal, vec3 dir, float k)\n{\n    float d = max(-dot(normal, dir), 0.0);\n    return d / (d * (1.0 - k) + k);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness)\n{\n	float k = roughness + 1.0;\n	k = k * k * .125;\n	return hx_geometryTerm(normal, viewDir, k) * hx_geometryTerm(normal, lightDir, k);\n}\n#endif\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n    float mappedRoughness =  geometry.roughness * geometry.roughness;\n\n	float distribution = hx_ggxDistribution(mappedRoughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef HX_VISIBILITY_TERM\n    specularColor *= hx_lightVisibility(geometry.normal, viewDir, lightDir, geometry.roughness);\n#endif\n}';
+
 	ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    int castShadows;\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            if (viewPos.y < light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    vec4 shadowMapCoord = shadowMatrix * vec4(viewPos, 1.0);\n    float shadow = hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n\n    // this can occur when meshInstance.castShadows = false, or using inherited bounds\n    bool isOutside = max(shadowMapCoord.x, shadowMapCoord.y) > 1.0 || min(shadowMapCoord.x, shadowMapCoord.y) < 0.0;\n    if (isOutside) shadow = 1.0;\n\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.y > light.maxShadowDistance));\n}\n#endif';
 
 	ShaderLibrary._files['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_PROBE_K1 .9921\n\n// really only used for clustered\nstruct HX_Probe\n{\n    int hasDiffuse;\n    int hasSpecular;\n    float numMipLevels;\n    float intensity;\n};\n\n/*\nvar minRoughness = 0.0014;\nvar maxPower = 2.0 / (minRoughness * minRoughness) - 2.0;\nvar maxMipFactor = (exp2(-10.0/Math.sqrt(maxPower)) - HX_PROBE_K0)/HX_PROBE_K1;\nvar HX_PROBE_SCALE = 1.0 / maxMipFactor\n*/\n\n#define HX_PROBE_SCALE\n\nvec3 hx_calculateDiffuseProbeLight(samplerCube texture, vec3 normal)\n{\n	return hx_gammaToLinear(textureCube(texture, normal.xzy).xyz);\n}\n\nvec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)\n{\n    #if defined(HX_TEXTURE_LOD) || defined (HX_GLSL_300_ES)\n    // knald method:\n        float power = 2.0/(roughness * roughness) - 2.0;\n        float factor = (exp2(-10.0/sqrt(power)) - HX_PROBE_K0)/HX_PROBE_K1;\n//        float mipLevel = numMips * (1.0 - clamp(factor * HX_PROBE_SCALE, 0.0, 1.0));\n        float mipLevel = numMips * (1.0 - clamp(factor, 0.0, 1.0));\n        #ifdef HX_GLSL_300_ES\n        vec4 specProbeSample = textureLod(texture, reflectedViewDir.xzy, mipLevel);\n        #else\n        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir.xzy, mipLevel);\n        #endif\n    #else\n        vec4 specProbeSample = textureCube(texture, reflectedViewDir.xzy);\n    #endif\n	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor;\n}';
@@ -3606,12 +3612,6 @@
 	ShaderLibrary._files['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position;\n    float radius;\n    float rcpRadius;\n\n    float depthBias;\n    mat4 shadowMapMatrix;\n    int castShadows;\n    vec4 shadowTiles[6];    // for each cube face\n};\n\nvoid hx_calculateLight(HX_PointLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_PointLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec3 dir = viewPos - light.position;\n    // go from view space back to world space, as a vector\n    float dist = length(dir);\n    dir = mat3(light.shadowMapMatrix) * dir;\n\n    // swizzle to opengl cube map space\n    dir = dir.xzy;\n\n    vec3 absDir = abs(dir);\n    float maxDir = max(max(absDir.x, absDir.y), absDir.z);\n    vec2 uv;\n    vec4 tile;\n    if (absDir.x == maxDir) {\n        tile = dir.x > 0.0? light.shadowTiles[0]: light.shadowTiles[1];\n        // signs are important (hence division by either dir or absDir\n        uv = vec2(-dir.z / dir.x, -dir.y / absDir.x);\n    }\n    else if (absDir.y == maxDir) {\n        tile = dir.y > 0.0? light.shadowTiles[4]: light.shadowTiles[5];\n        uv = vec2(dir.x / absDir.y, dir.z / dir.y);\n    }\n    else {\n        tile = dir.z > 0.0? light.shadowTiles[2]: light.shadowTiles[3];\n        uv = vec2(dir.x / dir.z, -dir.y / absDir.z);\n    }\n\n    // match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    uv *= .95;\n\n    vec4 shadowMapCoord;\n    shadowMapCoord.xy = uv * tile.xy + tile.zw;\n    shadowMapCoord.z = dist * light.rcpRadius;\n    shadowMapCoord.w = 1.0;\n    return  hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
 
 	ShaderLibrary._files['spot_light.glsl'] = 'struct HX_SpotLight\n{\n    vec3 color;\n    vec3 position;\n    vec3 direction;\n    float radius;\n    float rcpRadius;\n\n    vec2 angleData;    // cos(inner), rcp(cos(outer) - cos(inner))\n\n    mat4 shadowMapMatrix;\n    float depthBias;\n    int castShadows;\n\n    vec4 shadowTile;    // xy = scale, zw = offset\n};\n\nvoid hx_calculateLight(HX_SpotLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n\n    float cosAngle = dot(light.direction, direction);\n\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n    attenuation *=  saturate((cosAngle - light.angleData.x) * light.angleData.y);\n\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_SpotLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec4 shadowMapCoord = light.shadowMapMatrix * vec4(viewPos, 1.0);\n    shadowMapCoord /= shadowMapCoord.w;\n    // *.9 --> match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    shadowMapCoord.xy = shadowMapCoord.xy * .95 * light.shadowTile.xy + light.shadowTile.zw;\n    shadowMapCoord.z = length(viewPos - light.position) * light.rcpRadius;\n    return hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
-
-	ShaderLibrary._files['lighting_blinn_phong.glsl'] = '/*// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}*/\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*pow(cosAngle, 5.0);\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
-
-	ShaderLibrary._files['lighting_debug.glsl'] = 'void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	diffuseColor = vec3(0.0);\n	specularColor = vec3(0.0);\n}';
-
-	ShaderLibrary._files['lighting_ggx.glsl'] = '#ifdef HX_VISIBILITY_TERM\nfloat hx_geometryTerm(vec3 normal, vec3 dir, float k)\n{\n    float d = max(-dot(normal, dir), 0.0);\n    return d / (d * (1.0 - k) + k);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness)\n{\n	float k = roughness + 1.0;\n	k = k * k * .125;\n	return hx_geometryTerm(normal, viewDir, k) * hx_geometryTerm(normal, lightDir, k);\n}\n#endif\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n    float mappedRoughness =  geometry.roughness * geometry.roughness;\n\n	float distribution = hx_ggxDistribution(mappedRoughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef HX_VISIBILITY_TERM\n    specularColor *= hx_lightVisibility(geometry.normal, viewDir, lightDir, geometry.roughness);\n#endif\n}';
 
 	ShaderLibrary._files['default_geometry_fragment.glsl'] = 'uniform vec3 color;\nuniform vec3 emissiveColor;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(METALLIC_ROUGHNESS_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\nvarying_in vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef OCCLUSION_MAP\nuniform sampler2D occlusionMap;\n#endif\n\n#ifdef EMISSION_MAP\nuniform sampler2D emissionMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    varying_in vec3 normal;\n\n    #ifdef NORMAL_MAP\n    varying_in vec3 tangent;\n    varying_in vec3 bitangent;\n\n    uniform sampler2D normalMap;\n    #endif\n#endif\n\n#ifndef HX_SKIP_SPECULAR\nuniform float roughness;\nuniform float roughnessRange;\nuniform float normalSpecularReflectance;\nuniform float metallicness;\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\n#endif\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#ifdef VERTEX_COLORS\nvarying_in vec3 vertexColor;\n#endif\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    data.color = hx_gammaToLinear(outputColor);\n\n#ifndef HX_SKIP_SPECULAR\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = normalSpecularReflectance;\n    float roughnessOut = roughness;\n#endif\n\n#if defined(HX_SKIP_NORMALS) && defined(NORMAL_ROUGHNESS_MAP) && !defined(HX_SKIP_SPECULAR)\n    vec4 normalSample = texture2D(normalMap, texCoords);\n    roughnessOut -= roughnessRange * (normalSample.w - .5);\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    vec3 fragNormal = normal;\n\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz - .5);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (normalSample.w - .5);\n        #endif\n    #endif\n\n    #ifdef DOUBLE_SIDED\n        fragNormal *= gl_FrontFacing? 1.0 : -1.0;\n    #endif\n    data.normal = normalize(fragNormal);\n#endif\n\n#ifndef HX_SKIP_SPECULAR\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n\n          #ifdef METALLIC_ROUGHNESS_MAP\n              roughnessOut -= roughnessRange * (specSample.y - .5);\n              metallicnessOut *= specSample.z;\n\n          #else\n              roughnessOut -= roughnessRange * (specSample.x - .5);\n\n              #ifdef SPECULAR_MAP\n                  specNormalReflOut *= specSample.y;\n                  metallicnessOut *= specSample.z;\n              #endif\n          #endif\n    #endif\n\n    data.metallicness = metallicnessOut;\n    data.normalSpecularReflectance = specNormalReflOut;\n    data.roughness = roughnessOut;\n#endif\n\n    data.occlusion = 1.0;\n\n#ifdef OCCLUSION_MAP\n    data.occlusion = texture2D(occlusionMap, texCoords).x;\n#endif\n\n    vec3 emission = emissiveColor;\n#ifdef EMISSION_MAP\n    emission *= texture2D(emissionMap, texCoords).xyz;\n#endif\n\n    data.emission = hx_gammaToLinear(emission);\n    return data;\n}';
 
@@ -14515,315 +14515,6 @@
 	    return new Shader(vertexShader, fragmentShader);
 	};
 
-	/**
-	 * @classdesc
-	 * SkeletonJointPose represents the translation, rotation, and scale for a joint to have. Used by {@linkcode SkeletonPose}.
-	 * Generally not of interest to casual users.
-	 *
-	 * @constructor
-	 *
-	 * @see {@linkcode SkeletonPose}
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function SkeletonJointPose()
-	{
-	    this.position = new Float4();
-	    this.rotation = new Quaternion();
-	    this.scale = new Float4(1, 1, 1);
-	    this.skeletonPose = null;
-	}
-
-	SkeletonJointPose.prototype =
-	    {
-	        copyFrom: function(a)
-	        {
-	            this.rotation.copyFrom(a.rotation);
-	            this.position.copyFrom(a.position);
-	            this.scale.copyFrom(a.scale);
-	        },
-
-	        toString: function()
-	        {
-	            return "[SkeletonJointPose]";
-	        }
-	    };
-
-	/**
-	 * @classdesc
-	 * SkeletonPose represents an entire pose a {@linkcode Skeleton} can have. Usually, several poses are interpolated to create animations.
-	 *
-	 * @constructor
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function SkeletonPose()
-	{
-	    this._jointPoses = [];
-
-	    this._skinningTexture = null;
-	    // "global" is in fact model space
-	    this._globalMatrices = null;
-	    this._bindMatrices = null;
-	    this._skeletonMatricesInvalid = true;
-	}
-
-	SkeletonPose.prototype = {
-	    /**
-	     * The number of joint poses.
-	     */
-	    get numJoints()
-	    {
-	        return this._jointPoses.length;
-	    },
-
-	    /**
-	     * Returns the joint pose at a given position
-	     */
-	    getJointPose: function(index)
-	    {
-	        return this._jointPoses[index];
-	    },
-
-	    /**
-	     * Assigns a joint pose.
-	     */
-	    setJointPose: function(index, value)
-	    {
-	        this._jointPoses[index] = value;
-	        value.skeletonPose = this;
-	    },
-
-	    /**
-	     * Lets the engine know the pose has been updated
-	     */
-	    invalidateGlobalPose: function()
-	    {
-	        this._skeletonMatricesInvalid = true;
-	    },
-
-	    /**
-	     * Interpolates between two poses and stores it in the current
-	     * @param a
-	     * @param b
-	     * @param factor
-	     */
-	    interpolate: function (a, b, factor)
-	    {
-	        a = a._jointPoses;
-	        b = b._jointPoses;
-	        var len = a.length;
-
-	        if (this._jointPoses.length !== len)
-	            this._initJointPoses(len);
-
-	        var target = this._jointPoses;
-	        for (var i = 0; i < len; ++i) {
-	            var t = target[i];
-	            t.rotation.slerp(a[i].rotation, b[i].rotation, factor);
-	            t.position.lerp(a[i].position, b[i].position, factor);
-	            t.scale.lerp(a[i].scale, b[i].scale, factor);
-	        }
-	    },
-
-	    /**
-	     * Grabs the inverse bind pose data from a skeleton and generates a local pose from it
-	     * @param skeleton
-	     */
-	    copyBindPose: function (skeleton)
-	    {
-	        var m = new Matrix4x4();
-			var joints = skeleton.joints;
-	        for (var i = 0, len = joints.length; i < len; ++i) {
-	            var j = joints[i];
-	            var p = this._jointPoses[i] = new SkeletonJointPose();
-	            // global bind pose matrix
-	            m.inverseAffineOf(j.inverseBindPose);
-
-	            // local bind pose matrix
-	            if (j.parentIndex >= 0)
-	                m.append(joints[j.parentIndex].inverseBindPose);
-
-	            m.decompose(p);
-	        }
-	    },
-
-	    /**
-	     * Copies another pose.
-	     */
-	    copyFrom: function (a)
-	    {
-	        a = a._jointPoses;
-	        var target = this._jointPoses;
-	        var len = a.length;
-
-	        if (this._jointPoses.length !== len)
-	            this._initJointPoses(len);
-
-	        for (var i = 0; i < len; ++i)
-	            target[i].copyFrom(a[i]);
-	    },
-
-	    /**
-	     * @ignore
-	     */
-	    _initJointPoses: function (numJointPoses)
-	    {
-	        this._jointPoses.length = numJointPoses;
-	        for (var i = 0; i < numJointPoses; ++i)
-	            this.setJointPose(i, new SkeletonJointPose());
-	    },
-
-	    /**
-	     * @ignore
-	     */
-	    getBindMatrices: function(skeleton)
-	    {
-	        if (this._skeletonMatricesInvalid || this._skeleton !== skeleton)
-	            this._updateSkeletonMatrices(skeleton);
-
-	        this._skeleton = skeleton;
-
-	        return this._skinningTexture || this._bindMatrices;
-	    },
-
-	    /**
-	     * @ignore
-	     */
-	    _generateDefault: function (skeleton)
-	    {
-	        this._skeletonMatricesInvalid = false;
-	        this._skeleton = skeleton;
-
-	        var joints = skeleton.joints;
-	        var len = joints.length;
-
-	        this._initJointPoses(len);
-
-	        var m = new HX.Matrix4x4();
-
-	        for (var i = 0; i < len; ++i) {
-	            m.inverseOf(skeleton.joints[i].inverseBindPose);
-	            m.decompose(this._jointPoses[i]);
-	        }
-
-	        if (META.OPTIONS.useSkinningTexture) {
-	            this._skinningTexture = DEFAULTS.DEFAULT_SKINNING_TEXTURE;
-	            return;
-	        }
-
-	        this._globalMatrices = [];
-	        this._bindMatrices = [];
-	        for (i = 0; i < len; ++i) {
-	            this._globalMatrices[i] = new Matrix4x4();
-	            this._bindMatrices[i] = new Matrix4x4();
-	        }
-	    },
-
-	    /**
-	     * @ignore
-	     */
-	    _updateSkeletonMatrices: function (skeleton)
-	    {
-	        var globals = this._globalMatrices;
-	        var binds = this._bindMatrices;
-			var joints = skeleton.joints;
-			var len = joints.length;
-
-	        if (!globals || globals.length !== len) {
-	            this._generateGlobalSkeletonData(skeleton);
-	            globals = this._globalMatrices;
-	            binds = this._bindMatrices;
-	        }
-
-	        for (var i = 0; i < len; ++i) {
-	            var pose = this._jointPoses[i];
-	            var global = globals[i];
-
-	            var joint = joints[i];
-	            var parentIndex = joint.parentIndex;
-
-	            global.compose(pose);
-
-	            if (parentIndex !== -1)
-	                global.append(globals[parentIndex]);
-
-	            if (skeleton.applyInverseBindPose)
-	                binds[i].multiplyAffine(global, joint.inverseBindPose);
-	            else
-	                binds[i].copyFrom(global);
-	        }
-
-	        if (META.OPTIONS.useSkinningTexture)
-	            this._updateSkinningTexture();
-	    },
-
-	    /**
-	     * @ignore
-	     * @private
-	     */
-	    _generateGlobalSkeletonData: function (skeleton)
-	    {
-	        this._globalMatrices = [];
-	        this._bindMatrices = [];
-
-	        for (var i = 0, len = skeleton.joints.length; i < len; ++i) {
-	            this._globalMatrices[i] = new Matrix4x4();
-	            this._bindMatrices[i] = new Matrix4x4();
-	        }
-
-	        if (META.OPTIONS.useSkinningTexture) {
-	            this._skinningTexture = new Texture2D();
-	            this._skinningTexture.filter = TextureFilter.NEAREST_NOMIP;
-	            this._skinningTexture.wrapMode = TextureWrapMode.CLAMP;
-	        }
-	    },
-
-	    /**
-	     * @ignore
-	     * @private
-	     */
-	    _updateSkinningTexture: function ()
-	    {
-	        var data;
-
-	        return function()
-	        {
-	            data = data || new Float32Array(META.OPTIONS.maxSkeletonJoints * 3 * 4);
-	            var globals = this._bindMatrices;
-	            var len = globals.length;
-	            var j = 0;
-
-	            for (var r = 0; r < 3; ++r) {
-	                for (var i = 0; i < len; ++i) {
-	                    var m = globals[i]._m;
-
-	                    data[j++] = m[r];
-	                    data[j++] = m[r + 4];
-	                    data[j++] = m[r + 8];
-	                    data[j++] = m[r + 12];
-	                }
-
-	                for (i = len; i < META.OPTIONS.maxSkeletonJoints; ++i) {
-	                    data[j++] = 0.0;
-	                    data[j++] = 0.0;
-	                    data[j++] = 0.0;
-	                    data[j++] = 0.0;
-	                }
-	            }
-
-	            this._skinningTexture.uploadData(data, META.OPTIONS.maxSkeletonJoints, 3, false, TextureFormat.RGBA, DataType.FLOAT);
-	        }
-	    }(),
-
-	    clone: function()
-	    {
-	        var clone = new SkeletonPose();
-	        clone.copyFrom(this);
-	        return clone;
-	    }
-	};
-
 	// basic version is non-hierarchical, for use with lights etc
 
 
@@ -15206,22 +14897,6 @@
 	};
 
 	/**
-	 * Assigns the skeleton to all Meshes in this hierarchy, sharing the same pose. Returns the pose.
-	 */
-	SceneNode.prototype.assignSkeletonToChildren = function(skeleton, pose)
-	{
-	    if (!pose) {
-	        pose = new SkeletonPose();
-	        pose.copyBindPose(skeleton);
-		}
-
-		for (var i = 0, len = this._children.length; i < len; ++i)
-		    this._children[i].assignSkeletonToChildren(skeleton, pose);
-
-		return pose;
-	};
-
-	/**
 	 * @inheritDoc
 	 */
 	SceneNode.prototype.clone = function()
@@ -15229,6 +14904,15 @@
 	    var clone = new SceneNode();
 		clone.copyFrom(this);
 	    return clone;
+	};
+
+	/**
+	 * Assigns the same skeleton pose to all children in this node
+	 */
+	SceneNode.prototype.assignSkeletonPose = function(pose)
+	{
+		for (var i = 0, len = this._children.length; i < len; ++i)
+			this._children[i].assignSkeletonPose(pose);
 	};
 
 	/**
@@ -15589,13 +15273,13 @@
 
 		this.name = "hx_meshinstance_" + (nameCounter$3++);
 		this.castShadows = true;
+		this.skeletonPose = null;
 		this._bounds = new BoundingAABB();
 		this._morphPositions = null;
 		this._morphNormals = null;
 		this._morphWeights = null;
 		this._meshMaterialLinkInvalid = true;
 		this._vertexLayouts = null;
-		this._skeletonPose = null;
 		this._morphPose = null;
 		this.mesh = mesh;
 		this.material = material;
@@ -15620,21 +15304,8 @@
 		skeletonMatrices: {
 			get: function()
 			{
-				return this._skeletonPose? this._skeletonPose.getBindMatrices(this._mesh._skeleton) : null;
+				return this.skeletonPose? this.skeletonPose.getBindMatrices(this._mesh._skeleton) : null;
 			}
-		},
-
-		skeletonPose: {
-			get: function()
-			{
-				return this._skeletonPose;
-			},
-
-			set: function(value)
-			{
-				this._skeletonPose = value;
-			}
-
 		},
 
 		morphPose: {
@@ -15933,8 +15604,8 @@
 	{
 		var clone = new MeshInstance(this._mesh, this._material);
 		clone.castShadows = this.castShadows;
-		if (this._skeletonPose)
-			clone.skeletonPose = this._skeletonPose.clone();
+		if (this.skeletonPose)
+			clone.skeletonPose = this.skeletonPose.clone();
 		return clone;
 	};
 
@@ -16355,15 +16026,14 @@
 	/**
 	 * @inheritDoc
 	 */
-	Entity.prototype.assignSkeletonToChildren = function(skeleton, pose)
+	Entity.prototype.assignSkeletonPose = function(pose)
 	{
-		pose = SceneNode.prototype.assignSkeletonToChildren.call(this, skeleton, pose);
-
-		var components = this.getComponentsByType(MeshInstance);
-		for (var i = 0, len = components.length; i < len; ++i) {
-			components[i].mesh.skeleton = skeleton;
-			components[i].skeletonPose = pose;
+		for (var i = 0, len = this._components.length; i < len; ++i) {
+			var comp = this._components[i];
+			if (comp.hasOwnProperty("skeletonPose"))
+				comp.skeletonPose = pose;
 		}
+		SceneNode.prototype.assignSkeletonPose.call(this, pose);
 	};
 
 	/**
@@ -21112,6 +20782,40 @@
 
 	/**
 	 * @classdesc
+	 * SkeletonJointPose represents the translation, rotation, and scale for a joint to have. Used by {@linkcode SkeletonPose}.
+	 * Generally not of interest to casual users.
+	 *
+	 * @constructor
+	 *
+	 * @see {@linkcode SkeletonPose}
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function SkeletonJointPose()
+	{
+	    this.position = new Float4();
+	    this.rotation = new Quaternion();
+	    this.scale = new Float4(1, 1, 1);
+	    this.skeletonPose = null;
+	}
+
+	SkeletonJointPose.prototype =
+	    {
+	        copyFrom: function(a)
+	        {
+	            this.rotation.copyFrom(a.rotation);
+	            this.position.copyFrom(a.position);
+	            this.scale.copyFrom(a.scale);
+	        },
+
+	        toString: function()
+	        {
+	            return "[SkeletonJointPose]";
+	        }
+	    };
+
+	/**
+	 * @classdesc
 	 * AnimationLayerFloat4 is an {@linkcode AnimationLayer} targeting {@linkcode Float4} objects
 	 *
 	 * @constructor
@@ -21295,6 +20999,281 @@
 
 	/**
 	 * @classdesc
+	 * SkeletonPose represents an entire pose a {@linkcode Skeleton} can have. Usually, several poses are interpolated to create animations.
+	 *
+	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function SkeletonPose()
+	{
+	    this._jointPoses = [];
+
+	    this._skinningTexture = null;
+	    // "global" is in fact model space
+	    this._globalMatrices = null;
+	    this._bindMatrices = null;
+	    this._skeletonMatricesInvalid = true;
+	}
+
+	SkeletonPose.prototype = {
+	    /**
+	     * The number of joint poses.
+	     */
+	    get numJoints()
+	    {
+	        return this._jointPoses.length;
+	    },
+
+	    /**
+	     * Returns the joint pose at a given position
+	     */
+	    getJointPose: function(index)
+	    {
+	        return this._jointPoses[index];
+	    },
+
+	    /**
+	     * Assigns a joint pose.
+	     */
+	    setJointPose: function(index, value)
+	    {
+	        this._jointPoses[index] = value;
+	        value.skeletonPose = this;
+	    },
+
+	    /**
+	     * Lets the engine know the pose has been updated
+	     */
+	    invalidateGlobalPose: function()
+	    {
+	        this._skeletonMatricesInvalid = true;
+	    },
+
+	    /**
+	     * Interpolates between two poses and stores it in the current
+	     * @param a
+	     * @param b
+	     * @param factor
+	     */
+	    interpolate: function (a, b, factor)
+	    {
+	        a = a._jointPoses;
+	        b = b._jointPoses;
+	        var len = a.length;
+
+	        if (this._jointPoses.length !== len)
+	            this._initJointPoses(len);
+
+	        var target = this._jointPoses;
+	        for (var i = 0; i < len; ++i) {
+	            var t = target[i];
+	            t.rotation.slerp(a[i].rotation, b[i].rotation, factor);
+	            t.position.lerp(a[i].position, b[i].position, factor);
+	            t.scale.lerp(a[i].scale, b[i].scale, factor);
+	        }
+	    },
+
+	    /**
+	     * Grabs the inverse bind pose data from a skeleton and generates a local pose from it
+	     * @param skeleton
+	     */
+	    copyBindPose: function (skeleton)
+	    {
+	        var m = new Matrix4x4();
+			var joints = skeleton.joints;
+	        for (var i = 0, len = joints.length; i < len; ++i) {
+	            var j = joints[i];
+	            var p = this._jointPoses[i] = new SkeletonJointPose();
+	            // global bind pose matrix
+	            m.inverseAffineOf(j.inverseBindPose);
+
+	            // local bind pose matrix
+	            if (j.parentIndex >= 0)
+	                m.append(joints[j.parentIndex].inverseBindPose);
+
+	            m.decompose(p);
+	        }
+	    },
+
+	    /**
+	     * Copies another pose.
+	     */
+	    copyFrom: function (a)
+	    {
+	        a = a._jointPoses;
+	        var target = this._jointPoses;
+	        var len = a.length;
+
+	        if (this._jointPoses.length !== len)
+	            this._initJointPoses(len);
+
+	        for (var i = 0; i < len; ++i)
+	            target[i].copyFrom(a[i]);
+	    },
+
+	    /**
+	     * @ignore
+	     */
+	    _initJointPoses: function (numJointPoses)
+	    {
+	        this._jointPoses.length = numJointPoses;
+	        for (var i = 0; i < numJointPoses; ++i)
+	            this.setJointPose(i, new SkeletonJointPose());
+	    },
+
+	    /**
+	     * @ignore
+	     */
+	    getBindMatrices: function(skeleton)
+	    {
+	        if (this._skeletonMatricesInvalid || this._skeleton !== skeleton)
+	            this._updateSkeletonMatrices(skeleton);
+
+	        this._skeleton = skeleton;
+
+	        return this._skinningTexture || this._bindMatrices;
+	    },
+
+	    /**
+	     * @ignore
+	     */
+	    _generateDefault: function (skeleton)
+	    {
+	        this._skeletonMatricesInvalid = false;
+	        this._skeleton = skeleton;
+
+	        var joints = skeleton.joints;
+	        var len = joints.length;
+
+	        this._initJointPoses(len);
+
+	        var m = new HX.Matrix4x4();
+
+	        for (var i = 0; i < len; ++i) {
+	            m.inverseOf(skeleton.joints[i].inverseBindPose);
+	            m.decompose(this._jointPoses[i]);
+	        }
+
+	        if (META.OPTIONS.useSkinningTexture) {
+	            this._skinningTexture = DEFAULTS.DEFAULT_SKINNING_TEXTURE;
+	            return;
+	        }
+
+	        this._globalMatrices = [];
+	        this._bindMatrices = [];
+	        for (i = 0; i < len; ++i) {
+	            this._globalMatrices[i] = new Matrix4x4();
+	            this._bindMatrices[i] = new Matrix4x4();
+	        }
+	    },
+
+	    /**
+	     * @ignore
+	     */
+	    _updateSkeletonMatrices: function (skeleton)
+	    {
+	        var globals = this._globalMatrices;
+	        var binds = this._bindMatrices;
+			var joints = skeleton.joints;
+			var len = joints.length;
+
+	        if (!globals || globals.length !== len) {
+	            this._generateGlobalSkeletonData(skeleton);
+	            globals = this._globalMatrices;
+	            binds = this._bindMatrices;
+	        }
+
+	        for (var i = 0; i < len; ++i) {
+	            var pose = this._jointPoses[i];
+	            var global = globals[i];
+
+	            var joint = joints[i];
+	            var parentIndex = joint.parentIndex;
+
+	            global.compose(pose);
+
+	            if (parentIndex !== -1)
+	                global.append(globals[parentIndex]);
+
+	            if (skeleton.applyInverseBindPose)
+	                binds[i].multiplyAffine(global, joint.inverseBindPose);
+	            else
+	                binds[i].copyFrom(global);
+	        }
+
+	        if (META.OPTIONS.useSkinningTexture)
+	            this._updateSkinningTexture();
+	    },
+
+	    /**
+	     * @ignore
+	     * @private
+	     */
+	    _generateGlobalSkeletonData: function (skeleton)
+	    {
+	        this._globalMatrices = [];
+	        this._bindMatrices = [];
+
+	        for (var i = 0, len = skeleton.joints.length; i < len; ++i) {
+	            this._globalMatrices[i] = new Matrix4x4();
+	            this._bindMatrices[i] = new Matrix4x4();
+	        }
+
+	        if (META.OPTIONS.useSkinningTexture) {
+	            this._skinningTexture = new Texture2D();
+	            this._skinningTexture.filter = TextureFilter.NEAREST_NOMIP;
+	            this._skinningTexture.wrapMode = TextureWrapMode.CLAMP;
+	        }
+	    },
+
+	    /**
+	     * @ignore
+	     * @private
+	     */
+	    _updateSkinningTexture: function ()
+	    {
+	        var data;
+
+	        return function()
+	        {
+	            data = data || new Float32Array(META.OPTIONS.maxSkeletonJoints * 3 * 4);
+	            var globals = this._bindMatrices;
+	            var len = globals.length;
+	            var j = 0;
+
+	            for (var r = 0; r < 3; ++r) {
+	                for (var i = 0; i < len; ++i) {
+	                    var m = globals[i]._m;
+
+	                    data[j++] = m[r];
+	                    data[j++] = m[r + 4];
+	                    data[j++] = m[r + 8];
+	                    data[j++] = m[r + 12];
+	                }
+
+	                for (i = len; i < META.OPTIONS.maxSkeletonJoints; ++i) {
+	                    data[j++] = 0.0;
+	                    data[j++] = 0.0;
+	                    data[j++] = 0.0;
+	                    data[j++] = 0.0;
+	                }
+	            }
+
+	            this._skinningTexture.uploadData(data, META.OPTIONS.maxSkeletonJoints, 3, false, TextureFormat.RGBA, DataType.FLOAT);
+	        }
+	    }(),
+
+	    clone: function()
+	    {
+	        var clone = new SkeletonPose();
+	        clone.copyFrom(this);
+	        return clone;
+	    }
+	};
+
+	/**
+	 * @classdesc
 	 * An abstract base class for nodes in a {@linkcode SkeletonBlendTree}
 	 *
 	 * @constructor
@@ -21473,22 +21452,20 @@
 	 *
 	 * @constructor
 	 * @param {SkeletonBlendNode} rootNode The root node of the tree.
-	 * @param {Skeleton} skeleton The skeleton to animate.
 	 *
 	 * @author derschmale <http://www.derschmale.com>
 	 */
-	function SkeletonBlendTree(rootNode, skeleton)
+	function SkeletonBlendTree(rootNode)
 	{
-		this.skeleton = skeleton;
 		this.transferRootJoint = false;
 		this.rootNode = rootNode;
 	}
 
 	SkeletonBlendTree.prototype =
 	{
-	    get skeletonPose() { return this._rootNode.pose; },
+	    get skeletonPose() { return this.rootNode.pose; },
 
-	    get rootJointDeltaPosition() { return this._rootNode.rootJointDeltaPosition; },
+	    get rootJointDeltaPosition() { return this.rootNode.rootJointDeltaPosition; },
 
 	    update: function(dt)
 	    {
@@ -21584,8 +21561,7 @@
 	 */
 	SkeletonAnimation.prototype.onAdded = function()
 	{
-	    this._blendTree.skeleton = this.entity.skeleton;
-	    this.entity.skeletonPose = this._blendTree.skeletonPose;
+	    this.entity.assignSkeletonPose(this._blendTree.skeletonPose);
 	};
 
 	/**
@@ -21593,8 +21569,8 @@
 	 */
 	SkeletonAnimation.prototype.onUpdate = function(dt)
 	{
-	    if (this._blendTree.update(dt)) {
-	        var matrix = this.entity.matrix;
+		if (this._blendTree.update(dt)) {
+			var matrix = this.entity.matrix;
 	        var d = this._blendTree.rootJointDeltaPosition;
 	        matrix.prependTranslation(d);
 	        this.entity.matrix = matrix;
@@ -26973,7 +26949,9 @@
 		TEXTURE_CUBE: 17,
 		BLEND_STATE: 18,
 		ANIMATION_CLIP: 19,
-		SKELETON_ANIMATION: 20
+		SKELETON_ANIMATION: 20,
+		SKELETON_POSE: 21,	// properties contain position, rotation, scale per joint
+		KEY_FRAME: 22
 	};
 
 	var ObjectTypeMap = {
@@ -26991,7 +26969,8 @@
 		14: PerspectiveCamera,
 		18: BlendState,
 		19: AnimationClip,
-		20: SkeletonAnimation
+		20: SkeletonAnimation,
+		22: KeyFrame
 	};
 
 	// most ommitted properties take on their default value in Helix.
@@ -27066,7 +27045,11 @@
 		FOV: 91,							// float32: vertical fov
 
 		// skeleton / bone properties:
-		INVERSE_BIND_POSE: 100				// 12 float32s: a matrix in column-major order ignoring the last row (affine matrix always contains 0, 0, 0, 1)
+		INVERSE_BIND_POSE: 100,				// 12 float32s: a matrix in column-major order ignoring the last row (affine matrix always contains 0, 0, 0, 1)
+
+		// animation properties:
+		TIME: 110,							// 1 float32
+		NUM_FRAMES: 111						// 1 uint16
 	};
 
 	var MaterialLinkMetaProp = {
@@ -27190,6 +27173,9 @@
 				case ObjectTypes.TEXTURE_2D:
 					object = this._parseTexture2D(data);
 					break;
+				case ObjectTypes.SKELETON_POSE:
+					object = this._parseSkeletonPose(data);
+					break;
 				case ObjectTypes.NULL:
 					return;
 				case ObjectTypes.DIR_LIGHT:
@@ -27216,106 +27202,47 @@
 		} while (type !== ObjectTypes.NULL);
 	};
 
-	HX$1.prototype._parseLinkList = function()
-	{
-		var data = this._stream;
-		var skeletons = {};	// keeps track of which skeletons the bones belong to
-		var skeletonLinks = [];
-		var skeletonAnimationLinks = [];
-
-		while (data.bytesAvailable) {
-			var parentId = data.getUint32();
-			var childId = data.getUint32();
-			var meta = data.getUint8();
-			var parent = this._objects[parentId];
-			var child = this._objects[childId];
-
-
-			if (child instanceof Material)
-				parent.material = child;
-			else if (child instanceof Mesh) {
-				parent.mesh = child;
-			}
-			else if (child instanceof Entity) {
-				parent.attach(child);
-				if (parent === this._target.defaultScene && meta === 1) {
-					this._target.defaultCamera = child;
-				}
-			}
-			else if (child instanceof Component) {
-				if (child instanceof SkeletonAnimation)
-					skeletonAnimationLinks.push(child);
-				else
-					parent.addComponent(child);
-			}
-			else if (child instanceof Texture2D) {
-				if (parent instanceof BasicMaterial) {
-					parent[MaterialLinkMetaProp[meta]] = child;
-				}
-				else
-					console.warn("Only BasicMaterial is currently supported. How did you even get in here?");
-			}
-			else if (child instanceof Skeleton) {
-				skeletonLinks.push({child: child, parent: parent, meta: meta});
-			}
-			else if (child instanceof SkeletonJoint) {
-				var skeleton;
-				if (parent instanceof Skeleton) {
-					skeleton = parent;
-					child.parentIndex = skeleton.joints.indexOf(parent);
-				}
-				else {
-					skeleton = skeletons[parentId];
-					child.parentIndex = -1;
-				}
-
-				skeleton.joints.push(child);
-				skeletons[childId] = skeleton;
-			}
-			else if (child instanceof AnimationClip) {
-				if (parent instanceof SkeletonAnimation) {
-					if (!parent._blendTree.rootNode)
-						parent._blendTree.rootNode = new SkeletonXFadeNode();
-
-					console.assert(parent._blendTree.rootNode instanceof SkeletonXFadeNode, "Can't assign clip directly to skeleton when also assigning blend trees");
-
-					parent._blendTree.rootNode.addClip(child);
-
-					// if (meta === 1)
-						// parent._blendTree.rootNode.fadeTo(child, 0, false)
-				}
-			}
-		}
-
-		// all joints are assigned now:
-		for (var i = 0, len = skeletonLinks.length; i < len; ++i) {
-			var link = skeletonLinks[i];
-			parent = link.parent;
-			child = link.child;
-			meta = link.meta;
-			if (parent instanceof Mesh) {
-				parent.skeleton = child;
-			}
-			else if (parent instanceof MeshInstance)
-				parent.mesh.skeleton = child;
-			else if (parent instanceof SceneNode)
-				parent.assignSkeletonToChildren(child);
-		}
-
-		for (var i = 0, len = skeletonAnimationLinks.length; i < len; ++i) {
-			var link = skeletonAnimationLinks[i];
-			parent = link.parent;
-			child = link.child;
-			meta = link.meta;
-			// parent.addComponent(child);
-		}
-	};
-
 	HX$1.prototype._parseObject = function(type, data)
 	{
 		var scene = new type();
 		this._readProperties(data, scene);
 		return scene;
+	};
+
+	HX$1.prototype._parseSkeletonPose = function(data)
+	{
+		var pose = new SkeletonPose();
+		var posIndex = 0;
+		var rotIndex = 0;
+		var scaleIndex = 0;
+
+		function getJointPose(index) {
+			if (!pose.getJointPose(index))
+				pose.setJointPose(index, new SkeletonJointPose());
+
+			return pose.getJointPose(index);
+		}
+
+		var type;
+		do {
+			type = data.getUint32();
+
+			// it's legal to only provide fe: position data, but fields can't be "sparsely" omitted
+			// if one joint pose contains it, all joint poses should contain it
+			switch (type) {
+				case PropertyTypes.POSITION:
+					parseVector3(data, getJointPose(posIndex++).position);
+					break;
+				case PropertyTypes.ROTATION:
+					parseQuaternion(data, getJointPose(rotIndex++).rotation);
+					break;
+				case PropertyTypes.SCALE:
+					parseVector3(data, getJointPose(scaleIndex++).scale);
+					break;
+			}
+		} while (type !== PropertyTypes.NULL);
+
+		return pose;
 	};
 
 	HX$1.prototype._parseTexture2D = function(data)
@@ -27482,6 +27409,9 @@
 				case PropertyTypes.INVERSE_BIND_POSE:
 					parseAffineMatrix(data, target.inverseBindPose);
 					break;
+				case PropertyTypes.TIME:
+					target.time = data.getFloat32();
+					break;
 			}
 		} while (type !== PropertyTypes.NULL)
 	};
@@ -27593,6 +27523,108 @@
 
 		target.setVertexData(streamData, streamIndex);
 	}
+
+	HX$1.prototype._parseLinkList = function()
+	{
+		var data = this._stream;
+		var skeletons = {};	// keeps track of which skeletons the bones belong to
+		var skeletonLinks = [];
+		var skeletonAnimationLinks = [];
+		var deferredCommands = [];
+
+		while (data.bytesAvailable) {
+			var parentId = data.getUint32();
+			var childId = data.getUint32();
+			var meta = data.getUint8();
+			var parent = this._objects[parentId];
+			var child = this._objects[childId];
+
+			if (parent instanceof KeyFrame) {
+				parent.value = child;
+			}
+			else if (child instanceof Material)
+				parent.material = child;
+			else if (child instanceof Mesh) {
+				parent.mesh = child;
+			}
+			else if (child instanceof Entity) {
+				parent.attach(child);
+				if (parent === this._target.defaultScene && meta === 1) {
+					this._target.defaultCamera = child;
+				}
+			}
+			else if (child instanceof Component) {
+				if (child instanceof SkeletonAnimation)
+					skeletonAnimationLinks.push({child: child, parent: parent, meta: meta});
+				else
+					parent.addComponent(child);
+			}
+			else if (child instanceof Texture2D) {
+				if (parent instanceof BasicMaterial) {
+					parent[MaterialLinkMetaProp[meta]] = child;
+				}
+				else
+					console.warn("Only BasicMaterial is currently supported. How did you even get in here?");
+			}
+			else if (child instanceof Skeleton) {
+				skeletonLinks.push({child: child, parent: parent, meta: meta});
+			}
+			else if (child instanceof SkeletonJoint) {
+				var skeleton;
+				if (parent instanceof Skeleton) {
+					skeleton = parent;
+					child.parentIndex = -1;
+				}
+				else {
+					skeleton = skeletons[parentId];
+					child.parentIndex = skeleton.joints.indexOf(parent);
+				}
+
+				skeleton.joints.push(child);
+				skeletons[childId] = skeleton;
+			}
+			else if (child instanceof AnimationClip) {
+				if (parent instanceof SkeletonAnimation) {
+					if (!parent._blendTree.rootNode)
+						parent._blendTree.rootNode = new SkeletonXFadeNode();
+
+					console.assert(parent._blendTree.rootNode instanceof SkeletonXFadeNode, "Can't assign clip directly to skeleton when also assigning blend trees");
+
+					parent._blendTree.rootNode.addClip(child);
+
+					if (meta === 1)
+						deferredCommands.push(parent._blendTree.rootNode.fadeTo.bind(parent._blendTree.rootNode, child, 0, false));
+				}
+			}
+			else if (child instanceof SkeletonPose) ;
+			else if (child instanceof KeyFrame) {
+				parent.addKeyFrame(child);
+			}
+		}
+
+		// all joints are assigned now:
+		for (var i = 0, len = skeletonLinks.length; i < len; ++i) {
+			var link = skeletonLinks[i];
+			parent = link.parent;
+			child = link.child;
+			meta = link.meta;
+			if (parent instanceof Mesh)
+				parent.skeleton = child;
+			else if (parent instanceof MeshInstance)
+				parent.mesh.skeleton = child;
+		}
+
+		for (i = 0, len = skeletonAnimationLinks.length; i < len; ++i) {
+			var link = skeletonAnimationLinks[i];
+			parent = link.parent;
+			child = link.child;
+			meta = link.meta;
+			parent.addComponent(child);
+		}
+
+		for (i = 0, len = deferredCommands.length; i < len; ++i)
+			deferredCommands[i]();
+	};
 
 	/**
 	 * EquirectangularTexture is a utility class that converts equirectangular environment {@linknode Texture2D} to a

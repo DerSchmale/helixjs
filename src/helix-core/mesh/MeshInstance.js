@@ -25,13 +25,13 @@ function MeshInstance(mesh, material)
 
 	this.name = "hx_meshinstance_" + (nameCounter++);
 	this.castShadows = true;
+	this.skeletonPose = null;
 	this._bounds = new BoundingAABB();
 	this._morphPositions = null;
 	this._morphNormals = null;
 	this._morphWeights = null;
 	this._meshMaterialLinkInvalid = true;
 	this._vertexLayouts = null;
-	this._skeletonPose = null;
 	this._morphPose = null;
 	this.mesh = mesh;
 	this.material = material;
@@ -56,21 +56,8 @@ Component.create(MeshInstance, {
 	skeletonMatrices: {
 		get: function()
 		{
-			return this._skeletonPose? this._skeletonPose.getBindMatrices(this._mesh._skeleton) : null;
+			return this.skeletonPose? this.skeletonPose.getBindMatrices(this._mesh._skeleton) : null;
 		}
-	},
-
-	skeletonPose: {
-		get: function()
-		{
-			return this._skeletonPose;
-		},
-
-		set: function(value)
-		{
-			this._skeletonPose = value;
-		}
-
 	},
 
 	morphPose: {
@@ -369,8 +356,8 @@ MeshInstance.prototype.clone = function()
 {
 	var clone = new MeshInstance(this._mesh, this._material);
 	clone.castShadows = this.castShadows;
-	if (this._skeletonPose)
-		clone.skeletonPose = this._skeletonPose.clone();
+	if (this.skeletonPose)
+		clone.skeletonPose = this.skeletonPose.clone();
 	return clone;
 };
 

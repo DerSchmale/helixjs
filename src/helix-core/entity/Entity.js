@@ -361,15 +361,15 @@ Entity.prototype.clone = function()
 /**
  * @inheritDoc
  */
-Entity.prototype.assignSkeletonToChildren = function(skeleton, pose)
+Entity.prototype.assignSkeletonPose = function(pose)
 {
-	pose = SceneNode.prototype.assignSkeletonToChildren.call(this, skeleton, pose);
-
-	var components = this.getComponentsByType(MeshInstance);
-	for (var i = 0, len = components.length; i < len; ++i) {
-		components[i].mesh.skeleton = skeleton;
-		components[i].skeletonPose = pose;
+	for (var i = 0, len = this._components.length; i < len; ++i) {
+		var comp = this._components[i];
+		if (comp.hasOwnProperty("skeletonPose"))
+			comp.skeletonPose = pose;
 	}
+	SceneNode.prototype.assignSkeletonPose.call(this, pose);
 };
+
 
 export { Entity };

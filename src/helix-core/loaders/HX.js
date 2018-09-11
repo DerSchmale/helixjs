@@ -30,6 +30,9 @@ import {Skeleton} from "../animation/skeleton/Skeleton";
 import {AnimationClip} from "../animation/AnimationClip";
 import {SkeletonAnimation} from "../animation/skeleton/SkeletonAnimation";
 import {SkeletonXFadeNode} from "../animation/skeleton/SkeletonXFadeNode";
+import {SkeletonPose} from "../animation/skeleton/SkeletonPose";
+import {KeyFrame} from "../animation/KeyFrame";
+import {SkeletonJointPose} from "../animation/skeleton/SkeletonJointPose";
 
 /**
  * The data provided by the HX loader
@@ -94,7 +97,9 @@ var ObjectTypes = {
 	TEXTURE_CUBE: 17,
 	BLEND_STATE: 18,
 	ANIMATION_CLIP: 19,
-	SKELETON_ANIMATION: 20
+	SKELETON_ANIMATION: 20,
+	SKELETON_POSE: 21,	// properties contain position, rotation, scale per joint
+	KEY_FRAME: 22
 };
 
 var ObjectTypeMap = {
@@ -112,7 +117,8 @@ var ObjectTypeMap = {
 	14: PerspectiveCamera,
 	18: BlendState,
 	19: AnimationClip,
-	20: SkeletonAnimation
+	20: SkeletonAnimation,
+	22: KeyFrame
 };
 
 // most ommitted properties take on their default value in Helix.
@@ -187,7 +193,11 @@ var PropertyTypes = {
 	FOV: 91,							// float32: vertical fov
 
 	// skeleton / bone properties:
-	INVERSE_BIND_POSE: 100				// 12 float32s: a matrix in column-major order ignoring the last row (affine matrix always contains 0, 0, 0, 1)
+	INVERSE_BIND_POSE: 100,				// 12 float32s: a matrix in column-major order ignoring the last row (affine matrix always contains 0, 0, 0, 1)
+
+	// animation properties:
+	TIME: 110,							// 1 float32
+	NUM_FRAMES: 111						// 1 uint16
 };
 
 var MaterialLinkMetaProp = {
@@ -311,6 +321,9 @@ HX.prototype._parseObjectList = function()
 			case ObjectTypes.TEXTURE_2D:
 				object = this._parseTexture2D(data);
 				break;
+			case ObjectTypes.SKELETON_POSE:
+				object = this._parseSkeletonPose(data);
+				break;
 			case ObjectTypes.NULL:
 				return;
 			case ObjectTypes.DIR_LIGHT:
@@ -337,104 +350,6 @@ HX.prototype._parseObjectList = function()
 	} while (type !== ObjectTypes.NULL);
 };
 
-HX.prototype._parseLinkList = function()
-{
-	var data = this._stream;
-	var skeletons = {};	// keeps track of which skeletons the bones belong to
-	var skeletonLinks = [];
-	var skeletonAnimationLinks = [];
-
-	while (data.bytesAvailable) {
-		var parentId = data.getUint32();
-		var childId = data.getUint32();
-		var meta = data.getUint8();
-		var parent = this._objects[parentId];
-		var child = this._objects[childId];
-
-
-		if (child instanceof Material)
-			parent.material = child;
-		else if (child instanceof Mesh) {
-			parent.mesh = child;
-		}
-		else if (child instanceof Entity) {
-			parent.attach(child);
-			if (parent === this._target.defaultScene && meta === 1) {
-				this._target.defaultCamera = child;
-			}
-		}
-		else if (child instanceof Component) {
-			if (child instanceof SkeletonAnimation)
-				skeletonAnimationLinks.push(child);
-			else
-				parent.addComponent(child);
-		}
-		else if (child instanceof Texture2D) {
-			if (parent instanceof BasicMaterial) {
-				parent[MaterialLinkMetaProp[meta]] = child;
-			}
-			else
-				console.warn("Only BasicMaterial is currently supported. How did you even get in here?");
-		}
-		else if (child instanceof Skeleton) {
-			skeletonLinks.push({child: child, parent: parent, meta: meta});
-		}
-		else if (child instanceof SkeletonJoint) {
-			var skeleton;
-			if (parent instanceof Skeleton) {
-				skeleton = parent;
-				child.parentIndex = skeleton.joints.indexOf(parent);
-			}
-			else {
-				skeleton = skeletons[parentId];
-				child.parentIndex = -1;
-			}
-
-			skeleton.joints.push(child);
-			skeletons[childId] = skeleton;
-		}
-		else if (child instanceof AnimationClip) {
-			if (parent instanceof SkeletonAnimation) {
-				if (!parent._blendTree.rootNode)
-					parent._blendTree.rootNode = new SkeletonXFadeNode();
-
-				console.assert(parent._blendTree.rootNode instanceof SkeletonXFadeNode, "Can't assign clip directly to skeleton when also assigning blend trees");
-
-				parent._blendTree.rootNode.addClip(child);
-
-				// if (meta === 1)
-					// parent._blendTree.rootNode.fadeTo(child, 0, false)
-			}
-			else {
-				// TODO: Implement importing blend trees
-			}
-		}
-	}
-
-	// all joints are assigned now:
-	for (var i = 0, len = skeletonLinks.length; i < len; ++i) {
-		var link = skeletonLinks[i];
-		parent = link.parent;
-		child = link.child;
-		meta = link.meta;
-		if (parent instanceof Mesh) {
-			parent.skeleton = child;
-		}
-		else if (parent instanceof MeshInstance)
-			parent.mesh.skeleton = child;
-		else if (parent instanceof SceneNode)
-			parent.assignSkeletonToChildren(child);
-	}
-
-	for (var i = 0, len = skeletonAnimationLinks.length; i < len; ++i) {
-		var link = skeletonAnimationLinks[i];
-		parent = link.parent;
-		child = link.child;
-		meta = link.meta;
-		// parent.addComponent(child);
-	}
-};
-
 HX.prototype._parseObject = function(type, data)
 {
 	var scene = new type();
@@ -442,12 +357,49 @@ HX.prototype._parseObject = function(type, data)
 	return scene;
 };
 
+HX.prototype._parseSkeletonPose = function(data)
+{
+	var pose = new SkeletonPose();
+	var poses = [];
+	var posIndex = 0;
+	var rotIndex = 0;
+	var scaleIndex = 0;
+
+	function getJointPose(index) {
+		if (!pose.getJointPose(index))
+			pose.setJointPose(index, new SkeletonJointPose());
+
+		return pose.getJointPose(index);
+	}
+
+	var type;
+	do {
+		type = data.getUint32();
+
+		// it's legal to only provide fe: position data, but fields can't be "sparsely" omitted
+		// if one joint pose contains it, all joint poses should contain it
+		switch (type) {
+			case PropertyTypes.POSITION:
+				parseVector3(data, getJointPose(posIndex++).position);
+				break;
+			case PropertyTypes.ROTATION:
+				parseQuaternion(data, getJointPose(rotIndex++).rotation);
+				break;
+			case PropertyTypes.SCALE:
+				parseVector3(data, getJointPose(scaleIndex++).scale);
+				break;
+		}
+	} while (type !== PropertyTypes.NULL);
+
+	return pose;
+};
+
 HX.prototype._parseTexture2D = function(data)
 {
 	var texture = new Texture2D();
 	this._readProperties(data, texture);
 	return texture;
-}
+};
 
 HX.prototype._parseMaterial = function(data)
 {
@@ -606,6 +558,9 @@ HX.prototype._readProperties = function(data, target)
 			case PropertyTypes.INVERSE_BIND_POSE:
 				parseAffineMatrix(data, target.inverseBindPose);
 				break;
+			case PropertyTypes.TIME:
+				target.time = data.getFloat32();
+				break;
 		}
 	} while (type !== PropertyTypes.NULL)
 };
@@ -717,5 +672,113 @@ function parseVertexStreamData(data, target, parser)
 
 	target.setVertexData(streamData, streamIndex);
 }
+
+HX.prototype._parseLinkList = function()
+{
+	var data = this._stream;
+	var skeletons = {};	// keeps track of which skeletons the bones belong to
+	var skeletonLinks = [];
+	var skeletonAnimationLinks = [];
+	var deferredCommands = [];
+
+	while (data.bytesAvailable) {
+		var parentId = data.getUint32();
+		var childId = data.getUint32();
+		var meta = data.getUint8();
+		var parent = this._objects[parentId];
+		var child = this._objects[childId];
+
+		if (parent instanceof KeyFrame) {
+			parent.value = child;
+		}
+		else if (child instanceof Material)
+			parent.material = child;
+		else if (child instanceof Mesh) {
+			parent.mesh = child;
+		}
+		else if (child instanceof Entity) {
+			parent.attach(child);
+			if (parent === this._target.defaultScene && meta === 1) {
+				this._target.defaultCamera = child;
+			}
+		}
+		else if (child instanceof Component) {
+			if (child instanceof SkeletonAnimation)
+				skeletonAnimationLinks.push({child: child, parent: parent, meta: meta});
+			else
+				parent.addComponent(child);
+		}
+		else if (child instanceof Texture2D) {
+			if (parent instanceof BasicMaterial) {
+				parent[MaterialLinkMetaProp[meta]] = child;
+			}
+			else
+				console.warn("Only BasicMaterial is currently supported. How did you even get in here?");
+		}
+		else if (child instanceof Skeleton) {
+			skeletonLinks.push({child: child, parent: parent, meta: meta});
+		}
+		else if (child instanceof SkeletonJoint) {
+			var skeleton;
+			if (parent instanceof Skeleton) {
+				skeleton = parent;
+				child.parentIndex = -1;
+			}
+			else {
+				skeleton = skeletons[parentId];
+				child.parentIndex = skeleton.joints.indexOf(parent);
+			}
+
+			skeleton.joints.push(child);
+			skeletons[childId] = skeleton;
+		}
+		else if (child instanceof AnimationClip) {
+			if (parent instanceof SkeletonAnimation) {
+				if (!parent._blendTree.rootNode)
+					parent._blendTree.rootNode = new SkeletonXFadeNode();
+
+				console.assert(parent._blendTree.rootNode instanceof SkeletonXFadeNode, "Can't assign clip directly to skeleton when also assigning blend trees");
+
+				parent._blendTree.rootNode.addClip(child);
+
+				if (meta === 1)
+					deferredCommands.push(parent._blendTree.rootNode.fadeTo.bind(parent._blendTree.rootNode, child, 0, false));
+			}
+			else {
+				// TODO: Implement importing blend trees
+			}
+		}
+		else if (child instanceof SkeletonPose) {
+			// TODO: So if parent is not keyframe, could it also be assigned directly to an object?
+		}
+		else if (child instanceof KeyFrame) {
+			parent.addKeyFrame(child);
+		}
+	}
+
+	// all joints are assigned now:
+	for (var i = 0, len = skeletonLinks.length; i < len; ++i) {
+		var link = skeletonLinks[i];
+		parent = link.parent;
+		child = link.child;
+		meta = link.meta;
+		if (parent instanceof Mesh)
+			parent.skeleton = child;
+		else if (parent instanceof MeshInstance)
+			parent.mesh.skeleton = child;
+	}
+
+	for (i = 0, len = skeletonAnimationLinks.length; i < len; ++i) {
+		var link = skeletonAnimationLinks[i];
+		parent = link.parent;
+		child = link.child;
+		meta = link.meta;
+		parent.addComponent(child);
+	}
+
+	for (i = 0, len = deferredCommands.length; i < len; ++i)
+		deferredCommands[i]();
+};
+
 
 export {HX, HXData};

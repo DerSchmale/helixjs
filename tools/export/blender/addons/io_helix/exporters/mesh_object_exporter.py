@@ -4,7 +4,7 @@ from . import mesh_exporter
 from . import material_exporter
 
 
-def write(object, file, object_map, visible):
+def write(object, file, object_map, visible, armature_id=None):
     # these only actually write if they haven't written before
     mesh = object.data
     mesh_exporter.write(mesh, file, object_map)
@@ -28,5 +28,9 @@ def write(object, file, object_map, visible):
         object_map.link(mesh_instance_id, mesh_id)
         object_map.link(entity_id, mesh_instance_id)
         object_map.link(mesh_instance_id, material_id)
+
+        # make sure to propagate skeleton to children if it's skinned
+        if (armature_id is not None) and object.vertex_groups and (len(object.vertex_groups) > 0):
+            object_map.link(mesh_instance_id, armature_id)
 
     return entity_id

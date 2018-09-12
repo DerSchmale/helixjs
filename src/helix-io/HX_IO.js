@@ -5,5 +5,3 @@ export { GLTF, GLTFData } from "./gltf/GLTF";
 export { OBJ } from "./obj/OBJ";
 export { MTL } from "./obj/MTL";
 export { THREEBufferGeometry } from "./three/THREEBufferGeometry";
-export { AnimationClipExporter } from "./exporter/AnimationClipExporter";
-export { MeshExporter } from "./exporter/MeshExporter";

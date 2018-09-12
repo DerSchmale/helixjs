@@ -66,10 +66,10 @@ Component.create(SkeletonAnimation,
             {
                 return this._blendTree.rootNode;
             },
-            set function(value)
+
+            set: function(value)
             {
                 this._blendTree.rootNode = value;
-                if (this.entity) this._blendTree.skeleton = this.entity.skeleton;
             }
         }
     }
@@ -80,7 +80,7 @@ Component.create(SkeletonAnimation,
  */
 SkeletonAnimation.prototype.onAdded = function()
 {
-    this.entity.assignSkeletonPose(this._blendTree.skeletonPose);
+    this._blendTree.targetSkeletonPose = this.entity.skeletonPose;
 };
 
 /**
@@ -93,7 +93,6 @@ SkeletonAnimation.prototype.onUpdate = function(dt)
         var d = this._blendTree.rootJointDeltaPosition;
         matrix.prependTranslation(d);
         this.entity.matrix = matrix;
-        this.entity.skeletonPose = this._blendTree.skeletonPose;
     }
 };
 

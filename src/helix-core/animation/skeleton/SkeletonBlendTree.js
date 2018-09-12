@@ -17,7 +17,8 @@ function SkeletonBlendTree(rootNode)
 
 SkeletonBlendTree.prototype =
 {
-    get skeletonPose() { return this.rootNode.pose; },
+    get targetSkeletonPose() { return this.rootNode.pose; },
+    set targetSkeletonPose(value) { this.rootNode.pose = value; },
 
     get rootJointDeltaPosition() { return this.rootNode.rootJointDeltaPosition; },
 

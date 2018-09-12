@@ -734,15 +734,15 @@ HX.prototype._parseLinkList = function()
 		}
 		else if (child instanceof AnimationClip) {
 			if (parent instanceof SkeletonAnimation) {
-				if (!parent._blendTree.rootNode)
-					parent._blendTree.rootNode = new SkeletonXFadeNode();
+				if (!parent.animationNode)
+					parent.animationNode = new SkeletonXFadeNode();
 
-				console.assert(parent._blendTree.rootNode instanceof SkeletonXFadeNode, "Can't assign clip directly to skeleton when also assigning blend trees");
+				console.assert(parent.animationNode instanceof SkeletonXFadeNode, "Can't assign clip directly to skeleton when also assigning blend trees");
 
-				parent._blendTree.rootNode.addClip(child);
+				parent.animationNode.addClip(child);
 
 				if (meta === 1)
-					deferredCommands.push(parent._blendTree.rootNode.fadeTo.bind(parent._blendTree.rootNode, child, 0, false));
+					deferredCommands.push(parent.animationNode.fadeTo.bind(parent._blendTree.rootNode, child, 0, false));
 			}
 			else {
 				// TODO: Implement importing blend trees
@@ -762,10 +762,7 @@ HX.prototype._parseLinkList = function()
 		parent = link.parent;
 		child = link.child;
 		meta = link.meta;
-		if (parent instanceof Mesh)
-			parent.skeleton = child;
-		else if (parent instanceof MeshInstance)
-			parent.mesh.skeleton = child;
+		parent.skeleton = child;
 	}
 
 	for (i = 0, len = skeletonAnimationLinks.length; i < len; ++i) {

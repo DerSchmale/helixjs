@@ -26,11 +26,11 @@ def write_header(file, lighting_mode):
     data.end_header(file)
 
 
-def write_object(obj, file, obj_map, parent_id, scene, export_shadows, armature_index=None):
+def write_object(obj, file, obj_map, parent_id, scene, export_shadows):
     index = None
     visible = obj.is_visible(scene)
     if obj.type == "MESH":
-        index = mesh_object_exporter.write(obj, file, obj_map, visible, armature_index)
+        index = mesh_object_exporter.write(obj, file, obj_map, visible)
     elif obj.type == "LAMP":
         index = light_exporter.write(obj, file, obj_map, visible, export_shadows)
     elif obj.type == "CAMERA":
@@ -40,21 +40,13 @@ def write_object(obj, file, obj_map, parent_id, scene, export_shadows, armature_
         # but it can also have a position etc.
         index = armature_object_exporter.write(obj, file, obj_map, visible, scene)
 
-        # make sure to propagate skeleton to any child mesh instance objects further down the hierarchy
-        armature_index = obj_map.get_mapped_indices(obj.data)[0]
-
-        # every armature has its own skeleton pose that all its children should share
-        # how can we indicate that they should be shared, and that this is the skeleton animation's target
-
-        pass
-
     if index is not None:
         link_meta = int(obj == scene.camera)
         obj_map.link(parent_id, index, link_meta)
 
         # can't parse the children of an unknown object
         for child in obj.children:
-            write_object(child, file, obj_map, index, scene, export_shadows, armature_index)
+            write_object(child, file, obj_map, index, scene, export_shadows)
 
 
 def write_scene_graphs(file, obj_map, export_shadows):

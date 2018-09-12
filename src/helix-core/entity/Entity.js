@@ -4,6 +4,7 @@ import {Bitfield} from "../core/Bitfield";
 import {BoundingAABB} from "../scene/BoundingAABB";
 import {MeshInstance} from "../mesh/MeshInstance";
 import {Messenger} from "../core/Messenger";
+import {Matrix4x4} from "../math/Matrix4x4";
 
 /**
  * @classdesc
@@ -361,14 +362,24 @@ Entity.prototype.clone = function()
 /**
  * @inheritDoc
  */
-Entity.prototype.assignSkeletonPose = function(pose)
+Entity.prototype._bindSkeleton = function(skeleton, pose, root)
 {
+	var bindShapeMatrix;
+
 	for (var i = 0, len = this._components.length; i < len; ++i) {
 		var comp = this._components[i];
-		if (comp.hasOwnProperty("skeletonPose"))
-			comp.skeletonPose = pose;
+		if (comp._bindSkeleton) {
+			if (skeleton && !bindShapeMatrix && root !== this) {
+				bindShapeMatrix = root.worldMatrix.clone();
+				bindShapeMatrix.invertAffine();
+				bindShapeMatrix.prependAffine(this.worldMatrix);
+			}
+
+			comp._bindSkeleton(skeleton, pose, bindShapeMatrix);
+		}
 	}
-	SceneNode.prototype.assignSkeletonPose.call(this, pose);
+
+	SceneNode.prototype._bindSkeleton.call(this, skeleton, pose, root);
 };
 
 

@@ -26,9 +26,7 @@ function OrbitController(lookAtTarget)
     this.maxRadius = 4.0;
     this.minRadius = 0.1;
     this.dampen = .9;
-    this.lookAtTarget = lookAtTarget;
-
-    this._isDown = false;
+    this.lookAtTarget = lookAtTarget || new HX.Float4();
 }
 
 HX.Component.create(OrbitController,

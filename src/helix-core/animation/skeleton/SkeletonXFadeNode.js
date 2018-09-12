@@ -1,4 +1,3 @@
-import {AnimationClip} from "./../AnimationClip";
 import {SkeletonClipNode} from "./SkeletonClipNode";
 import {SkeletonBlendNode} from "./SkeletonBlendNode";
 
@@ -29,24 +28,31 @@ SkeletonXFadeNode.prototype.addClip = function(clip)
     this._clips[clip.name] = clip;
 };
 
+
+/**
+ * Retrieve the clip by name.
+ */
+SkeletonXFadeNode.prototype.getClip = function(name)
+{
+	return this._clips[name];
+};
+
 /**
  * @classdesc
  * Cross-fades the animation to a new target animation.
- * @param node A {@linkcode SkeletonBlendTreeNode}, an {@linkcode AnimationClip}, or a string with the name of a clip.
- * If using a string, the clip has to be added using {@linkcode addClip}.
+ * @param clipName A string with the name of a clip, as added to {@linkcode addClip}.
  * @param time The time the fade takes in milliseconds.
  * @param [sync] An optional flag to make clips sync to eachother. All clips with sync = true will be synced, others will
  * run independently. This only works if node is a (name of a) clip.
  */
-SkeletonXFadeNode.prototype.fadeTo = function(node, time, sync)
+SkeletonXFadeNode.prototype.fadeTo = function(clipName, time, sync)
 {
-    // immediately replace
-    if (time === 0 && node.looping === false) {
-        this._children = [];
-    }
-
-    if (node instanceof String) node = new SkeletonClipNode(this._clips[node]);
-    else if (node instanceof AnimationClip) node = new SkeletonClipNode(node);
+	var node = new SkeletonClipNode(this._clips[clipName]);
+    // can immediately replace if not looping and no fading
+    // if looping, need to keep children for when we're done animating
+	if (time === 0 && node.looping === false) {
+		this._children = [];
+	}
 
     this.numJoints = node.numJoints;
     // put the new one in front, it makes the update loop more efficient
@@ -66,23 +72,28 @@ SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
 {
     var len = this._children.length;
 
+    // figure out the synced duration once blended. The oldest animation in the list defines the playhead position,
+    // since it's what every new one needs to sync with
     var syncedDuration = 0;
     var totalWeight = 0;
     var refChild = undefined;
-    for (i = len - 1; i >= 0; --i) {
+
+    for (i = 0; i < len; ++i) {
         var child = this._children[i];
         var childNode = child.node;
         if (child.sync) {
             // the oldest clip defines the playhead position
-            refChild = refChild || child;
+            refChild = child;
             syncedDuration += child.node.duration * child.weight;
             totalWeight += child.weight;
         }
     }
+
     if (totalWeight !== 0.0)
         syncedDuration /= totalWeight;
 
     if (refChild) {
+        // for example: if syncedDuration > reference duration, playback of reference needs to slow down
         var syncedPlaybackRate = refChild.duration / syncedDuration;
         var syncRatio = (refChild.time + dt * syncedPlaybackRate) / refChild.duration;
     }
@@ -90,7 +101,7 @@ SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
     // we're still fading if len > 1
     var updated = len > 1 && dt > 0;
 
-    // update weights and remove any node that's become unused
+    // update weights and remove any node that's no longer used
     // do not interpolate the nodes into the pose yet, because if no updates occur, this is unnecessary
     for (var i = 0; i < len; ++i) {
         child = this._children[i];
@@ -105,9 +116,10 @@ SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
         else
             updated = childNode.update(dt, transferRootJoint) || updated;
 
-        // handle one-shots:
+        // remove completed one-shots:
         var w = child.weight + dt * child.fadeSpeed;
         if (childNode.looping === false) {
+            if (w > 1.0) w = 1.0;
             // need to fade out a one-shot at the end
             var f = (childNode.duration - childNode.time) * child.fadeSpeed;
             if (f <= 1) {
@@ -121,8 +133,7 @@ SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
             }
         }
 
-        // if looping === undefined, it's a node, and it's considered "endless"
-        if (w > .999 && childNode.looping !== false) {
+        else if (w > .999) {
             child.weight = 1.0;
             // we can safely remove any of the following child nodes, because their values will be lerped away
             this._children.splice(i + 1);

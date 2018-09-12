@@ -18,7 +18,7 @@ import {MathX} from "../math/MathX";
 function AnimationPlayhead(clip)
 {
 	this.playbackRate = 1.0;
-	this._clip = clip;
+	this.clip = clip;
 	this._time = 0;
     this._isPlaying = true;
     this._currentFrameIndex = 0;
@@ -60,7 +60,7 @@ AnimationPlayhead.prototype =
         set time(value)
         {
             if (!this.looping)
-                value = MathX.clamp(value, 0, this._clip.duration);
+                value = MathX.clamp(value, 0, this.clip.duration);
 
             if (this._time === value) return;
             this._time = value;
@@ -101,7 +101,7 @@ AnimationPlayhead.prototype =
                 this._time += dt;
             }
 
-            var clip = this._clip;
+            var clip = this.clip;
             // the last keyframe is just an "end marker" to interpolate with, it has no duration
             var numKeyFrames = clip.numKeyFrames;
             var numBaseFrames = numKeyFrames - 1;

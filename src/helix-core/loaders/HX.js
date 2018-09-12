@@ -742,7 +742,7 @@ HX.prototype._parseLinkList = function()
 				parent.animationNode.addClip(child);
 
 				if (meta === 1)
-					deferredCommands.push(parent.animationNode.fadeTo.bind(parent._blendTree.rootNode, child, 0, false));
+					deferredCommands.push(parent.animationNode.fadeTo.bind(parent._blendTree.rootNode, child.name, 0, false));
 			}
 			else {
 				// TODO: Implement importing blend trees

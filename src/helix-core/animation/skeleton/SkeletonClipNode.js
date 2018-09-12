@@ -7,6 +7,9 @@ import {AnimationPlayhead} from "../AnimationPlayhead";
  * A node in a SkeletonBlendTree to contain a single animation clip. An AnimationClip on its own is simply a resource and
  * does not contain playback state so it can be used across different animation instances. That relevant state is kept here.
  *
+ * @property {bool} looping Determines whether the animation should loop or not. By default, it uses the value
+ * determined by the AnimationClip, but can be overridden.
+ * @property {number} duration The duration of the clip.
  * @property {number} playbackRate A value to control the playback speed.
  * @property {number} time The current time in milliseconds of the play head.
  *
@@ -35,20 +38,13 @@ function SkeletonClipNode(clip)
 
 SkeletonClipNode.prototype = Object.create(SkeletonBlendNode.prototype,
     {
-        /**
-         * Determines whether the animation should loop or not. By default, it uses the value determined by the
-         * AnimationClip, but can be overridden.
-         */
         looping: {
             get: function() { return this._playhead.looping; },
             set: function(value) { this._playhead.looping = value; }
         },
 
-        /**
-         * The duration of the clip.
-         */
         duration: {
-            get: function() { return this._clip.duration; }
+            get: function() { return this._playhead.clip.duration; }
         },
 
         playbackRate: {

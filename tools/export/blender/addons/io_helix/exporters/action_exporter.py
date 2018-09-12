@@ -1,44 +1,4 @@
 from .. import data, property_types, object_types
-from mathutils import Vector, Quaternion
-
-
-class DummyTransform:
-    def __init__(self):
-        self.location = Vector((0.0, 0.0, 0.0))
-        self.scale = Vector((1.0, 1.0, 1.0))
-        self.rotation_quaternion = Quaternion((1.0, 0.0, 0.0, 0.0))
-
-
-class DummyBones(object):
-    def __init__(self):
-        self.targets = {}
-        self.bones = []
-
-    def __getitem__(self, item):
-        return self.targets[item]
-
-    def add_targets(self, dummy, base_name):
-        self.targets[base_name + ".location"] = dummy.location
-        self.targets[base_name + ".rotation_quaternion"] = dummy.rotation_quaternion
-        self.targets[base_name + ".scale"] = dummy.scale
-
-    def add_bone(self, bone):
-        dummy = DummyTransform()
-
-        # default is rest pose
-        m = bone.matrix_local
-        if bone.parent:
-            p = bone.parent.matrix_local.inverted()
-            m = p * m
-
-        dummy.location = m.to_translation()
-        dummy.rotation_quaternion = m.to_quaternion()
-        dummy.scale = m.to_scale()
-
-        self.add_targets(dummy, "pose.bones['" + bone.name + "']")
-        self.add_targets(dummy, "pose.bones[\"" + bone.name + "\"]")
-
-        self.bones.append(dummy)
 
 
 def write_joint_pose(pose, file):

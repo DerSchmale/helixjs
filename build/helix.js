@@ -3613,51 +3613,9 @@
 
 	ShaderLibrary._files['spot_light.glsl'] = 'struct HX_SpotLight\n{\n    vec3 color;\n    vec3 position;\n    vec3 direction;\n    float radius;\n    float rcpRadius;\n\n    vec2 angleData;    // cos(inner), rcp(cos(outer) - cos(inner))\n\n    mat4 shadowMapMatrix;\n    float depthBias;\n    int castShadows;\n\n    vec4 shadowTile;    // xy = scale, zw = offset\n};\n\nvoid hx_calculateLight(HX_SpotLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n\n    float cosAngle = dot(light.direction, direction);\n\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n    attenuation *=  saturate((cosAngle - light.angleData.x) * light.angleData.y);\n\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_SpotLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec4 shadowMapCoord = light.shadowMapMatrix * vec4(viewPos, 1.0);\n    shadowMapCoord /= shadowMapCoord.w;\n    // *.9 --> match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    shadowMapCoord.xy = shadowMapCoord.xy * .95 * light.shadowTile.xy + light.shadowTile.zw;\n    shadowMapCoord.z = length(viewPos - light.position) * light.rcpRadius;\n    return hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
 
-	ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	hx_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
-
-	ShaderLibrary._files['bloom_composite_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['bloom_threshold_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nuniform float threshold;\n\nvoid main()\n{\n        vec4 color = texture2D(hx_backbuffer, uv);\n        float originalLuminance = .05 + hx_luminance(color);\n        float targetLuminance = max(originalLuminance - threshold, 0.0);\n        hx_FragColor = color * targetLuminance / originalLuminance;\n}\n';
-
-	ShaderLibrary._files['default_post_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['fog_fragment.glsl'] = 'varying_in vec2 uv;\nvarying_in vec3 viewDir;\n\nuniform vec3 tint;\nuniform float density;\nuniform float startDistance;\nuniform float heightFallOff;\n\nuniform float hx_cameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\nuniform vec3 hx_cameraWorldPosition;\n\nuniform sampler2D hx_normalDepthBuffer;\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n    vec4 normalDepth = texture2D(hx_normalDepthBuffer, uv);\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float depth = hx_decodeLinearDepth(normalDepth);\n	// do not fog up skybox\n	if (normalDepth.z == 1.0 && normalDepth.w == 1.0) depth = 0.0;\n	float absViewY = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n	vec3 viewVec = viewDir * absViewY;\n	float fogFactor = max(length(viewVec) - startDistance, 0.0);// * exp(-heightFallOff * hx_cameraWorldPosition.y);\n//    if( abs( viewVec.y ) > 0.1 )\n//	{\n		float t = heightFallOff * (viewVec.z + hx_cameraWorldPosition.z);\n		fogFactor *= saturate(( 1.0 - exp( -t ) ) / t);\n//	}\n\n	float fog = clamp(exp(-fogFactor * density), 0.0, 1.0);\n	color.xyz = mix(tint, color.xyz, fog);\n	hx_FragColor = color;\n}';
-
-	ShaderLibrary._files['fog_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\nvarying_out vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\nuniform mat4 hx_cameraWorldMatrix;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    viewDir = mat3(hx_cameraWorldMatrix) * hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['fxaa_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\nuniform vec2 hx_rcpRenderTargetResolution;\nuniform float edgeThreshold;\nuniform float edgeThresholdMin;\nuniform float edgeSharpness;\n\nfloat luminanceHint(vec4 color)\n{\n	return .30/.59 * color.r + color.g;\n}\n\nvoid main()\n{\n	vec4 center = texture2D(hx_backbuffer, uv);\n	vec2 halfRes = vec2(hx_rcpRenderTargetResolution.x, hx_rcpRenderTargetResolution.y) * .5;\n	float topLeftLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(-halfRes.x, halfRes.y)));\n	float bottomLeftLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(-halfRes.x, -halfRes.y)));\n	float topRightLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(halfRes.x, halfRes.y)));\n	float bottomRightLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(halfRes.x, -halfRes.y)));\n\n	float centerLum = luminanceHint(center);\n	float minLum = min(min(topLeftLum, bottomLeftLum), min(topRightLum, bottomRightLum));\n	float maxLum = max(max(topLeftLum, bottomLeftLum), max(topRightLum, bottomRightLum));\n	float range = max(centerLum, maxLum) - min(centerLum, minLum);\n	float threshold = max(edgeThresholdMin, maxLum * edgeThreshold);\n	float applyFXAA = range < threshold? 0.0 : 1.0;\n\n	float diagDiff1 = bottomLeftLum - topRightLum;\n	float diagDiff2 = bottomRightLum - topLeftLum;\n	vec2 dir1 = normalize(vec2(diagDiff1 + diagDiff2, diagDiff1 - diagDiff2));\n	vec4 sampleNeg1 = texture2D(hx_backbuffer, uv - halfRes * dir1);\n	vec4 samplePos1 = texture2D(hx_backbuffer, uv + halfRes * dir1);\n\n	float minComp = min(abs(dir1.x), abs(dir1.y)) * edgeSharpness;\n	vec2 dir2 = clamp(dir1.xy / minComp, -2.0, 2.0) * 2.0;\n	vec4 sampleNeg2 = texture2D(hx_backbuffer, uv - hx_rcpRenderTargetResolution * dir2);\n	vec4 samplePos2 = texture2D(hx_backbuffer, uv + hx_rcpRenderTargetResolution * dir2);\n	vec4 tap1 = sampleNeg1 + samplePos1;\n	vec4 fxaa = (tap1 + sampleNeg2 + samplePos2) * .25;\n	float fxaaLum = luminanceHint(fxaa);\n	if ((fxaaLum < minLum) || (fxaaLum > maxLum))\n		fxaa = tap1 * .5;\n	hx_FragColor = mix(center, fxaa, applyFXAA);\n}';
-
-	ShaderLibrary._files['gaussian_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sourceTexture;\n\nuniform vec2 stepSize;\n\nuniform float gaussianWeights[NUM_WEIGHTS];\n\nvoid main()\n{\n	vec4 total = texture2D(sourceTexture, uv) * gaussianWeights[0];\n    vec2 offset = vec2(0.0);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n		offset += stepSize;\n	    vec4 s = texture2D(sourceTexture, uv + offset) + texture2D(sourceTexture, uv - offset);\n		total += s * gaussianWeights[i];\n	}\n\n	hx_FragColor = total;\n}';
-
-	ShaderLibrary._files['gaussian_blur_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['post_viewpos_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\nvarying_out vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['ssr_fragment.glsl'] = '#derivatives\n\n// TODO: This won\'t work anymore\nuniform sampler2D hx_gbufferColor;\nuniform sampler2D hx_gbufferNormals;\nuniform sampler2D hx_gbufferSpecular;\nuniform sampler2D hx_gbufferDepth;\nuniform sampler2D hx_dither2D;\nuniform vec2 hx_renderTargetResolution;\n\nuniform sampler2D hx_frontbuffer;\n\nvarying_in vec2 uv;\nvarying_in vec3 viewDir;\n\nuniform vec2 ditherTextureScale;\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\nuniform float hx_rcpCameraFrustumRange;\nuniform mat4 hx_projectionMatrix;\n\nuniform float maxDistance;\nuniform float stepSize;\nuniform float maxRoughness;\n\n// all in viewspace\n// 0 is start, 1 is end\nfloat raytrace(in vec3 ray0, in vec3 rayDir, out float hitZ, out vec2 hitUV)\n{\n    vec4 dither = hx_sampleDefaultDither(hx_dither2D, uv * ditherTextureScale);\n    // Clip to the near plane\n	float rayLength = ((ray0.z + rayDir.z * maxDistance) > -hx_cameraNearPlaneDistance) ?\n						(-hx_cameraNearPlaneDistance - ray0.z) / rayDir.z : maxDistance;\n\n    vec3 ray1 = ray0 + rayDir * rayLength;\n\n    // only need the w component for perspective correct interpolation\n    // need to get adjusted ray end\'s uv value\n    vec4 hom0 = hx_projectionMatrix * vec4(ray0, 1.0);\n    vec4 hom1 = hx_projectionMatrix * vec4(ray1, 1.0);\n    float rcpW0 = 1.0 / hom0.w;\n    float rcpW1 = 1.0 / hom1.w;\n\n    hom0 *= rcpW0;\n    hom1 *= rcpW1;\n\n    // expressed in pixels, so we can snap to 1\n    // need to figure out the ratio between 1 pixel and the entire line \"width\" (if primarily vertical, it\'s actually height)\n\n    // line dimensions in pixels:\n\n    vec2 pixelSize = (hom1.xy - hom0.xy) * hx_renderTargetResolution * .5;\n\n    // line-\"width\" = max(abs(pixelSize.x), abs(pixelSize.y))\n    // ratio pixel/width = 1 / max(abs(pixelSize.x), abs(pixelSize.y))\n\n    float stepRatio = 1.0 / max(abs(pixelSize.x), abs(pixelSize.y)) * stepSize;\n\n    vec2 uvEnd = hom1.xy * .5 + .5;\n\n    vec2 dUV = (uvEnd - uv) * stepRatio;\n    hitUV = uv;\n\n    // linear depth\n    float rayDepth = (-ray0.z - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange;\n    float rayPerspDepth0 = rayDepth * rcpW0;\n    float rayPerspDepth1 = (-ray1.z - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange * rcpW1;\n    float rayPerspDepth = rayPerspDepth0;\n    // could probably optimize this:\n    float dRayD = (rayPerspDepth1 - rayPerspDepth0) * stepRatio;\n\n    float rcpW = rcpW0;\n    float dRcpW = (rcpW1 - rcpW0) * stepRatio;\n    float sceneDepth = rayDepth;\n\n    float amount = 0.0;\n\n    hitUV += dUV * dither.z;\n    rayPerspDepth += dRayD * dither.z;\n    rcpW += dRcpW * dither.z;\n\n    float sampleCount;\n    for (int i = 0; i < NUM_SAMPLES; ++i) {\n        rayDepth = rayPerspDepth / rcpW;\n\n        sceneDepth = hx_sampleLinearDepth(hx_gbufferDepth, hitUV);\n\n        if (rayDepth > sceneDepth + .001) {\n            amount = float(sceneDepth < 1.0);\n            sampleCount = float(i);\n            break;\n        }\n\n        hitUV += dUV;\n        rayPerspDepth += dRayD;\n        rcpW += dRcpW;\n    }\n\n    hitZ = -hx_cameraNearPlaneDistance - sceneDepth * hx_cameraFrustumRange;\n\n    amount *= clamp((1.0 - (sampleCount - float(NUM_SAMPLES)) / float(NUM_SAMPLES)) * 5.0, 0.0, 1.0);\n    return amount;\n}\n\nvoid main()\n{\n    vec4 colorSample = hx_gammaToLinear(texture2D(hx_gbufferColor, uv));\n    vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n    float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n    vec3 normalSpecularReflectance;\n    float roughness;\n    float metallicness;\n    hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness, metallicness);\n    vec3 normal = hx_decodeNormal(texture2D(hx_gbufferNormals, uv));\n    vec3 reflDir = reflect(normalize(viewDir), normal);\n\n    vec3 fresnel = hx_fresnel(normalSpecularReflectance, reflDir, normal);\n    // not physically correct, but attenuation is required to look good\n\n    // step for every pixel\n\n    float absViewY = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n    vec3 viewSpacePos = absViewY * viewDir;\n\n    float hitY = 0.0;\n    vec2 hitUV;\n    float amount = raytrace(viewSpacePos, reflDir, hitY, hitUV);\n    float fadeFactor = 1.0 - clamp(reflDir.z * 2.0, 0.0, 1.0);\n\n    vec2 borderFactors = abs(hitUV * 2.0 - 1.0);\n    borderFactors = (1.0 - borderFactors) * 10.0;\n    fadeFactor *= clamp(borderFactors.x, 0.0, 1.0) * clamp(borderFactors.y, 0.0, 1.0);\n\n    float diff = viewSpacePos.y - hitY;\n    fadeFactor *= hx_linearStep(-1.0, 0.0, diff);\n    fadeFactor *= hx_linearStep(maxRoughness, 0.0, roughness);\n\n    vec4 reflColor = texture2D(hx_frontbuffer, hitUV);\n\n    float amountUsed = amount * fadeFactor;\n    hx_FragColor = vec4(fresnel * reflColor.xyz, amountUsed);\n}\n\n';
-
-	ShaderLibrary._files['ssr_stencil_fragment.glsl'] = 'uniform sampler2D hx_gbufferSpecular;\n\nvarying_in vec2 uv;\n\nuniform float maxRoughness;\n\nvoid main()\n{\n    vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n    if (specularSample.x > maxRoughness)\n        discard;\n}\n\n';
-
-	ShaderLibrary._files['tonemap_filmic_fragment.glsl'] = 'void main()\n{\n	vec3 x = hx_getToneMapScaledColor().xyz * 16.0;\n\n    // Uncharted 2 tonemapping (http://filmicworlds.com/blog/filmic-tonemapping-operators/)\n\n	float A = 0.15;\n    float B = 0.50;\n    float C = 0.10;\n    float D = 0.20;\n    float E = 0.02;\n    float F = 0.30;\n    float W = 11.2;\n\n    hx_FragColor.xyz = hx_gammaToLinear(((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F);\n    hx_FragColor.w = 1.0;\n}';
-
-	ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	hx_FragColor = vec4(l, l, l, 1.0);\n}';
-
-	ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	hx_FragColor = color / (1.0 + lum);\n}';
-
-	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
-
-	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
-
-	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
-
-	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
-
-	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
-
 	ShaderLibrary._files['default_geometry_fragment.glsl'] = 'uniform vec3 color;\nuniform vec3 emissiveColor;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(METALLIC_ROUGHNESS_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\nvarying_in vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef OCCLUSION_MAP\nuniform sampler2D occlusionMap;\n#endif\n\n#ifdef EMISSION_MAP\nuniform sampler2D emissionMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    varying_in vec3 normal;\n\n    #ifdef NORMAL_MAP\n    varying_in vec3 tangent;\n    varying_in vec3 bitangent;\n\n    uniform sampler2D normalMap;\n    #endif\n#endif\n\n#ifndef HX_SKIP_SPECULAR\nuniform float roughness;\nuniform float roughnessRange;\nuniform float normalSpecularReflectance;\nuniform float metallicness;\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\n#endif\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#ifdef VERTEX_COLORS\nvarying_in vec3 vertexColor;\n#endif\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    data.color = hx_gammaToLinear(outputColor);\n\n#ifndef HX_SKIP_SPECULAR\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = normalSpecularReflectance;\n    float roughnessOut = roughness;\n#endif\n\n#if defined(HX_SKIP_NORMALS) && defined(NORMAL_ROUGHNESS_MAP) && !defined(HX_SKIP_SPECULAR)\n    vec4 normalSample = texture2D(normalMap, texCoords);\n    roughnessOut -= roughnessRange * (normalSample.w - .5);\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    vec3 fragNormal = normal;\n\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz - .5);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (normalSample.w - .5);\n        #endif\n    #endif\n\n    #ifdef DOUBLE_SIDED\n        fragNormal *= gl_FrontFacing? 1.0 : -1.0;\n    #endif\n    data.normal = normalize(fragNormal);\n#endif\n\n#ifndef HX_SKIP_SPECULAR\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n\n          #ifdef METALLIC_ROUGHNESS_MAP\n              roughnessOut -= roughnessRange * (specSample.y - .5);\n              metallicnessOut *= specSample.z;\n\n          #else\n              roughnessOut -= roughnessRange * (specSample.x - .5);\n\n              #ifdef SPECULAR_MAP\n                  specNormalReflOut *= specSample.y;\n                  metallicnessOut *= specSample.z;\n              #endif\n          #endif\n    #endif\n\n    data.metallicness = metallicnessOut;\n    data.normalSpecularReflectance = specNormalReflOut;\n    data.roughness = roughnessOut;\n#endif\n\n    data.occlusion = 1.0;\n\n#ifdef OCCLUSION_MAP\n    data.occlusion = texture2D(occlusionMap, texCoords).x;\n#endif\n\n    vec3 emission = emissiveColor;\n#ifdef EMISSION_MAP\n    emission *= texture2D(emissionMap, texCoords).xyz;\n#endif\n\n    data.emission = hx_gammaToLinear(emission);\n    return data;\n}';
 
-	ShaderLibrary._files['default_geometry_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\n// morph positions are offsets re the base position!\n#ifdef HX_USE_MORPHING\nvertex_attribute vec3 hx_morphPosition0;\nvertex_attribute vec3 hx_morphPosition1;\nvertex_attribute vec3 hx_morphPosition2;\nvertex_attribute vec3 hx_morphPosition3;\n\n#ifdef HX_USE_NORMAL_MORPHING\n    #ifndef HX_SKIP_NORMALS\n    vertex_attribute vec3 hx_morphNormal0;\n    vertex_attribute vec3 hx_morphNormal1;\n    vertex_attribute vec3 hx_morphNormal2;\n    vertex_attribute vec3 hx_morphNormal3;\n    #endif\n\nuniform float hx_morphWeights[4];\n#else\nvertex_attribute vec3 hx_morphPosition4;\nvertex_attribute vec3 hx_morphPosition5;\nvertex_attribute vec3 hx_morphPosition6;\nvertex_attribute vec3 hx_morphPosition7;\n\nuniform float hx_morphWeights[8];\n#endif\n\n#endif\n\n#ifdef HX_USE_SKINNING\nvertex_attribute vec4 hx_jointIndices;\nvertex_attribute vec4 hx_jointWeights;\n\n// WebGL doesn\'t support mat4x3 and I don\'t want to split the uniform either\n#ifdef HX_USE_SKINNING_TEXTURE\nuniform sampler2D hx_skinningTexture;\n#else\nuniform vec4 hx_skinningMatrices[HX_MAX_SKELETON_JOINTS * 3];\n#endif\n#endif\n\nuniform mat4 hx_wvpMatrix;\nuniform mat4 hx_worldViewMatrix;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\nvertex_attribute vec2 hx_texCoord;\nvarying_out vec2 texCoords;\n#endif\n\n#ifdef VERTEX_COLORS\nvertex_attribute vec3 hx_vertexColor;\nvarying_out vec3 vertexColor;\n#endif\n\n#ifndef HX_SKIP_NORMALS\nvertex_attribute vec3 hx_normal;\nvarying_out vec3 normal;\n\nuniform mat3 hx_normalWorldViewMatrix;\n#ifdef NORMAL_MAP\nvertex_attribute vec4 hx_tangent;\n\nvarying_out vec3 tangent;\nvarying_out vec3 bitangent;\n#endif\n#endif\n\nvoid hx_geometry()\n{\n    vec4 morphedPosition = hx_position;\n\n    #ifndef HX_SKIP_NORMALS\n    vec3 morphedNormal = hx_normal;\n    #endif\n\n// TODO: Abstract this in functions for easier reuse in other materials\n#ifdef HX_USE_MORPHING\n    morphedPosition.xyz += hx_morphPosition0 * hx_morphWeights[0];\n    morphedPosition.xyz += hx_morphPosition1 * hx_morphWeights[1];\n    morphedPosition.xyz += hx_morphPosition2 * hx_morphWeights[2];\n    morphedPosition.xyz += hx_morphPosition3 * hx_morphWeights[3];\n    #ifdef HX_USE_NORMAL_MORPHING\n        #ifndef HX_SKIP_NORMALS\n        morphedNormal += hx_morphNormal0 * hx_morphWeights[0];\n        morphedNormal += hx_morphNormal1 * hx_morphWeights[1];\n        morphedNormal += hx_morphNormal2 * hx_morphWeights[2];\n        morphedNormal += hx_morphNormal3 * hx_morphWeights[3];\n        #endif\n    #else\n        morphedPosition.xyz += hx_morphPosition4 * hx_morphWeights[4];\n        morphedPosition.xyz += hx_morphPosition5 * hx_morphWeights[5];\n        morphedPosition.xyz += hx_morphPosition6 * hx_morphWeights[6];\n        morphedPosition.xyz += hx_morphPosition7 * hx_morphWeights[7];\n    #endif\n#endif\n\n#ifdef HX_USE_SKINNING\n    mat4 skinningMatrix = hx_getSkinningMatrix(0);\n\n    vec4 animPosition = morphedPosition * skinningMatrix;\n\n    #ifndef HX_SKIP_NORMALS\n        vec3 animNormal = morphedNormal * mat3(skinningMatrix);\n\n        #ifdef NORMAL_MAP\n        vec3 animTangent = hx_tangent.xyz * mat3(skinningMatrix);\n        #endif\n    #endif\n#else\n    vec4 animPosition = morphedPosition;\n\n    #ifndef HX_SKIP_NORMALS\n        vec3 animNormal = morphedNormal;\n\n        #ifdef NORMAL_MAP\n        vec3 animTangent = hx_tangent.xyz;\n        #endif\n    #endif\n#endif\n\n    // TODO: Should gl_position be handled by the shaders if we only return local position?\n    gl_Position = hx_wvpMatrix * animPosition;\n\n#ifndef HX_SKIP_NORMALS\n    normal = normalize(hx_normalWorldViewMatrix * animNormal);\n\n    #ifdef NORMAL_MAP\n        tangent = mat3(hx_worldViewMatrix) * animTangent;\n        bitangent = cross(tangent, normal) * hx_tangent.w;\n    #endif\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\n    texCoords = hx_texCoord;\n#endif\n\n#ifdef VERTEX_COLORS\n    vertexColor = hx_vertexColor;\n#endif\n}';
+	ShaderLibrary._files['default_geometry_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\n// morph positions are offsets re the base position!\n#ifdef HX_USE_MORPHING\nvertex_attribute vec3 hx_morphPosition0;\nvertex_attribute vec3 hx_morphPosition1;\nvertex_attribute vec3 hx_morphPosition2;\nvertex_attribute vec3 hx_morphPosition3;\n\n#ifdef HX_USE_NORMAL_MORPHING\n    #ifndef HX_SKIP_NORMALS\n    vertex_attribute vec3 hx_morphNormal0;\n    vertex_attribute vec3 hx_morphNormal1;\n    vertex_attribute vec3 hx_morphNormal2;\n    vertex_attribute vec3 hx_morphNormal3;\n    #endif\n\nuniform float hx_morphWeights[4];\n#else\nvertex_attribute vec3 hx_morphPosition4;\nvertex_attribute vec3 hx_morphPosition5;\nvertex_attribute vec3 hx_morphPosition6;\nvertex_attribute vec3 hx_morphPosition7;\n\nuniform float hx_morphWeights[8];\n#endif\n\n#endif\n\n#ifdef HX_USE_SKINNING\nvertex_attribute vec4 hx_jointIndices;\nvertex_attribute vec4 hx_jointWeights;\n\nuniform mat4 hx_bindShapeMatrix;\nuniform mat4 hx_bindShapeMatrixInverse;\n\n// WebGL doesn\'t support mat4x3 and I don\'t want to split the uniform either\n#ifdef HX_USE_SKINNING_TEXTURE\nuniform sampler2D hx_skinningTexture;\n#else\nuniform vec4 hx_skinningMatrices[HX_MAX_SKELETON_JOINTS * 3];\n#endif\n#endif\n\nuniform mat4 hx_wvpMatrix;\nuniform mat4 hx_worldViewMatrix;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\nvertex_attribute vec2 hx_texCoord;\nvarying_out vec2 texCoords;\n#endif\n\n#ifdef VERTEX_COLORS\nvertex_attribute vec3 hx_vertexColor;\nvarying_out vec3 vertexColor;\n#endif\n\n#ifndef HX_SKIP_NORMALS\nvertex_attribute vec3 hx_normal;\nvarying_out vec3 normal;\n\nuniform mat3 hx_normalWorldViewMatrix;\n#ifdef NORMAL_MAP\nvertex_attribute vec4 hx_tangent;\n\nvarying_out vec3 tangent;\nvarying_out vec3 bitangent;\n#endif\n#endif\n\nvoid hx_geometry()\n{\n    vec4 morphedPosition = hx_position;\n\n    #ifndef HX_SKIP_NORMALS\n    vec3 morphedNormal = hx_normal;\n    #endif\n\n// TODO: Abstract this in functions for easier reuse in other materials\n#ifdef HX_USE_MORPHING\n    morphedPosition.xyz += hx_morphPosition0 * hx_morphWeights[0];\n    morphedPosition.xyz += hx_morphPosition1 * hx_morphWeights[1];\n    morphedPosition.xyz += hx_morphPosition2 * hx_morphWeights[2];\n    morphedPosition.xyz += hx_morphPosition3 * hx_morphWeights[3];\n    #ifdef HX_USE_NORMAL_MORPHING\n        #ifndef HX_SKIP_NORMALS\n        morphedNormal += hx_morphNormal0 * hx_morphWeights[0];\n        morphedNormal += hx_morphNormal1 * hx_morphWeights[1];\n        morphedNormal += hx_morphNormal2 * hx_morphWeights[2];\n        morphedNormal += hx_morphNormal3 * hx_morphWeights[3];\n        #endif\n    #else\n        morphedPosition.xyz += hx_morphPosition4 * hx_morphWeights[4];\n        morphedPosition.xyz += hx_morphPosition5 * hx_morphWeights[5];\n        morphedPosition.xyz += hx_morphPosition6 * hx_morphWeights[6];\n        morphedPosition.xyz += hx_morphPosition7 * hx_morphWeights[7];\n    #endif\n#endif\n\n#ifdef HX_USE_SKINNING\n    mat4 skinningMatrix = hx_getSkinningMatrix(0);\n\n    // first transform to armature space\n    // then transform back to object space\n    vec4 animPosition = hx_bindShapeMatrixInverse * ((hx_bindShapeMatrix * morphedPosition) * skinningMatrix);\n\n    #ifndef HX_SKIP_NORMALS\n        vec3 animNormal = morphedNormal * mat3(skinningMatrix);\n\n        #ifdef NORMAL_MAP\n        vec3 animTangent = hx_tangent.xyz * mat3(skinningMatrix);\n        #endif\n    #endif\n#else\n    vec4 animPosition = morphedPosition;\n\n    #ifndef HX_SKIP_NORMALS\n        vec3 animNormal = morphedNormal;\n\n        #ifdef NORMAL_MAP\n        vec3 animTangent = hx_tangent.xyz;\n        #endif\n    #endif\n#endif\n\n    // TODO: Should gl_position be handled by the shaders if we only return local position?\n    gl_Position = hx_wvpMatrix * animPosition;\n\n#ifndef HX_SKIP_NORMALS\n    normal = normalize(hx_normalWorldViewMatrix * animNormal);\n\n    #ifdef NORMAL_MAP\n        tangent = mat3(hx_worldViewMatrix) * animTangent;\n        bitangent = cross(tangent, normal) * hx_tangent.w;\n    #endif\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\n    texCoords = hx_texCoord;\n#endif\n\n#ifdef VERTEX_COLORS\n    vertexColor = hx_vertexColor;\n#endif\n}';
 
 	ShaderLibrary._files['default_skybox_fragment.glsl'] = 'varying_in vec3 viewWorldDir;\n\nuniform samplerCube hx_skybox;\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n    data.color = textureCube(hx_skybox, viewWorldDir.xzy);\n    data.emission = vec3(0.0);\n    data.color = hx_gammaToLinear(data.color);\n    return data;\n}';
 
@@ -3704,6 +3662,48 @@
 	ShaderLibrary._files['material_unlit_fragment.glsl'] = 'void main()\n{\n    HX_GeometryData data = hx_geometry();\n    hx_FragColor = data.color;\n    hx_FragColor.xyz += data.emission;\n}';
 
 	ShaderLibrary._files['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
+
+	ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	hx_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
+
+	ShaderLibrary._files['bloom_composite_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['bloom_threshold_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nuniform float threshold;\n\nvoid main()\n{\n        vec4 color = texture2D(hx_backbuffer, uv);\n        float originalLuminance = .05 + hx_luminance(color);\n        float targetLuminance = max(originalLuminance - threshold, 0.0);\n        hx_FragColor = color * targetLuminance / originalLuminance;\n}\n';
+
+	ShaderLibrary._files['default_post_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['fog_fragment.glsl'] = 'varying_in vec2 uv;\nvarying_in vec3 viewDir;\n\nuniform vec3 tint;\nuniform float density;\nuniform float startDistance;\nuniform float heightFallOff;\n\nuniform float hx_cameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\nuniform vec3 hx_cameraWorldPosition;\n\nuniform sampler2D hx_normalDepthBuffer;\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n    vec4 normalDepth = texture2D(hx_normalDepthBuffer, uv);\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float depth = hx_decodeLinearDepth(normalDepth);\n	// do not fog up skybox\n	if (normalDepth.z == 1.0 && normalDepth.w == 1.0) depth = 0.0;\n	float absViewY = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n	vec3 viewVec = viewDir * absViewY;\n	float fogFactor = max(length(viewVec) - startDistance, 0.0);// * exp(-heightFallOff * hx_cameraWorldPosition.y);\n//    if( abs( viewVec.y ) > 0.1 )\n//	{\n		float t = heightFallOff * (viewVec.z + hx_cameraWorldPosition.z);\n		fogFactor *= saturate(( 1.0 - exp( -t ) ) / t);\n//	}\n\n	float fog = clamp(exp(-fogFactor * density), 0.0, 1.0);\n	color.xyz = mix(tint, color.xyz, fog);\n	hx_FragColor = color;\n}';
+
+	ShaderLibrary._files['fog_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\nvarying_out vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\nuniform mat4 hx_cameraWorldMatrix;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    viewDir = mat3(hx_cameraWorldMatrix) * hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n    gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['fxaa_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\nuniform vec2 hx_rcpRenderTargetResolution;\nuniform float edgeThreshold;\nuniform float edgeThresholdMin;\nuniform float edgeSharpness;\n\nfloat luminanceHint(vec4 color)\n{\n	return .30/.59 * color.r + color.g;\n}\n\nvoid main()\n{\n	vec4 center = texture2D(hx_backbuffer, uv);\n	vec2 halfRes = vec2(hx_rcpRenderTargetResolution.x, hx_rcpRenderTargetResolution.y) * .5;\n	float topLeftLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(-halfRes.x, halfRes.y)));\n	float bottomLeftLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(-halfRes.x, -halfRes.y)));\n	float topRightLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(halfRes.x, halfRes.y)));\n	float bottomRightLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(halfRes.x, -halfRes.y)));\n\n	float centerLum = luminanceHint(center);\n	float minLum = min(min(topLeftLum, bottomLeftLum), min(topRightLum, bottomRightLum));\n	float maxLum = max(max(topLeftLum, bottomLeftLum), max(topRightLum, bottomRightLum));\n	float range = max(centerLum, maxLum) - min(centerLum, minLum);\n	float threshold = max(edgeThresholdMin, maxLum * edgeThreshold);\n	float applyFXAA = range < threshold? 0.0 : 1.0;\n\n	float diagDiff1 = bottomLeftLum - topRightLum;\n	float diagDiff2 = bottomRightLum - topLeftLum;\n	vec2 dir1 = normalize(vec2(diagDiff1 + diagDiff2, diagDiff1 - diagDiff2));\n	vec4 sampleNeg1 = texture2D(hx_backbuffer, uv - halfRes * dir1);\n	vec4 samplePos1 = texture2D(hx_backbuffer, uv + halfRes * dir1);\n\n	float minComp = min(abs(dir1.x), abs(dir1.y)) * edgeSharpness;\n	vec2 dir2 = clamp(dir1.xy / minComp, -2.0, 2.0) * 2.0;\n	vec4 sampleNeg2 = texture2D(hx_backbuffer, uv - hx_rcpRenderTargetResolution * dir2);\n	vec4 samplePos2 = texture2D(hx_backbuffer, uv + hx_rcpRenderTargetResolution * dir2);\n	vec4 tap1 = sampleNeg1 + samplePos1;\n	vec4 fxaa = (tap1 + sampleNeg2 + samplePos2) * .25;\n	float fxaaLum = luminanceHint(fxaa);\n	if ((fxaaLum < minLum) || (fxaaLum > maxLum))\n		fxaa = tap1 * .5;\n	hx_FragColor = mix(center, fxaa, applyFXAA);\n}';
+
+	ShaderLibrary._files['gaussian_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sourceTexture;\n\nuniform vec2 stepSize;\n\nuniform float gaussianWeights[NUM_WEIGHTS];\n\nvoid main()\n{\n	vec4 total = texture2D(sourceTexture, uv) * gaussianWeights[0];\n    vec2 offset = vec2(0.0);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n		offset += stepSize;\n	    vec4 s = texture2D(sourceTexture, uv + offset) + texture2D(sourceTexture, uv - offset);\n		total += s * gaussianWeights[i];\n	}\n\n	hx_FragColor = total;\n}';
+
+	ShaderLibrary._files['gaussian_blur_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['post_viewpos_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\nvarying_out vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n    gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['ssr_fragment.glsl'] = '#derivatives\n\n// TODO: This won\'t work anymore\nuniform sampler2D hx_gbufferColor;\nuniform sampler2D hx_gbufferNormals;\nuniform sampler2D hx_gbufferSpecular;\nuniform sampler2D hx_gbufferDepth;\nuniform sampler2D hx_dither2D;\nuniform vec2 hx_renderTargetResolution;\n\nuniform sampler2D hx_frontbuffer;\n\nvarying_in vec2 uv;\nvarying_in vec3 viewDir;\n\nuniform vec2 ditherTextureScale;\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\nuniform float hx_rcpCameraFrustumRange;\nuniform mat4 hx_projectionMatrix;\n\nuniform float maxDistance;\nuniform float stepSize;\nuniform float maxRoughness;\n\n// all in viewspace\n// 0 is start, 1 is end\nfloat raytrace(in vec3 ray0, in vec3 rayDir, out float hitZ, out vec2 hitUV)\n{\n    vec4 dither = hx_sampleDefaultDither(hx_dither2D, uv * ditherTextureScale);\n    // Clip to the near plane\n	float rayLength = ((ray0.z + rayDir.z * maxDistance) > -hx_cameraNearPlaneDistance) ?\n						(-hx_cameraNearPlaneDistance - ray0.z) / rayDir.z : maxDistance;\n\n    vec3 ray1 = ray0 + rayDir * rayLength;\n\n    // only need the w component for perspective correct interpolation\n    // need to get adjusted ray end\'s uv value\n    vec4 hom0 = hx_projectionMatrix * vec4(ray0, 1.0);\n    vec4 hom1 = hx_projectionMatrix * vec4(ray1, 1.0);\n    float rcpW0 = 1.0 / hom0.w;\n    float rcpW1 = 1.0 / hom1.w;\n\n    hom0 *= rcpW0;\n    hom1 *= rcpW1;\n\n    // expressed in pixels, so we can snap to 1\n    // need to figure out the ratio between 1 pixel and the entire line \"width\" (if primarily vertical, it\'s actually height)\n\n    // line dimensions in pixels:\n\n    vec2 pixelSize = (hom1.xy - hom0.xy) * hx_renderTargetResolution * .5;\n\n    // line-\"width\" = max(abs(pixelSize.x), abs(pixelSize.y))\n    // ratio pixel/width = 1 / max(abs(pixelSize.x), abs(pixelSize.y))\n\n    float stepRatio = 1.0 / max(abs(pixelSize.x), abs(pixelSize.y)) * stepSize;\n\n    vec2 uvEnd = hom1.xy * .5 + .5;\n\n    vec2 dUV = (uvEnd - uv) * stepRatio;\n    hitUV = uv;\n\n    // linear depth\n    float rayDepth = (-ray0.z - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange;\n    float rayPerspDepth0 = rayDepth * rcpW0;\n    float rayPerspDepth1 = (-ray1.z - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange * rcpW1;\n    float rayPerspDepth = rayPerspDepth0;\n    // could probably optimize this:\n    float dRayD = (rayPerspDepth1 - rayPerspDepth0) * stepRatio;\n\n    float rcpW = rcpW0;\n    float dRcpW = (rcpW1 - rcpW0) * stepRatio;\n    float sceneDepth = rayDepth;\n\n    float amount = 0.0;\n\n    hitUV += dUV * dither.z;\n    rayPerspDepth += dRayD * dither.z;\n    rcpW += dRcpW * dither.z;\n\n    float sampleCount;\n    for (int i = 0; i < NUM_SAMPLES; ++i) {\n        rayDepth = rayPerspDepth / rcpW;\n\n        sceneDepth = hx_sampleLinearDepth(hx_gbufferDepth, hitUV);\n\n        if (rayDepth > sceneDepth + .001) {\n            amount = float(sceneDepth < 1.0);\n            sampleCount = float(i);\n            break;\n        }\n\n        hitUV += dUV;\n        rayPerspDepth += dRayD;\n        rcpW += dRcpW;\n    }\n\n    hitZ = -hx_cameraNearPlaneDistance - sceneDepth * hx_cameraFrustumRange;\n\n    amount *= clamp((1.0 - (sampleCount - float(NUM_SAMPLES)) / float(NUM_SAMPLES)) * 5.0, 0.0, 1.0);\n    return amount;\n}\n\nvoid main()\n{\n    vec4 colorSample = hx_gammaToLinear(texture2D(hx_gbufferColor, uv));\n    vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n    float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n    vec3 normalSpecularReflectance;\n    float roughness;\n    float metallicness;\n    hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness, metallicness);\n    vec3 normal = hx_decodeNormal(texture2D(hx_gbufferNormals, uv));\n    vec3 reflDir = reflect(normalize(viewDir), normal);\n\n    vec3 fresnel = hx_fresnel(normalSpecularReflectance, reflDir, normal);\n    // not physically correct, but attenuation is required to look good\n\n    // step for every pixel\n\n    float absViewY = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n    vec3 viewSpacePos = absViewY * viewDir;\n\n    float hitY = 0.0;\n    vec2 hitUV;\n    float amount = raytrace(viewSpacePos, reflDir, hitY, hitUV);\n    float fadeFactor = 1.0 - clamp(reflDir.z * 2.0, 0.0, 1.0);\n\n    vec2 borderFactors = abs(hitUV * 2.0 - 1.0);\n    borderFactors = (1.0 - borderFactors) * 10.0;\n    fadeFactor *= clamp(borderFactors.x, 0.0, 1.0) * clamp(borderFactors.y, 0.0, 1.0);\n\n    float diff = viewSpacePos.y - hitY;\n    fadeFactor *= hx_linearStep(-1.0, 0.0, diff);\n    fadeFactor *= hx_linearStep(maxRoughness, 0.0, roughness);\n\n    vec4 reflColor = texture2D(hx_frontbuffer, hitUV);\n\n    float amountUsed = amount * fadeFactor;\n    hx_FragColor = vec4(fresnel * reflColor.xyz, amountUsed);\n}\n\n';
+
+	ShaderLibrary._files['ssr_stencil_fragment.glsl'] = 'uniform sampler2D hx_gbufferSpecular;\n\nvarying_in vec2 uv;\n\nuniform float maxRoughness;\n\nvoid main()\n{\n    vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n    if (specularSample.x > maxRoughness)\n        discard;\n}\n\n';
+
+	ShaderLibrary._files['tonemap_filmic_fragment.glsl'] = 'void main()\n{\n	vec3 x = hx_getToneMapScaledColor().xyz * 16.0;\n\n    // Uncharted 2 tonemapping (http://filmicworlds.com/blog/filmic-tonemapping-operators/)\n\n	float A = 0.15;\n    float B = 0.50;\n    float C = 0.10;\n    float D = 0.20;\n    float E = 0.02;\n    float F = 0.30;\n    float W = 11.2;\n\n    hx_FragColor.xyz = hx_gammaToLinear(((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F);\n    hx_FragColor.w = 1.0;\n}';
+
+	ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	hx_FragColor = vec4(l, l, l, 1.0);\n}';
+
+	ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	hx_FragColor = color / (1.0 + lum);\n}';
+
+	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
+
+	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
+
+	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
+
+	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
+
+	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
 
 	ShaderLibrary._files['esm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readValue(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readValue(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValue(uv + offset) + readValue(uv - offset);\n	}\n\n//	hx_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	hx_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
 
@@ -6758,7 +6758,6 @@
 	    this.onBoundsChanged = new Signal();
 	    this.onLayoutChanged = new Signal();
 	    this.onMorphDataCreated = new Signal();
-		this.onSkeletonChange = new Signal();
 		this.name = "hx_mesh_" + MESH_ID_COUNTER;
 		this.elementType = ElementType.TRIANGLES;
 		this._bounds = new BoundingAABB();
@@ -6849,20 +6848,6 @@
 				this._invalidateBounds();
 			else
 				this._boundsInvalid = false;
-		},
-
-		/**
-		 * The {@linkcode Skeleton} used for skinning animations.
-		 */
-		get skeleton()
-		{
-			return this._skeleton;
-		},
-
-		set skeleton(value)
-		{
-			this._skeleton = value;
-			this.onSkeletonChange.dispatch();
 		},
 
 	    /**
@@ -11349,6 +11334,8 @@
 	        UniformSetter._instanceTable.hx_inverseWVPMatrix = InverseWVPSetter;
 	        UniformSetter._instanceTable.hx_normalWorldMatrix = NormalWorldMatrixSetter;
 	        UniformSetter._instanceTable.hx_normalWorldViewMatrix = NormalWorldViewMatrixSetter;
+	        UniformSetter._instanceTable["hx_bindShapeMatrix"] = BindShapeMatrixSetter;
+	        UniformSetter._instanceTable["hx_bindShapeMatrixInverse"] = BindShapeMatrixInverseSetter;
 	        UniformSetter._instanceTable["hx_skinningMatrices[0]"] = SkinningMatricesSetter;
 	        UniformSetter._instanceTable["hx_morphWeights[0]"] = MorphWeightsSetter;
 
@@ -11524,6 +11511,7 @@
 	    }
 	}();
 
+
 	function CameraWorldPosSetter()
 	{
 	}
@@ -11642,6 +11630,28 @@
 	PoissonSphereSetter.prototype.execute = function ()
 	{
 	    GL.gl.uniform3fv(this.location, PoissonSphere.DEFAULT_FLOAT32);
+	};
+
+
+	function BindShapeMatrixInverseSetter()
+	{
+	}
+
+	BindShapeMatrixInverseSetter.prototype.execute = function (camera, renderItem)
+	{
+	    var m = renderItem.meshInstance.bindShapeMatrixInverse || Matrix4x4.IDENTITY;
+		GL.gl.uniformMatrix4fv(this.location, false, m._m);
+	};
+
+
+	function BindShapeMatrixSetter()
+	{
+	}
+
+	BindShapeMatrixSetter.prototype.execute = function (camera, renderItem)
+	{
+	    var m = renderItem.meshInstance.bindShapeMatrix || Matrix4x4.IDENTITY;
+		GL.gl.uniformMatrix4fv(this.location, false, m._m);
 	};
 
 	function SkinningMatricesSetter()
@@ -14515,6 +14525,282 @@
 	    return new Shader(vertexShader, fragmentShader);
 	};
 
+	/**
+	 * @classdesc
+	 * SkeletonJointPose represents the translation, rotation, and scale for a joint to have. Used by {@linkcode SkeletonPose}.
+	 * Generally not of interest to casual users.
+	 *
+	 * @constructor
+	 *
+	 * @see {@linkcode SkeletonPose}
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function SkeletonJointPose()
+	{
+	    this.position = new Float4();
+	    this.rotation = new Quaternion();
+	    this.scale = new Float4(1, 1, 1);
+	    this.skeletonPose = null;
+	}
+
+	SkeletonJointPose.prototype =
+	    {
+	        copyFrom: function(a)
+	        {
+	            this.rotation.copyFrom(a.rotation);
+	            this.position.copyFrom(a.position);
+	            this.scale.copyFrom(a.scale);
+	        },
+
+	        toString: function()
+	        {
+	            return "[SkeletonJointPose]";
+	        }
+	    };
+
+	/**
+	 * @classdesc
+	 * SkeletonPose represents an entire pose a {@linkcode Skeleton} can have. Usually, several poses are interpolated to create animations.
+	 *
+	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function SkeletonPose()
+	{
+	    this._jointPoses = [];
+
+	    this._skinningTexture = null;
+	    // "global" is in fact model space
+	    this._globalMatrices = null;
+	    this._bindMatrices = null;
+	    this._skeletonMatricesInvalid = true;
+	}
+
+	SkeletonPose.prototype = {
+	    /**
+	     * The number of joint poses.
+	     */
+	    get numJoints()
+	    {
+	        return this._jointPoses.length;
+	    },
+
+	    /**
+	     * Returns the joint pose at a given position
+	     */
+	    getJointPose: function(index)
+	    {
+	        return this._jointPoses[index];
+	    },
+
+	    /**
+	     * Assigns a joint pose.
+	     */
+	    setJointPose: function(index, value)
+	    {
+	        this._jointPoses[index] = value;
+	        value.skeletonPose = this;
+	    },
+
+	    /**
+	     * Lets the engine know the pose has been updated
+	     */
+	    invalidateGlobalPose: function()
+	    {
+	        this._skeletonMatricesInvalid = true;
+	    },
+
+	    /**
+	     * Interpolates between two poses and stores it in the current
+	     * @param a
+	     * @param b
+	     * @param factor
+	     */
+	    interpolate: function (a, b, factor)
+	    {
+	        a = a._jointPoses;
+	        b = b._jointPoses;
+	        var len = a.length;
+
+	        if (this._jointPoses.length !== len)
+	            this._initJointPoses(len);
+
+	        var target = this._jointPoses;
+	        for (var i = 0; i < len; ++i) {
+	            var t = target[i];
+	            t.rotation.slerp(a[i].rotation, b[i].rotation, factor);
+	            t.position.lerp(a[i].position, b[i].position, factor);
+	            t.scale.lerp(a[i].scale, b[i].scale, factor);
+	        }
+	    },
+
+	    /**
+	     * Grabs the inverse bind pose data from a skeleton and generates a local pose from it
+	     * @param skeleton
+	     */
+	    copyBindPose: function (skeleton)
+	    {
+	        var m = new Matrix4x4();
+			var joints = skeleton.joints;
+	        for (var i = 0, len = joints.length; i < len; ++i) {
+	            var j = joints[i];
+	            var p = this._jointPoses[i] = new SkeletonJointPose();
+	            // global bind pose matrix
+	            m.inverseAffineOf(j.inverseBindPose);
+
+	            // local bind pose matrix
+	            if (j.parentIndex >= 0)
+	                m.append(joints[j.parentIndex].inverseBindPose);
+
+	            m.decompose(p);
+	        }
+	    },
+
+	    /**
+	     * Copies another pose.
+	     */
+	    copyFrom: function (a)
+	    {
+	        a = a._jointPoses;
+	        var target = this._jointPoses;
+	        var len = a.length;
+
+	        if (this._jointPoses.length !== len)
+	            this._initJointPoses(len);
+
+	        for (var i = 0; i < len; ++i)
+	            target[i].copyFrom(a[i]);
+	    },
+
+	    /**
+	     * @ignore
+	     */
+	    _initJointPoses: function (numJointPoses)
+	    {
+	        this._jointPoses.length = numJointPoses;
+	        for (var i = 0; i < numJointPoses; ++i)
+	            this.setJointPose(i, new SkeletonJointPose());
+	    },
+
+	    /**
+	     * @ignore
+	     */
+	    getBindMatrices: function(skeleton)
+	    {
+	        if (this._skeletonMatricesInvalid || this._skeleton !== skeleton)
+	            this._updateSkeletonMatrices(skeleton);
+
+	        this._skeleton = skeleton;
+
+	        return this._skinningTexture || this._bindMatrices;
+	    },
+
+	    /**
+	     * @ignore
+	     */
+	    _updateSkeletonMatrices: function (skeleton)
+	    {
+	        var globals = this._globalMatrices;
+	        var binds = this._bindMatrices;
+			var joints = skeleton.joints;
+			var len = joints.length;
+
+	        if (!globals || globals.length !== len) {
+	            this._generateGlobalSkeletonData(skeleton);
+	            globals = this._globalMatrices;
+	            binds = this._bindMatrices;
+	        }
+
+	        for (var i = 0; i < len; ++i) {
+	            var pose = this._jointPoses[i];
+	            var global = globals[i];
+
+	            var joint = joints[i];
+	            var parentIndex = joint.parentIndex;
+
+	            global.compose(pose);
+
+	            if (parentIndex !== -1)
+	                global.append(globals[parentIndex]);
+
+	            if (skeleton.applyInverseBindPose)
+	                binds[i].multiplyAffine(global, joint.inverseBindPose);
+	            else
+	                binds[i].copyFrom(global);
+	        }
+
+	        if (META.OPTIONS.useSkinningTexture)
+	            this._updateSkinningTexture();
+	    },
+
+	    /**
+	     * @ignore
+	     * @private
+	     */
+	    _generateGlobalSkeletonData: function (skeleton)
+	    {
+	        this._globalMatrices = [];
+	        this._bindMatrices = [];
+
+	        for (var i = 0, len = skeleton.joints.length; i < len; ++i) {
+	            this._globalMatrices[i] = new Matrix4x4();
+	            this._bindMatrices[i] = new Matrix4x4();
+	        }
+
+	        if (META.OPTIONS.useSkinningTexture) {
+	            this._skinningTexture = new Texture2D();
+	            this._skinningTexture.filter = TextureFilter.NEAREST_NOMIP;
+	            this._skinningTexture.wrapMode = TextureWrapMode.CLAMP;
+	        }
+	    },
+
+	    /**
+	     * @ignore
+	     * @private
+	     */
+	    _updateSkinningTexture: function ()
+	    {
+	        var data;
+
+	        return function()
+	        {
+	            data = data || new Float32Array(META.OPTIONS.maxSkeletonJoints * 3 * 4);
+	            var globals = this._bindMatrices;
+	            var len = globals.length;
+	            var j = 0;
+
+	            for (var r = 0; r < 3; ++r) {
+	                for (var i = 0; i < len; ++i) {
+	                    var m = globals[i]._m;
+
+	                    data[j++] = m[r];
+	                    data[j++] = m[r + 4];
+	                    data[j++] = m[r + 8];
+	                    data[j++] = m[r + 12];
+	                }
+
+	                for (i = len; i < META.OPTIONS.maxSkeletonJoints; ++i) {
+	                    data[j++] = 0.0;
+	                    data[j++] = 0.0;
+	                    data[j++] = 0.0;
+	                    data[j++] = 0.0;
+	                }
+	            }
+
+	            this._skinningTexture.uploadData(data, META.OPTIONS.maxSkeletonJoints, 3, false, TextureFormat.RGBA, DataType.FLOAT);
+	        }
+	    }(),
+
+	    clone: function()
+	    {
+	        var clone = new SkeletonPose();
+	        clone.copyFrom(this);
+	        return clone;
+	    }
+	};
+
 	// basic version is non-hierarchical, for use with lights etc
 
 
@@ -14558,6 +14844,9 @@
 	    this.raycast = true;
 	    this._children = [];
 	    this._isOnRoot = false;
+		this._skeleton = null;
+		this._skeletonPose = null;
+		this._skeletonRoot = null;
 
 	    // used to determine sorting index for the render loop
 	    // models can use this to store distance to camera for more efficient rendering, lights use this to sort based on
@@ -14617,7 +14906,31 @@
 
 	            return this._worldMatrix;
 	        }
-	    }
+	    },
+
+	    skeleton: {
+			get: function()
+			{
+				return this._skeleton;
+			},
+
+	        set: function(value)
+	        {
+	        	if (value) {
+					var pose = new SkeletonPose();
+					pose.copyBindPose(value);
+				}
+
+				this._bindSkeleton(value, pose, this);
+	        }
+	    },
+
+		skeletonPose: {
+	    	get: function()
+			{
+				return this._skeletonPose;
+			}
+		}
 	});
 
 	/**
@@ -14633,17 +14946,26 @@
 	        return;
 	    }
 
-	    if (child._parent) {
-	        // remove child from existing parent
-	        child._parent.detach(child);
-		}
-
-	    child._parent = this;
-
-	    child._setScene(this._scene);
-	    child._updateAncestorsVisible(this._visible && this._ancestorsVisible);
-
+	    this._updateChildAdded(child);
 	    this._children.push(child);
+	};
+
+	/**
+	 * @ignore
+	 */
+	SceneNode.prototype._updateChildAdded = function(child)
+	{
+		// remove child from existing parent
+		if (child._parent)
+			child._parent.detach(child);
+
+		child._isOnRoot = this._scene && this._parent === this._scene._rootNode;
+		child._parent = this;
+		child._setScene(this._scene);
+		child._updateAncestorsVisible(this._visible && this._ancestorsVisible);
+
+		if (this._skeleton)
+			child._bindSkeleton(this._skeleton, this._skeletonPose, this._skeletonRoot);
 	};
 
 	/**
@@ -14657,14 +14979,7 @@
 	    if (refChild._parent !== this)
 	        throw new Error("Reference child not a child of the scene node");
 
-		if (child._parent) {
-			// remove child from existing parent
-			child._parent.detach(child);
-		}
-
-		child._parent = this;
-	    child._isOnRoot = this._scene && this._parent === this._scene._rootNode;
-		child._setScene(this._scene);
+		this._updateChildAdded(child);
 
 		var index = this._children.indexOf(refChild);
 		this._children.splice(index + 1, 0, child);
@@ -14717,6 +15032,10 @@
 	    child._isOnRoot = false;
 	    child._updateAncestorsVisible(true);
 	    child._setScene(null);
+
+	    if (child.skeleton === this._skeleton) {
+			child.skeleton = null;
+		}
 
 	    this._children.splice(index, 1);
 	};
@@ -14907,12 +15226,16 @@
 	};
 
 	/**
-	 * Assigns the same skeleton pose to all children in this node
+	 * @ignore
 	 */
-	SceneNode.prototype.assignSkeletonPose = function(pose)
+	SceneNode.prototype._bindSkeleton = function(skeleton, pose, root)
 	{
+		this._skeleton = skeleton;
+		this._skeletonPose = pose;
+		this._skeletonRoot = root;
+
 		for (var i = 0, len = this._children.length; i < len; ++i)
-			this._children[i].assignSkeletonPose(pose);
+		    this._children[i]._bindSkeleton(skeleton, pose, root);
 	};
 
 	/**
@@ -15274,6 +15597,8 @@
 		this.name = "hx_meshinstance_" + (nameCounter$3++);
 		this.castShadows = true;
 		this.skeletonPose = null;
+		this.bindShapeMatrix = null;
+		this.bindShapeMatrixInverse = null;
 		this._bounds = new BoundingAABB();
 		this._morphPositions = null;
 		this._morphNormals = null;
@@ -15281,6 +15606,7 @@
 		this._meshMaterialLinkInvalid = true;
 		this._vertexLayouts = null;
 		this._morphPose = null;
+		this._skeleton = null;
 		this.mesh = mesh;
 		this.material = material;
 
@@ -15290,7 +15616,14 @@
 		skeleton: {
 			get: function()
 			{
-				return this._mesh.skeleton;
+				return this._skeleton;
+			},
+
+			set: function(value)
+			{
+				var pose = new SkeletonPose();
+				pose.copyBindPose(value);
+				this._bindSkeleton(value, pose, null);
 			}
 		},
 
@@ -15304,7 +15637,7 @@
 		skeletonMatrices: {
 			get: function()
 			{
-				return this.skeletonPose? this.skeletonPose.getBindMatrices(this._mesh._skeleton) : null;
+				return this.skeletonPose? this.skeletonPose.getBindMatrices(this._skeleton) : null;
 			}
 		},
 
@@ -15342,7 +15675,6 @@
 					this._mesh.onLayoutChanged.unbind(this._onMaterialOrMeshChange);
 					this._mesh.onBoundsChanged.unbind(this._invalidateBounds);
 					this._mesh.onMorphDataCreated.unbind(this._initMorphData);
-					this._mesh.onSkeletonChange.unbind(this._onSkeletonChange);
 				}
 
 				this._mesh = mesh;
@@ -15350,7 +15682,6 @@
 				mesh.onLayoutChanged.bind(this._onMaterialOrMeshChange, this);
 				mesh.onBoundsChanged.bind(this._invalidateBounds, this);
 				mesh.onMorphDataCreated.bind(this._initMorphData, this);
-				mesh.onSkeletonChange.bind(this._onSkeletonChange, this);
 
 				this._initMorphData();
 
@@ -15380,7 +15711,7 @@
 					this._material.onChange.bind(this._onMaterialOrMeshChange, this);
 
 					// TODO: Should this be set explicitly on the material by the user?
-					this._material._setUseSkinning(!!this._mesh.skeleton);
+					this._material._setUseSkinning(!!this._skeleton);
 					this._material._setUseMorphing(
 						this._mesh.hasMorphData,
 						this._mesh.hasMorphNormals
@@ -15559,11 +15890,6 @@
 		this._morphWeights[targetIndex] = positionBuffer? weight : 0.0;
 	};
 
-	MeshInstance.prototype._onSkeletonChange = function()
-	{
-		this._material._setUseSkinning(!!this._mesh.skeleton);
-	};
-
 	MeshInstance.prototype._updateBounds = function()
 	{
 		this._bounds = this._mesh.bounds;
@@ -15607,6 +15933,26 @@
 		if (this.skeletonPose)
 			clone.skeletonPose = this.skeletonPose.clone();
 		return clone;
+	};
+
+
+	/**
+	 * @ignore
+	 */
+	MeshInstance.prototype._bindSkeleton = function(skeleton, pose, bindShapeMatrix)
+	{
+		this._skeleton = skeleton;
+		this.skeletonPose = pose;
+		this.bindShapeMatrix = bindShapeMatrix;
+		this.bindShapeMatrixInverse = null;
+
+		if (bindShapeMatrix) {
+			this.bindShapeMatrixInverse = bindShapeMatrix.clone();
+			this.bindShapeMatrixInverse.invertAffine();
+		}
+
+		if (this._material)
+			this._material._setUseSkinning(!!this._skeleton);
 	};
 
 	/**
@@ -16026,14 +16372,24 @@
 	/**
 	 * @inheritDoc
 	 */
-	Entity.prototype.assignSkeletonPose = function(pose)
+	Entity.prototype._bindSkeleton = function(skeleton, pose, root)
 	{
+		var bindShapeMatrix;
+
 		for (var i = 0, len = this._components.length; i < len; ++i) {
 			var comp = this._components[i];
-			if (comp.hasOwnProperty("skeletonPose"))
-				comp.skeletonPose = pose;
+			if (comp._bindSkeleton) {
+				if (skeleton && !bindShapeMatrix && root !== this) {
+					bindShapeMatrix = root.worldMatrix.clone();
+					bindShapeMatrix.invertAffine();
+					bindShapeMatrix.prependAffine(this.worldMatrix);
+				}
+
+				comp._bindSkeleton(skeleton, pose, bindShapeMatrix);
+			}
 		}
-		SceneNode.prototype.assignSkeletonPose.call(this, pose);
+
+		SceneNode.prototype._bindSkeleton.call(this, skeleton, pose, root);
 	};
 
 	/**
@@ -20782,40 +21138,6 @@
 
 	/**
 	 * @classdesc
-	 * SkeletonJointPose represents the translation, rotation, and scale for a joint to have. Used by {@linkcode SkeletonPose}.
-	 * Generally not of interest to casual users.
-	 *
-	 * @constructor
-	 *
-	 * @see {@linkcode SkeletonPose}
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function SkeletonJointPose()
-	{
-	    this.position = new Float4();
-	    this.rotation = new Quaternion();
-	    this.scale = new Float4(1, 1, 1);
-	    this.skeletonPose = null;
-	}
-
-	SkeletonJointPose.prototype =
-	    {
-	        copyFrom: function(a)
-	        {
-	            this.rotation.copyFrom(a.rotation);
-	            this.position.copyFrom(a.position);
-	            this.scale.copyFrom(a.scale);
-	        },
-
-	        toString: function()
-	        {
-	            return "[SkeletonJointPose]";
-	        }
-	    };
-
-	/**
-	 * @classdesc
 	 * AnimationLayerFloat4 is an {@linkcode AnimationLayer} targeting {@linkcode Float4} objects
 	 *
 	 * @constructor
@@ -20994,281 +21316,6 @@
 	    toString: function()
 	    {
 	        return "[Skeleton(name=" + this.name + ")";
-	    }
-	};
-
-	/**
-	 * @classdesc
-	 * SkeletonPose represents an entire pose a {@linkcode Skeleton} can have. Usually, several poses are interpolated to create animations.
-	 *
-	 * @constructor
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function SkeletonPose()
-	{
-	    this._jointPoses = [];
-
-	    this._skinningTexture = null;
-	    // "global" is in fact model space
-	    this._globalMatrices = null;
-	    this._bindMatrices = null;
-	    this._skeletonMatricesInvalid = true;
-	}
-
-	SkeletonPose.prototype = {
-	    /**
-	     * The number of joint poses.
-	     */
-	    get numJoints()
-	    {
-	        return this._jointPoses.length;
-	    },
-
-	    /**
-	     * Returns the joint pose at a given position
-	     */
-	    getJointPose: function(index)
-	    {
-	        return this._jointPoses[index];
-	    },
-
-	    /**
-	     * Assigns a joint pose.
-	     */
-	    setJointPose: function(index, value)
-	    {
-	        this._jointPoses[index] = value;
-	        value.skeletonPose = this;
-	    },
-
-	    /**
-	     * Lets the engine know the pose has been updated
-	     */
-	    invalidateGlobalPose: function()
-	    {
-	        this._skeletonMatricesInvalid = true;
-	    },
-
-	    /**
-	     * Interpolates between two poses and stores it in the current
-	     * @param a
-	     * @param b
-	     * @param factor
-	     */
-	    interpolate: function (a, b, factor)
-	    {
-	        a = a._jointPoses;
-	        b = b._jointPoses;
-	        var len = a.length;
-
-	        if (this._jointPoses.length !== len)
-	            this._initJointPoses(len);
-
-	        var target = this._jointPoses;
-	        for (var i = 0; i < len; ++i) {
-	            var t = target[i];
-	            t.rotation.slerp(a[i].rotation, b[i].rotation, factor);
-	            t.position.lerp(a[i].position, b[i].position, factor);
-	            t.scale.lerp(a[i].scale, b[i].scale, factor);
-	        }
-	    },
-
-	    /**
-	     * Grabs the inverse bind pose data from a skeleton and generates a local pose from it
-	     * @param skeleton
-	     */
-	    copyBindPose: function (skeleton)
-	    {
-	        var m = new Matrix4x4();
-			var joints = skeleton.joints;
-	        for (var i = 0, len = joints.length; i < len; ++i) {
-	            var j = joints[i];
-	            var p = this._jointPoses[i] = new SkeletonJointPose();
-	            // global bind pose matrix
-	            m.inverseAffineOf(j.inverseBindPose);
-
-	            // local bind pose matrix
-	            if (j.parentIndex >= 0)
-	                m.append(joints[j.parentIndex].inverseBindPose);
-
-	            m.decompose(p);
-	        }
-	    },
-
-	    /**
-	     * Copies another pose.
-	     */
-	    copyFrom: function (a)
-	    {
-	        a = a._jointPoses;
-	        var target = this._jointPoses;
-	        var len = a.length;
-
-	        if (this._jointPoses.length !== len)
-	            this._initJointPoses(len);
-
-	        for (var i = 0; i < len; ++i)
-	            target[i].copyFrom(a[i]);
-	    },
-
-	    /**
-	     * @ignore
-	     */
-	    _initJointPoses: function (numJointPoses)
-	    {
-	        this._jointPoses.length = numJointPoses;
-	        for (var i = 0; i < numJointPoses; ++i)
-	            this.setJointPose(i, new SkeletonJointPose());
-	    },
-
-	    /**
-	     * @ignore
-	     */
-	    getBindMatrices: function(skeleton)
-	    {
-	        if (this._skeletonMatricesInvalid || this._skeleton !== skeleton)
-	            this._updateSkeletonMatrices(skeleton);
-
-	        this._skeleton = skeleton;
-
-	        return this._skinningTexture || this._bindMatrices;
-	    },
-
-	    /**
-	     * @ignore
-	     */
-	    _generateDefault: function (skeleton)
-	    {
-	        this._skeletonMatricesInvalid = false;
-	        this._skeleton = skeleton;
-
-	        var joints = skeleton.joints;
-	        var len = joints.length;
-
-	        this._initJointPoses(len);
-
-	        var m = new HX.Matrix4x4();
-
-	        for (var i = 0; i < len; ++i) {
-	            m.inverseOf(skeleton.joints[i].inverseBindPose);
-	            m.decompose(this._jointPoses[i]);
-	        }
-
-	        if (META.OPTIONS.useSkinningTexture) {
-	            this._skinningTexture = DEFAULTS.DEFAULT_SKINNING_TEXTURE;
-	            return;
-	        }
-
-	        this._globalMatrices = [];
-	        this._bindMatrices = [];
-	        for (i = 0; i < len; ++i) {
-	            this._globalMatrices[i] = new Matrix4x4();
-	            this._bindMatrices[i] = new Matrix4x4();
-	        }
-	    },
-
-	    /**
-	     * @ignore
-	     */
-	    _updateSkeletonMatrices: function (skeleton)
-	    {
-	        var globals = this._globalMatrices;
-	        var binds = this._bindMatrices;
-			var joints = skeleton.joints;
-			var len = joints.length;
-
-	        if (!globals || globals.length !== len) {
-	            this._generateGlobalSkeletonData(skeleton);
-	            globals = this._globalMatrices;
-	            binds = this._bindMatrices;
-	        }
-
-	        for (var i = 0; i < len; ++i) {
-	            var pose = this._jointPoses[i];
-	            var global = globals[i];
-
-	            var joint = joints[i];
-	            var parentIndex = joint.parentIndex;
-
-	            global.compose(pose);
-
-	            if (parentIndex !== -1)
-	                global.append(globals[parentIndex]);
-
-	            if (skeleton.applyInverseBindPose)
-	                binds[i].multiplyAffine(global, joint.inverseBindPose);
-	            else
-	                binds[i].copyFrom(global);
-	        }
-
-	        if (META.OPTIONS.useSkinningTexture)
-	            this._updateSkinningTexture();
-	    },
-
-	    /**
-	     * @ignore
-	     * @private
-	     */
-	    _generateGlobalSkeletonData: function (skeleton)
-	    {
-	        this._globalMatrices = [];
-	        this._bindMatrices = [];
-
-	        for (var i = 0, len = skeleton.joints.length; i < len; ++i) {
-	            this._globalMatrices[i] = new Matrix4x4();
-	            this._bindMatrices[i] = new Matrix4x4();
-	        }
-
-	        if (META.OPTIONS.useSkinningTexture) {
-	            this._skinningTexture = new Texture2D();
-	            this._skinningTexture.filter = TextureFilter.NEAREST_NOMIP;
-	            this._skinningTexture.wrapMode = TextureWrapMode.CLAMP;
-	        }
-	    },
-
-	    /**
-	     * @ignore
-	     * @private
-	     */
-	    _updateSkinningTexture: function ()
-	    {
-	        var data;
-
-	        return function()
-	        {
-	            data = data || new Float32Array(META.OPTIONS.maxSkeletonJoints * 3 * 4);
-	            var globals = this._bindMatrices;
-	            var len = globals.length;
-	            var j = 0;
-
-	            for (var r = 0; r < 3; ++r) {
-	                for (var i = 0; i < len; ++i) {
-	                    var m = globals[i]._m;
-
-	                    data[j++] = m[r];
-	                    data[j++] = m[r + 4];
-	                    data[j++] = m[r + 8];
-	                    data[j++] = m[r + 12];
-	                }
-
-	                for (i = len; i < META.OPTIONS.maxSkeletonJoints; ++i) {
-	                    data[j++] = 0.0;
-	                    data[j++] = 0.0;
-	                    data[j++] = 0.0;
-	                    data[j++] = 0.0;
-	                }
-	            }
-
-	            this._skinningTexture.uploadData(data, META.OPTIONS.maxSkeletonJoints, 3, false, TextureFormat.RGBA, DataType.FLOAT);
-	        }
-	    }(),
-
-	    clone: function()
-	    {
-	        var clone = new SkeletonPose();
-	        clone.copyFrom(this);
-	        return clone;
 	    }
 	};
 
@@ -21463,7 +21510,8 @@
 
 	SkeletonBlendTree.prototype =
 	{
-	    get skeletonPose() { return this.rootNode.pose; },
+	    get targetSkeletonPose() { return this.rootNode.pose; },
+	    set targetSkeletonPose(value) { this.rootNode.pose = value; },
 
 	    get rootJointDeltaPosition() { return this.rootNode.rootJointDeltaPosition; },
 
@@ -21547,10 +21595,10 @@
 	            {
 	                return this._blendTree.rootNode;
 	            },
-	            set function(value)
+
+	            set: function(value)
 	            {
 	                this._blendTree.rootNode = value;
-	                if (this.entity) this._blendTree.skeleton = this.entity.skeleton;
 	            }
 	        }
 	    }
@@ -21561,7 +21609,7 @@
 	 */
 	SkeletonAnimation.prototype.onAdded = function()
 	{
-	    this.entity.assignSkeletonPose(this._blendTree.skeletonPose);
+	    this._blendTree.targetSkeletonPose = this.entity.skeletonPose;
 	};
 
 	/**
@@ -21574,7 +21622,6 @@
 	        var d = this._blendTree.rootJointDeltaPosition;
 	        matrix.prependTranslation(d);
 	        this.entity.matrix = matrix;
-	        this.entity.skeletonPose = this._blendTree.skeletonPose;
 	    }
 	};
 
@@ -27585,16 +27632,15 @@
 			}
 			else if (child instanceof AnimationClip) {
 				if (parent instanceof SkeletonAnimation) {
-					parent.applyInverseBindPose = false;
-					if (!parent._blendTree.rootNode)
-						parent._blendTree.rootNode = new SkeletonXFadeNode();
+					if (!parent.animationNode)
+						parent.animationNode = new SkeletonXFadeNode();
 
-					console.assert(parent._blendTree.rootNode instanceof SkeletonXFadeNode, "Can't assign clip directly to skeleton when also assigning blend trees");
+					console.assert(parent.animationNode instanceof SkeletonXFadeNode, "Can't assign clip directly to skeleton when also assigning blend trees");
 
-					parent._blendTree.rootNode.addClip(child);
+					parent.animationNode.addClip(child);
 
 					if (meta === 1)
-						deferredCommands.push(parent._blendTree.rootNode.fadeTo.bind(parent._blendTree.rootNode, child, 0, false));
+						deferredCommands.push(parent.animationNode.fadeTo.bind(parent._blendTree.rootNode, child, 0, false));
 				}
 			}
 			else if (child instanceof SkeletonPose) ;
@@ -27609,10 +27655,7 @@
 			parent = link.parent;
 			child = link.child;
 			meta = link.meta;
-			if (parent instanceof Mesh)
-				parent.skeleton = child;
-			else if (parent instanceof MeshInstance)
-				parent.mesh.skeleton = child;
+			parent.skeleton = child;
 		}
 
 		for (i = 0, len = skeletonAnimationLinks.length; i < len; ++i) {

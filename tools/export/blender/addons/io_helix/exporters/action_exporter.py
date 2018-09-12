@@ -2,13 +2,18 @@ from .. import data, property_types, object_types
 
 
 def write_joint_pose(pose, file):
-    m = pose.matrix_channel
     if pose.parent:
-        m = pose.parent.matrix_channel.inverted() * m
+        bind_matrix = pose.parent.bone.matrix_local.inverted() * pose.bone.matrix_local
+    else:
+        bind_matrix = pose.bone.matrix_local
 
-    data.write_vector_prop(file, property_types.POSITION, m.to_translation())
-    data.write_quat_prop(file, property_types.ROTATION, m.to_quaternion())
-    data.write_vector_prop(file, property_types.SCALE, m.to_scale())
+    # matrix_basis is relative to bind pose, so need to extract
+    matrix = bind_matrix * pose.matrix_basis
+
+    pos, quat, scale = matrix.decompose()
+    data.write_vector_prop(file, property_types.POSITION, pos)
+    data.write_quat_prop(file, property_types.ROTATION, quat)
+    data.write_vector_prop(file, property_types.SCALE, scale)
 
 
 def write_keyframe_at(armature, time, file, object_map):

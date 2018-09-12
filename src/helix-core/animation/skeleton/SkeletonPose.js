@@ -1,6 +1,6 @@
 import {SkeletonJointPose} from "./SkeletonJointPose";
 import {Matrix4x4} from "../../math/Matrix4x4";
-import {DataType, DEFAULTS, META, TextureFilter, TextureFormat, TextureWrapMode} from "../../Helix";
+import {DataType, META, TextureFilter, TextureFormat, TextureWrapMode} from "../../Helix";
 import {Texture2D} from "../../texture/Texture2D";
 
 
@@ -127,6 +127,19 @@ SkeletonPose.prototype = {
         this._jointPoses.length = numJointPoses;
         for (var i = 0; i < numJointPoses; ++i)
             this.setJointPose(i, new SkeletonJointPose());
+    },
+
+	/**
+	 * @ignore
+	 */
+	getGlobalMatrix: function(skeleton, index)
+    {
+		if (this._skeletonMatricesInvalid || this._skeleton !== skeleton)
+			this._updateSkeletonMatrices(skeleton);
+
+		this._skeleton = skeleton;
+
+		return this._globalMatrices[index];
     },
 
     /**

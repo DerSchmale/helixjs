@@ -47,6 +47,7 @@ export {Transform} from "./math/Transform";
 
 export {Debug} from "./debug/Debug";
 export {DebugAxes} from "./debug/DebugAxes";
+export {ShowSkeleton} from "./debug/ShowSkeleton";
 
 export {BoundingVolume} from "./scene/BoundingVolume";
 export {BoundingAABB} from "./scene/BoundingAABB";

@@ -378,8 +378,8 @@ MeshInstance.prototype._bindSkeleton = function(skeleton, pose, bindShapeMatrix)
 	this.bindShapeMatrixInverse = null;
 
 	if (bindShapeMatrix) {
-		this.bindShapeMatrixInverse = bindShapeMatrix.clone();
-		this.bindShapeMatrixInverse.invertAffine();
+		this.bindShapeMatrixInverse = new Matrix4x4();
+		this.bindShapeMatrixInverse.inverseAffineOf(bindShapeMatrix);
 	}
 
 	if (this._material)

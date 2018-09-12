@@ -3615,7 +3615,7 @@
 
 	ShaderLibrary._files['default_geometry_fragment.glsl'] = 'uniform vec3 color;\nuniform vec3 emissiveColor;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(METALLIC_ROUGHNESS_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\nvarying_in vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef OCCLUSION_MAP\nuniform sampler2D occlusionMap;\n#endif\n\n#ifdef EMISSION_MAP\nuniform sampler2D emissionMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    varying_in vec3 normal;\n\n    #ifdef NORMAL_MAP\n    varying_in vec3 tangent;\n    varying_in vec3 bitangent;\n\n    uniform sampler2D normalMap;\n    #endif\n#endif\n\n#ifndef HX_SKIP_SPECULAR\nuniform float roughness;\nuniform float roughnessRange;\nuniform float normalSpecularReflectance;\nuniform float metallicness;\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\n#endif\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#ifdef VERTEX_COLORS\nvarying_in vec3 vertexColor;\n#endif\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    data.color = hx_gammaToLinear(outputColor);\n\n#ifndef HX_SKIP_SPECULAR\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = normalSpecularReflectance;\n    float roughnessOut = roughness;\n#endif\n\n#if defined(HX_SKIP_NORMALS) && defined(NORMAL_ROUGHNESS_MAP) && !defined(HX_SKIP_SPECULAR)\n    vec4 normalSample = texture2D(normalMap, texCoords);\n    roughnessOut -= roughnessRange * (normalSample.w - .5);\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    vec3 fragNormal = normal;\n\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz - .5);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (normalSample.w - .5);\n        #endif\n    #endif\n\n    #ifdef DOUBLE_SIDED\n        fragNormal *= gl_FrontFacing? 1.0 : -1.0;\n    #endif\n    data.normal = normalize(fragNormal);\n#endif\n\n#ifndef HX_SKIP_SPECULAR\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n\n          #ifdef METALLIC_ROUGHNESS_MAP\n              roughnessOut -= roughnessRange * (specSample.y - .5);\n              metallicnessOut *= specSample.z;\n\n          #else\n              roughnessOut -= roughnessRange * (specSample.x - .5);\n\n              #ifdef SPECULAR_MAP\n                  specNormalReflOut *= specSample.y;\n                  metallicnessOut *= specSample.z;\n              #endif\n          #endif\n    #endif\n\n    data.metallicness = metallicnessOut;\n    data.normalSpecularReflectance = specNormalReflOut;\n    data.roughness = roughnessOut;\n#endif\n\n    data.occlusion = 1.0;\n\n#ifdef OCCLUSION_MAP\n    data.occlusion = texture2D(occlusionMap, texCoords).x;\n#endif\n\n    vec3 emission = emissiveColor;\n#ifdef EMISSION_MAP\n    emission *= texture2D(emissionMap, texCoords).xyz;\n#endif\n\n    data.emission = hx_gammaToLinear(emission);\n    return data;\n}';
 
-	ShaderLibrary._files['default_geometry_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\n// morph positions are offsets re the base position!\n#ifdef HX_USE_MORPHING\nvertex_attribute vec3 hx_morphPosition0;\nvertex_attribute vec3 hx_morphPosition1;\nvertex_attribute vec3 hx_morphPosition2;\nvertex_attribute vec3 hx_morphPosition3;\n\n#ifdef HX_USE_NORMAL_MORPHING\n    #ifndef HX_SKIP_NORMALS\n    vertex_attribute vec3 hx_morphNormal0;\n    vertex_attribute vec3 hx_morphNormal1;\n    vertex_attribute vec3 hx_morphNormal2;\n    vertex_attribute vec3 hx_morphNormal3;\n    #endif\n\nuniform float hx_morphWeights[4];\n#else\nvertex_attribute vec3 hx_morphPosition4;\nvertex_attribute vec3 hx_morphPosition5;\nvertex_attribute vec3 hx_morphPosition6;\nvertex_attribute vec3 hx_morphPosition7;\n\nuniform float hx_morphWeights[8];\n#endif\n\n#endif\n\n#ifdef HX_USE_SKINNING\nvertex_attribute vec4 hx_jointIndices;\nvertex_attribute vec4 hx_jointWeights;\n\nuniform mat4 hx_bindShapeMatrix;\nuniform mat4 hx_bindShapeMatrixInverse;\n\n// WebGL doesn\'t support mat4x3 and I don\'t want to split the uniform either\n#ifdef HX_USE_SKINNING_TEXTURE\nuniform sampler2D hx_skinningTexture;\n#else\nuniform vec4 hx_skinningMatrices[HX_MAX_SKELETON_JOINTS * 3];\n#endif\n#endif\n\nuniform mat4 hx_wvpMatrix;\nuniform mat4 hx_worldViewMatrix;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\nvertex_attribute vec2 hx_texCoord;\nvarying_out vec2 texCoords;\n#endif\n\n#ifdef VERTEX_COLORS\nvertex_attribute vec3 hx_vertexColor;\nvarying_out vec3 vertexColor;\n#endif\n\n#ifndef HX_SKIP_NORMALS\nvertex_attribute vec3 hx_normal;\nvarying_out vec3 normal;\n\nuniform mat3 hx_normalWorldViewMatrix;\n#ifdef NORMAL_MAP\nvertex_attribute vec4 hx_tangent;\n\nvarying_out vec3 tangent;\nvarying_out vec3 bitangent;\n#endif\n#endif\n\nvoid hx_geometry()\n{\n    vec4 morphedPosition = hx_position;\n\n    #ifndef HX_SKIP_NORMALS\n    vec3 morphedNormal = hx_normal;\n    #endif\n\n// TODO: Abstract this in functions for easier reuse in other materials\n#ifdef HX_USE_MORPHING\n    morphedPosition.xyz += hx_morphPosition0 * hx_morphWeights[0];\n    morphedPosition.xyz += hx_morphPosition1 * hx_morphWeights[1];\n    morphedPosition.xyz += hx_morphPosition2 * hx_morphWeights[2];\n    morphedPosition.xyz += hx_morphPosition3 * hx_morphWeights[3];\n    #ifdef HX_USE_NORMAL_MORPHING\n        #ifndef HX_SKIP_NORMALS\n        morphedNormal += hx_morphNormal0 * hx_morphWeights[0];\n        morphedNormal += hx_morphNormal1 * hx_morphWeights[1];\n        morphedNormal += hx_morphNormal2 * hx_morphWeights[2];\n        morphedNormal += hx_morphNormal3 * hx_morphWeights[3];\n        #endif\n    #else\n        morphedPosition.xyz += hx_morphPosition4 * hx_morphWeights[4];\n        morphedPosition.xyz += hx_morphPosition5 * hx_morphWeights[5];\n        morphedPosition.xyz += hx_morphPosition6 * hx_morphWeights[6];\n        morphedPosition.xyz += hx_morphPosition7 * hx_morphWeights[7];\n    #endif\n#endif\n\n#ifdef HX_USE_SKINNING\n    mat4 skinningMatrix = hx_getSkinningMatrix(0);\n\n    // first transform to armature space\n    // then transform back to object space\n    vec4 animPosition = hx_bindShapeMatrixInverse * ((hx_bindShapeMatrix * morphedPosition) * skinningMatrix);\n\n    #ifndef HX_SKIP_NORMALS\n        vec3 animNormal = morphedNormal * mat3(skinningMatrix);\n\n        #ifdef NORMAL_MAP\n        vec3 animTangent = hx_tangent.xyz * mat3(skinningMatrix);\n        #endif\n    #endif\n#else\n    vec4 animPosition = morphedPosition;\n\n    #ifndef HX_SKIP_NORMALS\n        vec3 animNormal = morphedNormal;\n\n        #ifdef NORMAL_MAP\n        vec3 animTangent = hx_tangent.xyz;\n        #endif\n    #endif\n#endif\n\n    // TODO: Should gl_position be handled by the shaders if we only return local position?\n    gl_Position = hx_wvpMatrix * animPosition;\n\n#ifndef HX_SKIP_NORMALS\n    normal = normalize(hx_normalWorldViewMatrix * animNormal);\n\n    #ifdef NORMAL_MAP\n        tangent = mat3(hx_worldViewMatrix) * animTangent;\n        bitangent = cross(tangent, normal) * hx_tangent.w;\n    #endif\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\n    texCoords = hx_texCoord;\n#endif\n\n#ifdef VERTEX_COLORS\n    vertexColor = hx_vertexColor;\n#endif\n}';
+	ShaderLibrary._files['default_geometry_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\n// morph positions are offsets re the base position!\n#ifdef HX_USE_MORPHING\nvertex_attribute vec3 hx_morphPosition0;\nvertex_attribute vec3 hx_morphPosition1;\nvertex_attribute vec3 hx_morphPosition2;\nvertex_attribute vec3 hx_morphPosition3;\n\n#ifdef HX_USE_NORMAL_MORPHING\n    #ifndef HX_SKIP_NORMALS\n    vertex_attribute vec3 hx_morphNormal0;\n    vertex_attribute vec3 hx_morphNormal1;\n    vertex_attribute vec3 hx_morphNormal2;\n    vertex_attribute vec3 hx_morphNormal3;\n    #endif\n\nuniform float hx_morphWeights[4];\n#else\nvertex_attribute vec3 hx_morphPosition4;\nvertex_attribute vec3 hx_morphPosition5;\nvertex_attribute vec3 hx_morphPosition6;\nvertex_attribute vec3 hx_morphPosition7;\n\nuniform float hx_morphWeights[8];\n#endif\n\n#endif\n\n#ifdef HX_USE_SKINNING\nvertex_attribute vec4 hx_jointIndices;\nvertex_attribute vec4 hx_jointWeights;\n\nuniform mat4 hx_bindShapeMatrix;\nuniform mat4 hx_bindShapeMatrixInverse;\n\n// WebGL doesn\'t support mat4x3 and I don\'t want to split the uniform either\n#ifdef HX_USE_SKINNING_TEXTURE\nuniform sampler2D hx_skinningTexture;\n#else\nuniform vec4 hx_skinningMatrices[HX_MAX_SKELETON_JOINTS * 3];\n#endif\n#endif\n\nuniform mat4 hx_wvpMatrix;\nuniform mat4 hx_worldViewMatrix;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\nvertex_attribute vec2 hx_texCoord;\nvarying_out vec2 texCoords;\n#endif\n\n#ifdef VERTEX_COLORS\nvertex_attribute vec3 hx_vertexColor;\nvarying_out vec3 vertexColor;\n#endif\n\n#ifndef HX_SKIP_NORMALS\nvertex_attribute vec3 hx_normal;\nvarying_out vec3 normal;\n\nuniform mat3 hx_normalWorldViewMatrix;\n#ifdef NORMAL_MAP\nvertex_attribute vec4 hx_tangent;\n\nvarying_out vec3 tangent;\nvarying_out vec3 bitangent;\n#endif\n#endif\n\nvoid hx_geometry()\n{\n    vec4 morphedPosition = hx_position;\n\n    #ifndef HX_SKIP_NORMALS\n    vec3 morphedNormal = hx_normal;\n    #endif\n\n// TODO: Abstract this in functions for easier reuse in other materials\n#ifdef HX_USE_MORPHING\n    morphedPosition.xyz += hx_morphPosition0 * hx_morphWeights[0];\n    morphedPosition.xyz += hx_morphPosition1 * hx_morphWeights[1];\n    morphedPosition.xyz += hx_morphPosition2 * hx_morphWeights[2];\n    morphedPosition.xyz += hx_morphPosition3 * hx_morphWeights[3];\n    #ifdef HX_USE_NORMAL_MORPHING\n        #ifndef HX_SKIP_NORMALS\n        morphedNormal += hx_morphNormal0 * hx_morphWeights[0];\n        morphedNormal += hx_morphNormal1 * hx_morphWeights[1];\n        morphedNormal += hx_morphNormal2 * hx_morphWeights[2];\n        morphedNormal += hx_morphNormal3 * hx_morphWeights[3];\n        #endif\n    #else\n        morphedPosition.xyz += hx_morphPosition4 * hx_morphWeights[4];\n        morphedPosition.xyz += hx_morphPosition5 * hx_morphWeights[5];\n        morphedPosition.xyz += hx_morphPosition6 * hx_morphWeights[6];\n        morphedPosition.xyz += hx_morphPosition7 * hx_morphWeights[7];\n    #endif\n#endif\n\n#ifdef HX_USE_SKINNING\n    mat4 skinningMatrix = hx_getSkinningMatrix(0);\n\n    // first transform to armature space\n    // then apply skinning in skeleton space\n    // then transform back to object space\n    vec4 animPosition = hx_bindShapeMatrixInverse * ((hx_bindShapeMatrix * morphedPosition) * skinningMatrix);\n\n    #ifndef HX_SKIP_NORMALS\n        vec3 animNormal = morphedNormal * mat3(skinningMatrix);\n\n        #ifdef NORMAL_MAP\n        vec3 animTangent = hx_tangent.xyz * mat3(skinningMatrix);\n        #endif\n    #endif\n#else\n    vec4 animPosition = morphedPosition;\n\n    #ifndef HX_SKIP_NORMALS\n        vec3 animNormal = morphedNormal;\n\n        #ifdef NORMAL_MAP\n        vec3 animTangent = hx_tangent.xyz;\n        #endif\n    #endif\n#endif\n\n    // TODO: Should gl_position be handled by the shaders if we only return local position?\n    gl_Position = hx_wvpMatrix * animPosition;\n\n#ifndef HX_SKIP_NORMALS\n    normal = normalize(hx_normalWorldViewMatrix * animNormal);\n\n    #ifdef NORMAL_MAP\n        tangent = mat3(hx_worldViewMatrix) * animTangent;\n        bitangent = cross(tangent, normal) * hx_tangent.w;\n    #endif\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\n    texCoords = hx_texCoord;\n#endif\n\n#ifdef VERTEX_COLORS\n    vertexColor = hx_vertexColor;\n#endif\n}';
 
 	ShaderLibrary._files['default_skybox_fragment.glsl'] = 'varying_in vec3 viewWorldDir;\n\nuniform samplerCube hx_skybox;\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n    data.color = textureCube(hx_skybox, viewWorldDir.xzy);\n    data.emission = vec3(0.0);\n    data.color = hx_gammaToLinear(data.color);\n    return data;\n}';
 
@@ -11334,8 +11334,8 @@
 	        UniformSetter._instanceTable.hx_inverseWVPMatrix = InverseWVPSetter;
 	        UniformSetter._instanceTable.hx_normalWorldMatrix = NormalWorldMatrixSetter;
 	        UniformSetter._instanceTable.hx_normalWorldViewMatrix = NormalWorldViewMatrixSetter;
-	        UniformSetter._instanceTable["hx_bindShapeMatrix"] = BindShapeMatrixSetter;
-	        UniformSetter._instanceTable["hx_bindShapeMatrixInverse"] = BindShapeMatrixInverseSetter;
+	        UniformSetter._instanceTable.hx_bindShapeMatrix = BindShapeMatrixSetter;
+	        UniformSetter._instanceTable.hx_bindShapeMatrixInverse = BindShapeMatrixInverseSetter;
 	        UniformSetter._instanceTable["hx_skinningMatrices[0]"] = SkinningMatricesSetter;
 	        UniformSetter._instanceTable["hx_morphWeights[0]"] = MorphWeightsSetter;
 
@@ -14684,6 +14684,19 @@
 	            this.setJointPose(i, new SkeletonJointPose());
 	    },
 
+		/**
+		 * @ignore
+		 */
+		getGlobalMatrix: function(skeleton, index)
+	    {
+			if (this._skeletonMatricesInvalid || this._skeleton !== skeleton)
+				this._updateSkeletonMatrices(skeleton);
+
+			this._skeleton = skeleton;
+
+			return this._globalMatrices[index];
+	    },
+
 	    /**
 	     * @ignore
 	     */
@@ -15947,8 +15960,8 @@
 		this.bindShapeMatrixInverse = null;
 
 		if (bindShapeMatrix) {
-			this.bindShapeMatrixInverse = bindShapeMatrix.clone();
-			this.bindShapeMatrixInverse.invertAffine();
+			this.bindShapeMatrixInverse = new Matrix4x4();
+			this.bindShapeMatrixInverse.inverseAffineOf(bindShapeMatrix);
 		}
 
 		if (this._material)
@@ -18913,6 +18926,172 @@
 
 
 	DebugAxes.prototype = Object.create(SceneNode.prototype);
+
+	/**
+	 * @classdesc
+	 * SpherePrimitive provides a primitive cylinder {@linkcode Model}.
+	 *
+	 * @constructor
+	 * @param definition An object containing the following (optional) parameters:
+	 * <ul>
+	 *     <li>numSegmentsW: The amount of horizontal segments</li>
+	 *     <li>numSegmentsH: The amount of vertical segments </li>
+	 *     <li>radius: The radius of the sphere</li>
+	 *     <li>invert: Whether or not the faces should point inwards</li>
+	 *     <li>doubleSided: Whether or not the faces should point both ways</li>
+	 * </ul>
+	 *
+	 * @extends Primitive
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function SpherePrimitive(definition)
+	{
+	    Primitive.call(this, definition);
+	}
+
+	SpherePrimitive.prototype = Object.create(Primitive.prototype);
+
+	SpherePrimitive.prototype._generate = function(target, definition)
+	{
+	    definition = definition || {};
+	    var numSegmentsW = definition.numSegmentsW || 16;
+	    var numSegmentsH = definition.numSegmentsH || 10;
+	    var radius = definition.radius || .5;
+
+	    var flipSign = definition.invert? -1 : 1;
+
+	    var doubleSided = definition.doubleSided === undefined? false : definition.doubleSided;
+
+	    var positions = target.positions;
+	    var uvs = target.uvs;
+	    var normals = target.normals;
+
+	    var rcpNumSegmentsW = 1/numSegmentsW;
+	    var rcpNumSegmentsH = 1/numSegmentsH;
+
+	    for (var polarSegment = 0; polarSegment <= numSegmentsH; ++polarSegment) {
+	        var ratioV = polarSegment * rcpNumSegmentsH;
+	        var theta = ratioV * Math.PI;
+
+	        var y = -Math.cos(theta);
+	        var segmentUnitRadius = Math.sin(theta);
+
+	        if (flipSign < 0) ratioV = 1.0 - ratioV;
+
+	        for (var azimuthSegment = 0; azimuthSegment <= numSegmentsW; ++azimuthSegment) {
+	            var ratioU = azimuthSegment * rcpNumSegmentsW;
+	            var phi = ratioU * Math.PI * 2.0;
+
+	            if (flipSign) ratioU = 1.0 - ratioU;
+
+	            var normalX = Math.cos(phi) * segmentUnitRadius * flipSign;
+	            var normalY = y * flipSign;
+	            var normalZ = Math.sin(phi) * segmentUnitRadius * flipSign;
+
+	            // position
+	            positions.push(normalX*radius, normalZ*radius, normalY*radius);
+
+	            if (normals)
+	                normals.push(normalX * flipSign, normalZ * flipSign, normalY * flipSign);
+
+	            if (uvs)
+	                uvs.push(ratioU, ratioV);
+	        }
+	    }
+
+	    var indices = target.indices;
+
+	    for (polarSegment = 0; polarSegment < numSegmentsH; ++polarSegment) {
+	        for (azimuthSegment = 0; azimuthSegment < numSegmentsW; ++azimuthSegment) {
+	            var w = numSegmentsW + 1;
+	            var base = azimuthSegment + polarSegment*w;
+
+	            indices.push(base, base + w + 1, base + w);
+	            indices.push(base, base + 1, base + w + 1);
+
+	            if (doubleSided) {
+	                indices.push(base, base + w, base + w + 1);
+	                indices.push(base, base + w + 1, base + 1);
+	            }
+	        }
+	    }
+	};
+
+	SpherePrimitive.prototype._getBounds = function()
+	{
+	    return new BoundingSphere();
+	};
+
+	function ShowSkeleton()
+	{
+		Component.call(this);
+	}
+
+	Component.create(ShowSkeleton);
+
+	ShowSkeleton.prototype.onAdded = function()
+	{
+		var skeleton = this.entity.skeleton;
+		if (!skeleton) return;
+		this._debugEntity = new Entity();
+		this.entity.attach(this._debugEntity);
+		this._entities = [];
+
+		var material = new BasicMaterial();
+		var sphere = new SpherePrimitive({radius: 0.15});
+		var cylinder = new CylinderPrimitive({radius: 0.1, height: 1.0, alignment: CylinderPrimitive.ALIGN_Y});
+		cylinder.translate(0.0, 0.5, 0.0);
+		material.color = 0xff00ff;
+		material.lightingModel = LightingModel.Unlit;
+		material.renderOrder = 100000;
+		material.getPass(MaterialPass.BASE_PASS).depthTest = Comparison.ALWAYS;
+
+		for (var i = 0; i < skeleton.joints.length; ++i) {
+			var parentIndex = skeleton.joints[i].parentIndex;
+			var entity = new Entity();
+			var geom = parentIndex === -1? sphere : cylinder;
+			var meshInstance = new MeshInstance(geom, material);
+
+			entity.addComponent(meshInstance);
+			this._entities[i] = entity;
+			this._debugEntity.attach(entity);
+		}
+	};
+
+	ShowSkeleton.prototype.onRemoved = function()
+	{
+		if (!this._debugEntity) return;
+		this.entity.detach(this._debugEntity);
+	};
+
+	ShowSkeleton.prototype.onUpdate = function(dt)
+	{
+		if (!this._debugEntity) return;
+
+		var skeleton = this.entity.skeleton;
+		var joints = skeleton.joints;
+		var skeletonPose = this.entity.skeletonPose;
+
+		for (var i = 0, len = joints.length; i < len; ++i) {
+			var joint = joints[i];
+			var pose = skeletonPose.getGlobalMatrix(skeleton, i);
+			var parentIndex = joint.parentIndex;
+			var entity = this._entities[i];
+
+			pose.getColumn(3, entity.position);
+
+			if (parentIndex > -1) {
+				parent = this._entities[parentIndex];
+
+				var matrix = entity.matrix;
+				var dist = parent.position.distanceTo(entity.position);
+				matrix.lookAt(parent.position, entity.position);
+				matrix.prependScale(1.0, dist, 1.0);
+				entity.matrix = matrix;
+			}
+		}
+	};
 
 	/**
 	 * EntitySet provides a way to keep collections of entities based on their Components. Collections should always
@@ -30458,102 +30637,6 @@
 
 	/**
 	 * @classdesc
-	 * SpherePrimitive provides a primitive cylinder {@linkcode Model}.
-	 *
-	 * @constructor
-	 * @param definition An object containing the following (optional) parameters:
-	 * <ul>
-	 *     <li>numSegmentsW: The amount of horizontal segments</li>
-	 *     <li>numSegmentsH: The amount of vertical segments </li>
-	 *     <li>radius: The radius of the sphere</li>
-	 *     <li>invert: Whether or not the faces should point inwards</li>
-	 *     <li>doubleSided: Whether or not the faces should point both ways</li>
-	 * </ul>
-	 *
-	 * @extends Primitive
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function SpherePrimitive(definition)
-	{
-	    Primitive.call(this, definition);
-	}
-
-	SpherePrimitive.prototype = Object.create(Primitive.prototype);
-
-	SpherePrimitive.prototype._generate = function(target, definition)
-	{
-	    definition = definition || {};
-	    var numSegmentsW = definition.numSegmentsW || 16;
-	    var numSegmentsH = definition.numSegmentsH || 10;
-	    var radius = definition.radius || .5;
-
-	    var flipSign = definition.invert? -1 : 1;
-
-	    var doubleSided = definition.doubleSided === undefined? false : definition.doubleSided;
-
-	    var positions = target.positions;
-	    var uvs = target.uvs;
-	    var normals = target.normals;
-
-	    var rcpNumSegmentsW = 1/numSegmentsW;
-	    var rcpNumSegmentsH = 1/numSegmentsH;
-
-	    for (var polarSegment = 0; polarSegment <= numSegmentsH; ++polarSegment) {
-	        var ratioV = polarSegment * rcpNumSegmentsH;
-	        var theta = ratioV * Math.PI;
-
-	        var y = -Math.cos(theta);
-	        var segmentUnitRadius = Math.sin(theta);
-
-	        if (flipSign < 0) ratioV = 1.0 - ratioV;
-
-	        for (var azimuthSegment = 0; azimuthSegment <= numSegmentsW; ++azimuthSegment) {
-	            var ratioU = azimuthSegment * rcpNumSegmentsW;
-	            var phi = ratioU * Math.PI * 2.0;
-
-	            if (flipSign) ratioU = 1.0 - ratioU;
-
-	            var normalX = Math.cos(phi) * segmentUnitRadius * flipSign;
-	            var normalY = y * flipSign;
-	            var normalZ = Math.sin(phi) * segmentUnitRadius * flipSign;
-
-	            // position
-	            positions.push(normalX*radius, normalZ*radius, normalY*radius);
-
-	            if (normals)
-	                normals.push(normalX * flipSign, normalZ * flipSign, normalY * flipSign);
-
-	            if (uvs)
-	                uvs.push(ratioU, ratioV);
-	        }
-	    }
-
-	    var indices = target.indices;
-
-	    for (polarSegment = 0; polarSegment < numSegmentsH; ++polarSegment) {
-	        for (azimuthSegment = 0; azimuthSegment < numSegmentsW; ++azimuthSegment) {
-	            var w = numSegmentsW + 1;
-	            var base = azimuthSegment + polarSegment*w;
-
-	            indices.push(base, base + w + 1, base + w);
-	            indices.push(base, base + 1, base + w + 1);
-
-	            if (doubleSided) {
-	                indices.push(base, base + w, base + w + 1);
-	                indices.push(base, base + w + 1, base + 1);
-	            }
-	        }
-	    }
-	};
-
-	SpherePrimitive.prototype._getBounds = function()
-	{
-	    return new BoundingSphere();
-	};
-
-	/**
-	 * @classdesc
 	 * ConePrimitive provides a primitive cone {@linkcode Model}.
 	 *
 	 * @constructor
@@ -31848,6 +31931,7 @@
 	exports.Transform = Transform;
 	exports.Debug = Debug;
 	exports.DebugAxes = DebugAxes;
+	exports.ShowSkeleton = ShowSkeleton;
 	exports.BoundingVolume = BoundingVolume;
 	exports.BoundingAABB = BoundingAABB;
 	exports.BoundingSphere = BoundingSphere;

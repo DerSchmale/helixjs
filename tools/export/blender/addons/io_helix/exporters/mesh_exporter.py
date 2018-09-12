@@ -1,6 +1,6 @@
+import bpy
 import struct
 from .. import data, data_types, property_types, object_types
-
 
 class SubMesh:
     def __init__(self):
@@ -8,7 +8,7 @@ class SubMesh:
         self.num_uvs = 0
         self.vertex_stride = 0
         self.material_index = 0
-        self.has_skinning_data = 0
+        self.has_skinning_data = False
         self.skinning_data = []
         self.vertex_data = []
         self.index_data = []
@@ -119,7 +119,7 @@ def get_submesh(src, material_index, list, has_skinned_data):
     return sub
 
 
-def get_skinned_data(mesh):
+def get_skinned_data(mesh, armature, vertex_groups):
     data = []
     has_groups = False
     for v in mesh.vertices:
@@ -128,15 +128,22 @@ def get_skinned_data(mesh):
         # select all vertex groups from skinned_object that contain the given vertex
         for g in v.groups:
             has_groups = True
-            joints.append((g.group, g.weight))
+            group = vertex_groups[g.group]
+            bone = armature.bones[group.name]
+            joints.append((list(armature.bones).index(bone), g.weight))
 
         # sort descending on weight
         joints.sort(key=lambda joint: -joint[1])
+
+        if len(joints) > 4:
+            print("warning: more than 4 joints per vertex! Animation may not work as expected")
 
         # need 4
         joints = joints[:4]
         for n in range(len(joints), 4):
             joints.append((0, 0))
+
+        print(str(joints))
 
         data.append(joints)
 
@@ -150,7 +157,22 @@ def write(mesh, file, object_map):
     if object_map.has_mapped_indices(mesh):
         return
 
-    skinned_data = get_skinned_data(mesh)
+    skinned_data = None
+    vertex_groups = None
+    armature = None
+
+    for obj in bpy.data.objects:
+        if obj.data == mesh and obj.vertex_groups:
+            vertex_groups = obj.vertex_groups
+            for mod in obj.modifiers:
+                if mod.type == "ARMATURE":
+                    armature = mod.object.data
+        if armature:
+            break
+
+    if vertex_groups:
+        skinned_data = get_skinned_data(mesh, armature, vertex_groups)
+
     sub_meshes = []
 
     def add_vertex(loop_index):

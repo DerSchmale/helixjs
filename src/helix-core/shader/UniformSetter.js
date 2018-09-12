@@ -51,8 +51,8 @@ export var UniformSetter = {
         UniformSetter._instanceTable.hx_inverseWVPMatrix = InverseWVPSetter;
         UniformSetter._instanceTable.hx_normalWorldMatrix = NormalWorldMatrixSetter;
         UniformSetter._instanceTable.hx_normalWorldViewMatrix = NormalWorldViewMatrixSetter;
-        UniformSetter._instanceTable["hx_bindShapeMatrix"] = BindShapeMatrixSetter;
-        UniformSetter._instanceTable["hx_bindShapeMatrixInverse"] = BindShapeMatrixInverseSetter;
+        UniformSetter._instanceTable.hx_bindShapeMatrix = BindShapeMatrixSetter;
+        UniformSetter._instanceTable.hx_bindShapeMatrixInverse = BindShapeMatrixInverseSetter;
         UniformSetter._instanceTable["hx_skinningMatrices[0]"] = SkinningMatricesSetter;
         UniformSetter._instanceTable["hx_morphWeights[0]"] = MorphWeightsSetter;
 

@@ -31,7 +31,7 @@ def write(object, file, object_map, visible, scene):
         for track in tracks:
             track.mute = False
             for strip in track.strips:
-                action_id = action_exporter.write_armature_action(strip.action, object.data, file, object_map, scene)
+                action_id = action_exporter.write_armature_action(strip.action, object, file, object_map, scene)
                 object_map.link(animation_id, action_id, int(strip.active))
             track.mute = True
 
@@ -39,7 +39,7 @@ def write(object, file, object_map, visible, scene):
             track.mute = mute_states[i]
 
     elif object.animation_data.action:
-        action_id = action_exporter.write_armature_action(object.animation_data.action, object.data, file, object_map, scene)
+        action_id = action_exporter.write_armature_action(object.animation_data.action, object, file, object_map, scene)
         object_map.link(animation_id, action_id, 1)
 
     return entity_id

@@ -11,6 +11,11 @@ function IntersectionData()
     this.point = new Float4();
     this.faceNormal = new Float4();
     this.t = Infinity;
+
+    // used to interpolate more data if needed
+    this.mesh = null;
+    this.barycentric = new Float4();    // the barycentric coordinate of the hit
+    this.faceIndex = -1;                // the index into the index buffer where the face starts.
 }
 
 function Potential()
@@ -205,13 +210,17 @@ Raycaster.prototype._testMesh = function(ray, mesh, hitData)
 
         var rcpDenom = 1.0 / denom;
 
-        var u = (dot22 * dotp1 - dot12 * dotp2) * rcpDenom;
-        var v = (dot11 * dotp2 - dot12 * dotp1) * rcpDenom;
+        var v = (dot22 * dotp1 - dot12 * dotp2) * rcpDenom;
+        var w = (dot11 * dotp2 - dot12 * dotp1) * rcpDenom;
+        var u = 1.0 - v - w;
 
-        if ((u >= 0) && (v >= 0) && (u + v <= 1.0)) {
+        if (u >= 0 && v >= 0 && w >= 0) {
             hitData.faceNormal.set(nx, ny, nz, 0.0);
             hitData.point.set(px, py, pz, 1.0);
+            hitData.barycentric.set(u, v, w, 0.0);
+            hitData.mesh = mesh;
             hitData.t = t;
+            hitData.faceIndex = i;
             updated = true;
         }
     }

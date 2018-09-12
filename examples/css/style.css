@@ -27,8 +27,10 @@ a {
     position:fixed;
     top: 0;
     right: 0;
-    padding: 5px;
+    padding: 10px;
     background: rgba(0, 0, 0, .5);
+    text-align:right;
+    line-height: 200%;
 }
 
 .vAlignContainer {

@@ -44,12 +44,16 @@ SkeletonXFadeNode.prototype.getClip = function(name)
  * @param time The time the fade takes in milliseconds.
  * @param [sync] An optional flag to make clips sync to eachother. All clips with sync = true will be synced, others will
  * run independently. This only works if node is a (name of a) clip.
+ * @param [looping] An optional flag to override the clip's looping behavior.
  */
-SkeletonXFadeNode.prototype.fadeTo = function(clipName, time, sync)
+SkeletonXFadeNode.prototype.fadeTo = function(clipName, time, sync, looping)
 {
 	var node = new SkeletonClipNode(this._clips[clipName]);
     // can immediately replace if not looping and no fading
     // if looping, need to keep children for when we're done animating
+    if (looping !== undefined)
+        node.looping = looping;
+
 	if (time === 0 && node.looping === false) {
 		this._children = [];
 	}

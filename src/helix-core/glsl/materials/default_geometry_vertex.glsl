@@ -31,6 +31,9 @@ uniform float hx_morphWeights[8];
 vertex_attribute vec4 hx_jointIndices;
 vertex_attribute vec4 hx_jointWeights;
 
+uniform mat4 hx_bindShapeMatrix;
+uniform mat4 hx_bindShapeMatrixInverse;
+
 // WebGL doesn't support mat4x3 and I don't want to split the uniform either
 #ifdef HX_USE_SKINNING_TEXTURE
 uniform sampler2D hx_skinningTexture;
@@ -97,7 +100,9 @@ void hx_geometry()
 #ifdef HX_USE_SKINNING
     mat4 skinningMatrix = hx_getSkinningMatrix(0);
 
-    vec4 animPosition = morphedPosition * skinningMatrix;
+    // first transform to armature space
+    // then transform back to object space
+    vec4 animPosition = hx_bindShapeMatrixInverse * ((hx_bindShapeMatrix * morphedPosition) * skinningMatrix);
 
     #ifndef HX_SKIP_NORMALS
         vec3 animNormal = morphedNormal * mat3(skinningMatrix);

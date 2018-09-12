@@ -51,6 +51,8 @@ export var UniformSetter = {
         UniformSetter._instanceTable.hx_inverseWVPMatrix = InverseWVPSetter;
         UniformSetter._instanceTable.hx_normalWorldMatrix = NormalWorldMatrixSetter;
         UniformSetter._instanceTable.hx_normalWorldViewMatrix = NormalWorldViewMatrixSetter;
+        UniformSetter._instanceTable["hx_bindShapeMatrix"] = BindShapeMatrixSetter;
+        UniformSetter._instanceTable["hx_bindShapeMatrixInverse"] = BindShapeMatrixInverseSetter;
         UniformSetter._instanceTable["hx_skinningMatrices[0]"] = SkinningMatricesSetter;
         UniformSetter._instanceTable["hx_morphWeights[0]"] = MorphWeightsSetter;
 
@@ -227,6 +229,7 @@ NormalWorldViewMatrixSetter.prototype.execute = function() {
     }
 }();
 
+
 function CameraWorldPosSetter()
 {
 }
@@ -345,6 +348,28 @@ function PoissonSphereSetter()
 PoissonSphereSetter.prototype.execute = function ()
 {
     GL.gl.uniform3fv(this.location, PoissonSphere.DEFAULT_FLOAT32);
+};
+
+
+function BindShapeMatrixInverseSetter()
+{
+}
+
+BindShapeMatrixInverseSetter.prototype.execute = function (camera, renderItem)
+{
+    var m = renderItem.meshInstance.bindShapeMatrixInverse || Matrix4x4.IDENTITY;
+	GL.gl.uniformMatrix4fv(this.location, false, m._m);
+};
+
+
+function BindShapeMatrixSetter()
+{
+}
+
+BindShapeMatrixSetter.prototype.execute = function (camera, renderItem)
+{
+    var m = renderItem.meshInstance.bindShapeMatrix || Matrix4x4.IDENTITY;
+	GL.gl.uniformMatrix4fv(this.location, false, m._m);
 };
 
 function SkinningMatricesSetter()

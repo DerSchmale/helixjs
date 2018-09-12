@@ -1,6 +1,7 @@
 // basic version is non-hierarchical, for use with lights etc
 import {Matrix4x4} from "../math/Matrix4x4";
 import {Transform} from "../math/Transform";
+import {SkeletonPose} from "../animation/skeleton/SkeletonPose";
 
 
 var nameCounter = 0;
@@ -43,6 +44,9 @@ function SceneNode()
     this.raycast = true;
     this._children = [];
     this._isOnRoot = false;
+	this._skeleton = null;
+	this._skeletonPose = null;
+	this._skeletonRoot = null;
 
     // used to determine sorting index for the render loop
     // models can use this to store distance to camera for more efficient rendering, lights use this to sort based on
@@ -102,7 +106,31 @@ SceneNode.prototype = Object.create(Transform.prototype, {
 
             return this._worldMatrix;
         }
-    }
+    },
+
+    skeleton: {
+		get: function()
+		{
+			return this._skeleton;
+		},
+
+        set: function(value)
+        {
+        	if (value) {
+				var pose = new SkeletonPose();
+				pose.copyBindPose(value);
+			}
+
+			this._bindSkeleton(value, pose, this);
+        }
+    },
+
+	skeletonPose: {
+    	get: function()
+		{
+			return this._skeletonPose;
+		}
+	}
 });
 
 /**
@@ -118,17 +146,26 @@ SceneNode.prototype.attach = function(child)
         return;
     }
 
-    if (child._parent) {
-        // remove child from existing parent
-        child._parent.detach(child);
-	}
-
-    child._parent = this;
-
-    child._setScene(this._scene);
-    child._updateAncestorsVisible(this._visible && this._ancestorsVisible);
-
+    this._updateChildAdded(child);
     this._children.push(child);
+};
+
+/**
+ * @ignore
+ */
+SceneNode.prototype._updateChildAdded = function(child)
+{
+	// remove child from existing parent
+	if (child._parent)
+		child._parent.detach(child);
+
+	child._isOnRoot = this._scene && this._parent === this._scene._rootNode;
+	child._parent = this;
+	child._setScene(this._scene);
+	child._updateAncestorsVisible(this._visible && this._ancestorsVisible);
+
+	if (this._skeleton)
+		child._bindSkeleton(this._skeleton, this._skeletonPose, this._skeletonRoot);
 };
 
 /**
@@ -142,14 +179,7 @@ SceneNode.prototype.attachAfter = function(child, refChild)
     if (refChild._parent !== this)
         throw new Error("Reference child not a child of the scene node");
 
-	if (child._parent) {
-		// remove child from existing parent
-		child._parent.detach(child);
-	}
-
-	child._parent = this;
-    child._isOnRoot = this._scene && this._parent === this._scene._rootNode;
-	child._setScene(this._scene);
+	this._updateChildAdded(child);
 
 	var index = this._children.indexOf(refChild);
 	this._children.splice(index + 1, 0, child);
@@ -202,6 +232,10 @@ SceneNode.prototype.detach = function(child)
     child._isOnRoot = false;
     child._updateAncestorsVisible(true);
     child._setScene(null);
+
+    if (child.skeleton === this._skeleton) {
+		child.skeleton = null;
+	}
 
     this._children.splice(index, 1);
 };
@@ -392,12 +426,16 @@ SceneNode.prototype.clone = function()
 };
 
 /**
- * Assigns the same skeleton pose to all children in this node
+ * @ignore
  */
-SceneNode.prototype.assignSkeletonPose = function(pose)
+SceneNode.prototype._bindSkeleton = function(skeleton, pose, root)
 {
+	this._skeleton = skeleton;
+	this._skeletonPose = pose;
+	this._skeletonRoot = root;
+
 	for (var i = 0, len = this._children.length; i < len; ++i)
-		this._children[i].assignSkeletonPose(pose);
+	    this._children[i]._bindSkeleton(skeleton, pose, root);
 };
 
 export { SceneNode };

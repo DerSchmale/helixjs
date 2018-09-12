@@ -145,39 +145,6 @@ SkeletonPose.prototype = {
     /**
      * @ignore
      */
-    _generateDefault: function (skeleton)
-    {
-        this._skeletonMatricesInvalid = false;
-        this._skeleton = skeleton;
-
-        var joints = skeleton.joints;
-        var len = joints.length;
-
-        this._initJointPoses(len);
-
-        var m = new HX.Matrix4x4();
-
-        for (var i = 0; i < len; ++i) {
-            m.inverseOf(skeleton.joints[i].inverseBindPose);
-            m.decompose(this._jointPoses[i]);
-        }
-
-        if (META.OPTIONS.useSkinningTexture) {
-            this._skinningTexture = DEFAULTS.DEFAULT_SKINNING_TEXTURE;
-            return;
-        }
-
-        this._globalMatrices = [];
-        this._bindMatrices = [];
-        for (i = 0; i < len; ++i) {
-            this._globalMatrices[i] = new Matrix4x4();
-            this._bindMatrices[i] = new Matrix4x4();
-        }
-    },
-
-    /**
-     * @ignore
-     */
     _updateSkeletonMatrices: function (skeleton)
     {
         var globals = this._globalMatrices;

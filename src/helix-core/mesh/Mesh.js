@@ -38,7 +38,6 @@ function Mesh()
     this.onBoundsChanged = new Signal();
     this.onLayoutChanged = new Signal();
     this.onMorphDataCreated = new Signal();
-	this.onSkeletonChange = new Signal();
 	this.name = "hx_mesh_" + MESH_ID_COUNTER;
 	this.elementType = ElementType.TRIANGLES;
 	this._bounds = new BoundingAABB();
@@ -129,20 +128,6 @@ Mesh.prototype = {
 			this._invalidateBounds();
 		else
 			this._boundsInvalid = false;
-	},
-
-	/**
-	 * The {@linkcode Skeleton} used for skinning animations.
-	 */
-	get skeleton()
-	{
-		return this._skeleton;
-	},
-
-	set skeleton(value)
-	{
-		this._skeleton = value;
-		this.onSkeletonChange.dispatch();
 	},
 
     /**

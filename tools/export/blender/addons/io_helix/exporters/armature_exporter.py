@@ -13,7 +13,7 @@ def write_bone(bone, file, object_map):
 
 def write(armature, file, object_map):
     if object_map.has_mapped_indices(armature):
-        return
+        return object_map.get_mapped_indices(armature)[0]
 
     skeleton_id = data.start_object(file, object_types.SKELETON, object_map)
     data.write_string_prop(file, property_types.NAME, armature.name)

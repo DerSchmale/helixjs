@@ -599,7 +599,6 @@ GLTF.prototype._parseSkin = function(nodeDef, target)
     var pose = new HX.SkeletonPose();
 
     var skelNode = this._nodes[skinDef.skeleton];
-    var invWorldMatrix = new HX.Matrix4x4();
 
     // no need for it to end up in the scene graph
     if (skelNode.parent) skelNode.parent.detach(skelNode);
@@ -613,7 +612,6 @@ GLTF.prototype._parseSkin = function(nodeDef, target)
 
         joint.inverseBindPose.prepend(this._flipCoord);
         joint.inverseBindPose.append(this._flipCoord);
-        joint.inverseBindPose.append(invWorldMatrix);
 
         skeleton.joints.push(joint);
 
@@ -649,7 +647,7 @@ GLTF.prototype._parseSkin = function(nodeDef, target)
     var instances = target.getComponentsByType(HX.MeshInstance);
     for (i = 0; i < instances.length; ++i) {
 		var instance = instances[i];
-		instance.mesh.skeleton = skeleton;
+		instance.skeleton = skeleton;
 		instance.skeletonPose = pose;
 	}
 };

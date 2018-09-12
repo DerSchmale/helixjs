@@ -3,6 +3,8 @@ import {GL} from "../core/GL";
 import {VertexLayout} from "./VertexLayout";
 import {MaterialPass} from "../material/MaterialPass";
 import {Component} from "../entity/Component";
+import {SkeletonPose} from "../animation/skeleton/SkeletonPose";
+import {Matrix4x4} from "../math/Matrix4x4";
 
 var nameCounter = 0;
 
@@ -26,6 +28,8 @@ function MeshInstance(mesh, material)
 	this.name = "hx_meshinstance_" + (nameCounter++);
 	this.castShadows = true;
 	this.skeletonPose = null;
+	this.bindShapeMatrix = null;
+	this.bindShapeMatrixInverse = null;
 	this._bounds = new BoundingAABB();
 	this._morphPositions = null;
 	this._morphNormals = null;
@@ -33,6 +37,7 @@ function MeshInstance(mesh, material)
 	this._meshMaterialLinkInvalid = true;
 	this._vertexLayouts = null;
 	this._morphPose = null;
+	this._skeleton = null;
 	this.mesh = mesh;
 	this.material = material;
 
@@ -42,7 +47,14 @@ Component.create(MeshInstance, {
 	skeleton: {
 		get: function()
 		{
-			return this._mesh.skeleton;
+			return this._skeleton;
+		},
+
+		set: function(value)
+		{
+			var pose = new SkeletonPose();
+			pose.copyBindPose(value);
+			this._bindSkeleton(value, pose, null);
 		}
 	},
 
@@ -56,7 +68,7 @@ Component.create(MeshInstance, {
 	skeletonMatrices: {
 		get: function()
 		{
-			return this.skeletonPose? this.skeletonPose.getBindMatrices(this._mesh._skeleton) : null;
+			return this.skeletonPose? this.skeletonPose.getBindMatrices(this._skeleton) : null;
 		}
 	},
 
@@ -94,7 +106,6 @@ Component.create(MeshInstance, {
 				this._mesh.onLayoutChanged.unbind(this._onMaterialOrMeshChange);
 				this._mesh.onBoundsChanged.unbind(this._invalidateBounds);
 				this._mesh.onMorphDataCreated.unbind(this._initMorphData);
-				this._mesh.onSkeletonChange.unbind(this._onSkeletonChange);
 			}
 
 			this._mesh = mesh;
@@ -102,7 +113,6 @@ Component.create(MeshInstance, {
 			mesh.onLayoutChanged.bind(this._onMaterialOrMeshChange, this);
 			mesh.onBoundsChanged.bind(this._invalidateBounds, this);
 			mesh.onMorphDataCreated.bind(this._initMorphData, this);
-			mesh.onSkeletonChange.bind(this._onSkeletonChange, this);
 
 			this._initMorphData();
 
@@ -132,7 +142,7 @@ Component.create(MeshInstance, {
 				this._material.onChange.bind(this._onMaterialOrMeshChange, this);
 
 				// TODO: Should this be set explicitly on the material by the user?
-				this._material._setUseSkinning(!!this._mesh.skeleton);
+				this._material._setUseSkinning(!!this._skeleton);
 				this._material._setUseMorphing(
 					this._mesh.hasMorphData,
 					this._mesh.hasMorphNormals
@@ -311,11 +321,6 @@ MeshInstance.prototype._setMorphTarget = function(targetIndex, positionBuffer, n
 	this._morphWeights[targetIndex] = positionBuffer? weight : 0.0;
 };
 
-MeshInstance.prototype._onSkeletonChange = function()
-{
-	this._material._setUseSkinning(!!this._mesh.skeleton);
-};
-
 MeshInstance.prototype._updateBounds = function()
 {
 	this._bounds = this._mesh.bounds;
@@ -359,6 +364,26 @@ MeshInstance.prototype.clone = function()
 	if (this.skeletonPose)
 		clone.skeletonPose = this.skeletonPose.clone();
 	return clone;
+};
+
+
+/**
+ * @ignore
+ */
+MeshInstance.prototype._bindSkeleton = function(skeleton, pose, bindShapeMatrix)
+{
+	this._skeleton = skeleton;
+	this.skeletonPose = pose;
+	this.bindShapeMatrix = bindShapeMatrix;
+	this.bindShapeMatrixInverse = null;
+
+	if (bindShapeMatrix) {
+		this.bindShapeMatrixInverse = bindShapeMatrix.clone();
+		this.bindShapeMatrixInverse.invertAffine();
+	}
+
+	if (this._material)
+		this._material._setUseSkinning(!!this._skeleton);
 };
 
 export { MeshInstance };

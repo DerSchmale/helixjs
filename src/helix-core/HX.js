@@ -132,7 +132,6 @@ export {AssetLibrary} from "./loaders/AssetLibrary";
 export {AssetLoader} from "./loaders/AssetLoader";
 export {AudioFile} from "./loaders/AudioFile";
 export {URLLoader} from "./loaders/URLLoader";
-export {HCLIP} from "./loaders/HCLIP";
 export {HCM} from "./loaders/HCM";
 export {HMAT} from "./loaders/HMAT";
 export {HX} from "./loaders/HX";

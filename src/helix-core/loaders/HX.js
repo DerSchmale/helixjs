@@ -33,6 +33,8 @@ import {SkeletonXFadeNode} from "../animation/skeleton/SkeletonXFadeNode";
 import {SkeletonPose} from "../animation/skeleton/SkeletonPose";
 import {KeyFrame} from "../animation/KeyFrame";
 import {SkeletonJointPose} from "../animation/skeleton/SkeletonJointPose";
+import {AsyncTaskQueue} from "../utils/AsyncTaskQueue";
+import {NormalTangentGenerator} from "../utils/NormalTangentGenerator";
 
 /**
  * The data provided by the HX loader
@@ -105,7 +107,6 @@ var ObjectTypes = {
 var ObjectTypeMap = {
 	2: SceneNode,
 	3: Entity,
-	4: Mesh,
 	6: MeshInstance,
 	7: Skeleton,
 	8: SkeletonJoint,
@@ -222,6 +223,7 @@ var MaterialLinkMetaProp = {
 function HX()
 {
 	Importer.call(this, HXData, URLLoader.DATA_BINARY);
+
 	this._objects = null;
 	this._scenes = null;
 	this._padArrays = true;
@@ -248,21 +250,46 @@ HX.prototype.parse = function(data, target)
 	this._defaultSceneIndex = 0;
 	this._objects = [];
 	this._scenes = [];
+	this._meshes = [];
 	this._lights = null;
 	this._dependencyLib = new AssetLibrary(null, this.options.crossOrigin);
 
 	this._parseHeader();
-
-	// TODO: Should we make this asynchronous somehow?
 	this._parseObjectList();
 
 	target.scenes = this._scenes;
 	target.defaultScene = this._scenes[this._defaultSceneIndex];
 
+	this._calcMissingMeshData();
+};
+
+HX.prototype._calcMissingMeshData = function()
+{
+	var queue = new AsyncTaskQueue();
+	var generator = new NormalTangentGenerator();
+	for (var i = 0, len = this._meshes.length; i < len; ++i) {
+		var mode = 0;
+		var mesh = this._meshes[i];
+
+		if (!mesh.hasVertexAttribute("hx_normal"))
+			mode |= NormalTangentGenerator.MODE_NORMALS;
+
+		if (!mesh.hasVertexAttribute("hx_tangent"))
+			mode |= NormalTangentGenerator.MODE_TANGENTS;
+
+		queue.queue(generator.generate.bind(generator, mesh, mode));
+	}
+
+	queue.onComplete.bind(this._loadDependencies, this);
+	queue.execute();
+};
+
+HX.prototype._loadDependencies = function()
+{
 	this._dependencyLib.onComplete.bind(this._onDependenciesLoaded, this);
 	this._dependencyLib.onProgress.bind(this._notifyProgress, this);
 	this._dependencyLib.load();
-};
+}
 
 HX.prototype._onDependenciesLoaded = function()
 {
@@ -314,6 +341,10 @@ HX.prototype._parseObjectList = function()
 			case ObjectTypes.SCENE:
 				object = this._parseObject(Scene, data);
 				this._scenes.push(object);
+				break;
+			case ObjectTypes.MESH:
+				object = this._parseObject(Mesh, data);
+				this._meshes.push(object);
 				break;
 			case ObjectTypes.MATERIAL:
 				object = this._parseMaterial(data);

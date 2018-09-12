@@ -212,6 +212,14 @@ Mesh.prototype = {
         this._indexBuffer.uploadData(this._indexData, this._indexUsage);
     },
 
+	/**
+	 * Returns whether the Mesh has a vertex attribute with the given name.
+	 */
+	hasVertexAttribute: function(name)
+	{
+		return this._vertexAttributesLookUp.hasOwnProperty(name);
+	},
+
     /**
      * Adds a named vertex attribute. All properties are given manually to make it easier to support multiple streams in the future.
      * @param name The name of the attribute, matching the attribute name used in the vertex shaders.

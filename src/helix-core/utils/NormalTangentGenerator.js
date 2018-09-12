@@ -44,9 +44,15 @@ NormalTangentGenerator.prototype =
         if (useFaceWeights === undefined) useFaceWeights = true;
         this._mode = mode === undefined? NormalTangentGenerator.MODE_NORMALS | NormalTangentGenerator.MODE_TANGENTS : mode;
 
+		this._faceNormals = null;
+		this._faceTangents = null;
+		this._faceBitangents = null;
+
         this._flip = flip || false;
 
         this._mesh = mesh;
+
+		this._addMissingAttributes(mesh, mode);
 
         this._positionAttrib = mesh.getVertexAttributeByName("hx_position");
         this._normalAttrib = mesh.getVertexAttributeByName("hx_normal");
@@ -59,6 +65,25 @@ NormalTangentGenerator.prototype =
 
         this._calculateFaceVectors(useFaceWeights);
         this._calculateVertexVectors();
+    },
+
+	_addMissingAttributes: function(mesh, mode)
+    {
+        var streamIndex = mesh.numStreams;
+        var comps = 0;
+        if ((mode & NormalTangentGenerator.MODE_NORMALS) && !mesh.hasVertexAttribute("hx_normal")) {
+            mesh.addVertexAttribute("hx_normal", 3, streamIndex, true);
+            comps += 3;
+        }
+        if ((mode & NormalTangentGenerator.MODE_TANGENTS) && !mesh.hasVertexAttribute("hx_tangent")) {
+			mesh.addVertexAttribute("hx_tangent", 4, streamIndex, true);
+			comps += 4;
+        }
+        var arr = [];
+        for (var i = 0; i < comps; ++i)
+            arr[i] = 0;
+
+        mesh.setVertexData(arr, streamIndex);
     },
 
     _calculateFaceVectors: function(useFaceWeights)

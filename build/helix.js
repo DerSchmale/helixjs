@@ -3663,6 +3663,30 @@
 
 	ShaderLibrary._files['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
 
+	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
+
+	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
+
+	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
+
+	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
+
+	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['esm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readValue(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readValue(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValue(uv + offset) + readValue(uv - offset);\n	}\n\n//	hx_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	hx_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
+
+	ShaderLibrary._files['shadow_esm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    // I wish we could write exp directly, but precision issues (can\'t encode real floats)\n    return vec4(exp(HX_ESM_CONSTANT * depth));\n// so when blurring, we\'ll need to do ln(sum(exp())\n//    return vec4(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;\n    shadowMapCoord.z += depthBias;\n//    float diff = shadowSample - shadowMapCoord.z;\n//    return saturate(HX_ESM_DARKENING * exp(HX_ESM_CONSTANT * diff));\n    return saturate(HX_ESM_DARKENING * shadowSample * exp(-HX_ESM_CONSTANT * shadowMapCoord.z));\n}';
+
+	ShaderLibrary._files['shadow_hard.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    return hx_floatToRGBA8(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    float shadowSample = hx_RGBA8ToFloat(texture2D(shadowMap, shadowMapCoord.xy));\n    float diff = shadowMapCoord.z - shadowSample - depthBias;\n    return float(diff < 0.0);\n}';
+
+	ShaderLibrary._files['shadow_pcf.glsl'] = '#ifdef HX_PCF_DITHER_SHADOWS\n    uniform sampler2D hx_dither2D;\n    uniform vec2 hx_dither2DTextureScale;\n#endif\n\nuniform vec2 hx_poissonDisk[32];\n\nvec4 hx_getShadowMapValue(float depth)\n{\n    return hx_floatToRGBA8(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    float shadowTest = 0.0;\n\n    #ifdef HX_PCF_DITHER_SHADOWS\n        vec4 dither = hx_sampleDefaultDither(hx_dither2D, gl_FragCoord.xy * hx_dither2DTextureScale);\n        dither = vec4(dither.x, -dither.y, dither.y, dither.x) * HX_PCF_SOFTNESS;  // add radius scale\n    #endif\n\n    for (int i = 0; i < HX_PCF_NUM_SHADOW_SAMPLES; ++i) {\n        vec2 offset;\n        #ifdef HX_PCF_DITHER_SHADOWS\n        offset.x = dot(dither.xy, hx_poissonDisk[i]);\n        offset.y = dot(dither.zw, hx_poissonDisk[i]);\n        #else\n        offset = hx_poissonDisk[i] * HX_PCF_SOFTNESS;\n        #endif\n        float shadowSample = hx_RGBA8ToFloat(texture2D(shadowMap, shadowMapCoord.xy + offset));\n        float diff = shadowMapCoord.z - shadowSample - depthBias;\n        shadowTest += float(diff < 0.0);\n    }\n\n    return shadowTest * HX_PCF_RCP_NUM_SHADOW_SAMPLES;\n}';
+
+	ShaderLibrary._files['shadow_vsm.glsl'] = '#derivatives\n\nvec4 hx_getShadowMapValue(float depth)\n{\n    float dx = dFdx(depth);\n    float dy = dFdy(depth);\n    float moment2 = depth * depth + 0.25*(dx*dx + dy*dy);\n\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    return vec4(depth, moment2, 0.0, 1.0);\n    #else\n    return vec4(hx_floatToRG8(depth), hx_floatToRG8(moment2));\n    #endif\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    vec4 s = texture2D(shadowMap, shadowMapCoord.xy);\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    vec2 moments = s.xy;\n    #else\n    vec2 moments = vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    #endif\n    shadowMapCoord.z += depthBias;\n\n    float variance = moments.y - moments.x * moments.x;\n    variance = max(variance, HX_VSM_MIN_VARIANCE);\n\n    float diff = shadowMapCoord.z - moments.x;\n    float upperBound = 1.0;\n\n    // transparents could be closer to the light than casters\n    if (diff > 0.0)\n        upperBound = variance / (variance + diff*diff);\n\n    return saturate((upperBound - HX_VSM_LIGHT_BLEED_REDUCTION) * HX_VSM_RCP_LIGHT_BLEED_REDUCTION_RANGE);\n}';
+
+	ShaderLibrary._files['vsm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nvec2 readValues(vec2 coord)\n{\n    vec4 s = texture2D(source, coord);\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    return s.xy;\n    #else\n    return vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    #endif\n}\n\nvoid main()\n{\n    vec2 total = readValues(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValues(uv + offset) + readValues(uv - offset);\n	}\n\n    total *= RCP_NUM_SAMPLES;\n\n#if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    hx_FragColor = vec4(total, 0.0, 1.0);\n#else\n	hx_FragColor.xy = hx_floatToRG8(total.x);\n	hx_FragColor.zw = hx_floatToRG8(total.y);\n#endif\n}';
+
 	ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	hx_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
 	ShaderLibrary._files['bloom_composite_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
@@ -3692,30 +3716,6 @@
 	ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	hx_FragColor = vec4(l, l, l, 1.0);\n}';
 
 	ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	hx_FragColor = color / (1.0 + lum);\n}';
-
-	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
-
-	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
-
-	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
-
-	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
-
-	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['esm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readValue(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readValue(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValue(uv + offset) + readValue(uv - offset);\n	}\n\n//	hx_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	hx_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
-
-	ShaderLibrary._files['shadow_esm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    // I wish we could write exp directly, but precision issues (can\'t encode real floats)\n    return vec4(exp(HX_ESM_CONSTANT * depth));\n// so when blurring, we\'ll need to do ln(sum(exp())\n//    return vec4(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;\n    shadowMapCoord.z += depthBias;\n//    float diff = shadowSample - shadowMapCoord.z;\n//    return saturate(HX_ESM_DARKENING * exp(HX_ESM_CONSTANT * diff));\n    return saturate(HX_ESM_DARKENING * shadowSample * exp(-HX_ESM_CONSTANT * shadowMapCoord.z));\n}';
-
-	ShaderLibrary._files['shadow_hard.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    return hx_floatToRGBA8(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    float shadowSample = hx_RGBA8ToFloat(texture2D(shadowMap, shadowMapCoord.xy));\n    float diff = shadowMapCoord.z - shadowSample - depthBias;\n    return float(diff < 0.0);\n}';
-
-	ShaderLibrary._files['shadow_pcf.glsl'] = '#ifdef HX_PCF_DITHER_SHADOWS\n    uniform sampler2D hx_dither2D;\n    uniform vec2 hx_dither2DTextureScale;\n#endif\n\nuniform vec2 hx_poissonDisk[32];\n\nvec4 hx_getShadowMapValue(float depth)\n{\n    return hx_floatToRGBA8(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    float shadowTest = 0.0;\n\n    #ifdef HX_PCF_DITHER_SHADOWS\n        vec4 dither = hx_sampleDefaultDither(hx_dither2D, gl_FragCoord.xy * hx_dither2DTextureScale);\n        dither = vec4(dither.x, -dither.y, dither.y, dither.x) * HX_PCF_SOFTNESS;  // add radius scale\n    #endif\n\n    for (int i = 0; i < HX_PCF_NUM_SHADOW_SAMPLES; ++i) {\n        vec2 offset;\n        #ifdef HX_PCF_DITHER_SHADOWS\n        offset.x = dot(dither.xy, hx_poissonDisk[i]);\n        offset.y = dot(dither.zw, hx_poissonDisk[i]);\n        #else\n        offset = hx_poissonDisk[i] * HX_PCF_SOFTNESS;\n        #endif\n        float shadowSample = hx_RGBA8ToFloat(texture2D(shadowMap, shadowMapCoord.xy + offset));\n        float diff = shadowMapCoord.z - shadowSample - depthBias;\n        shadowTest += float(diff < 0.0);\n    }\n\n    return shadowTest * HX_PCF_RCP_NUM_SHADOW_SAMPLES;\n}';
-
-	ShaderLibrary._files['shadow_vsm.glsl'] = '#derivatives\n\nvec4 hx_getShadowMapValue(float depth)\n{\n    float dx = dFdx(depth);\n    float dy = dFdy(depth);\n    float moment2 = depth * depth + 0.25*(dx*dx + dy*dy);\n\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    return vec4(depth, moment2, 0.0, 1.0);\n    #else\n    return vec4(hx_floatToRG8(depth), hx_floatToRG8(moment2));\n    #endif\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    vec4 s = texture2D(shadowMap, shadowMapCoord.xy);\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    vec2 moments = s.xy;\n    #else\n    vec2 moments = vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    #endif\n    shadowMapCoord.z += depthBias;\n\n    float variance = moments.y - moments.x * moments.x;\n    variance = max(variance, HX_VSM_MIN_VARIANCE);\n\n    float diff = shadowMapCoord.z - moments.x;\n    float upperBound = 1.0;\n\n    // transparents could be closer to the light than casters\n    if (diff > 0.0)\n        upperBound = variance / (variance + diff*diff);\n\n    return saturate((upperBound - HX_VSM_LIGHT_BLEED_REDUCTION) * HX_VSM_RCP_LIGHT_BLEED_REDUCTION_RANGE);\n}';
-
-	ShaderLibrary._files['vsm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nvec2 readValues(vec2 coord)\n{\n    vec4 s = texture2D(source, coord);\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    return s.xy;\n    #else\n    return vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    #endif\n}\n\nvoid main()\n{\n    vec2 total = readValues(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValues(uv + offset) + readValues(uv - offset);\n	}\n\n    total *= RCP_NUM_SAMPLES;\n\n#if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    hx_FragColor = vec4(total, 0.0, 1.0);\n#else\n	hx_FragColor.xy = hx_floatToRG8(total.x);\n	hx_FragColor.zw = hx_floatToRG8(total.y);\n#endif\n}';
 
 	ShaderLibrary._files['snippets_general.glsl'] = '#define HX_LOG_10 2.302585093\n\n#ifdef HX_GLSL_300_ES\n// replace some outdated function names\nvec4 texture2D(sampler2D s, vec2 uv) { return texture(s, uv); }\nvec4 textureCube(samplerCube s, vec3 uvw) { return texture(s, uvw); }\n\n#define vertex_attribute in\n#define varying_in in\n#define varying_out out\n\n#ifdef HX_FRAGMENT_SHADER\nout vec4 hx_FragColor;\n#endif\n\n#else\n\n#define vertex_attribute attribute\n#define varying_in varying\n#define varying_out varying\n#define hx_FragColor gl_FragColor\n\n#endif\n\nfloat saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);\n    // cannot fract first value or 1 would not be encodable\n    enc.yzw = fract(enc.yzw);\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc.y = fract(enc.y);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec2 hx_encodeNormal(vec3 normal)\n{\n    vec2 data;\n    float p = sqrt(-normal.y*8.0 + 8.0);\n    data = normal.xz / p + .5;\n    return data;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    vec3 normal;\n    data.xy = data.xy*4.0 - 2.0;\n    float f = dot(data.xy, data.xy);\n    float g = sqrt(1.0 - f * .25);\n    normal.xz = data.xy * g;\n    normal.y = -(1.0 - f * .5);\n    return normal;\n}\n\nfloat hx_log10(float val)\n{\n    return log(val) / HX_LOG_10;\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\n/*float hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}*/\n\nfloat hx_decodeLinearDepth(vec4 samp)\n{\n    return hx_RG8ToFloat(samp.zw);\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = 1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return unproj.xyz / unproj.y;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewY(float depthSample, mat4 projectionMatrix)\n{\n    // View Y maps to NDC Z!!!\n    // y = projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[1][2])\n    return projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[1][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\n// https://seblagarde.wordpress.com/2011/08/17/hello-world/\nvec3 hx_fresnelProbe(vec3 normalSpecularReflectance, vec3 lightDir, vec3 normal, float roughness)\n{\n    float cosAngle = 1.0 - max(dot(normal, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    float gloss = (1.0 - roughness) * (1.0 - roughness);\n    vec3 bound = max(vec3(gloss), normalSpecularReflectance);\n    return normalSpecularReflectance + (bound - normalSpecularReflectance) * power;\n}\n\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}\n\nvec4 hx_sampleDefaultDither(sampler2D ditherTexture, vec2 uv)\n{\n    vec4 s = texture2D(ditherTexture, uv);\n\n    #ifndef HX_FLOAT_TEXTURES\n    s = s * 2.0 - 1.0;\n    #endif\n\n    return s;\n}\n\nvec3 hx_intersectCubeMap(vec3 rayOrigin, vec3 cubeCenter, vec3 rayDir, float cubeSize)\n{\n    vec3 t = (cubeSize * sign(rayDir) - (rayOrigin - cubeCenter)) / rayDir;\n    float minT = min(min(t.x, t.y), t.z);\n    return rayOrigin + minT * rayDir;\n}\n\n// sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.\n#ifdef HX_USE_SKINNING_TEXTURE\n#define HX_RCP_MAX_SKELETON_JOINTS 1.0 / float(HX_MAX_SKELETON_JOINTS - 1)\nmat4 hx_getSkinningMatrixImpl(vec4 weights, vec4 indices, sampler2D tex)\n{\n    mat4 m = mat4(0.0);\n    for (int i = 0; i < 4; ++i) {\n        mat4 t;\n        float index = indices[i] * HX_RCP_MAX_SKELETON_JOINTS;\n        t[0] = texture2D(tex, vec2(index, 0.0));\n        t[1] = texture2D(tex, vec2(index, 0.5));\n        t[2] = texture2D(tex, vec2(index, 1.0));\n        t[3] = vec4(0.0, 0.0, 0.0, 1.0);\n        m += weights[i] * t;\n    }\n    return m;\n}\n#define hx_getSkinningMatrix(v) hx_getSkinningMatrixImpl(hx_jointWeights, hx_jointIndices, hx_skinningTexture)\n#else\n#define hx_getSkinningMatrix(v) ( hx_jointWeights.x * mat4(hx_skinningMatrices[int(hx_jointIndices.x) * 3], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.y * mat4(hx_skinningMatrices[int(hx_jointIndices.y) * 3], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.z * mat4(hx_skinningMatrices[int(hx_jointIndices.z) * 3], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.w * mat4(hx_skinningMatrices[int(hx_jointIndices.w) * 3], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) )\n#endif';
 
@@ -6931,6 +6931,14 @@
 	        this._numIndices = this._indexData.length;
 	        this._indexBuffer.uploadData(this._indexData, this._indexUsage);
 	    },
+
+		/**
+		 * Returns whether the Mesh has a vertex attribute with the given name.
+		 */
+		hasVertexAttribute: function(name)
+		{
+			return this._vertexAttributesLookUp.hasOwnProperty(name);
+		},
 
 	    /**
 	     * Adds a named vertex attribute. All properties are given manually to make it easier to support multiple streams in the future.
@@ -13785,9 +13793,15 @@
 	        if (useFaceWeights === undefined) useFaceWeights = true;
 	        this._mode = mode === undefined? NormalTangentGenerator.MODE_NORMALS | NormalTangentGenerator.MODE_TANGENTS : mode;
 
+			this._faceNormals = null;
+			this._faceTangents = null;
+			this._faceBitangents = null;
+
 	        this._flip = flip || false;
 
 	        this._mesh = mesh;
+
+			this._addMissingAttributes(mesh, mode);
 
 	        this._positionAttrib = mesh.getVertexAttributeByName("hx_position");
 	        this._normalAttrib = mesh.getVertexAttributeByName("hx_normal");
@@ -13800,6 +13814,25 @@
 
 	        this._calculateFaceVectors(useFaceWeights);
 	        this._calculateVertexVectors();
+	    },
+
+		_addMissingAttributes: function(mesh, mode)
+	    {
+	        var streamIndex = mesh.numStreams;
+	        var comps = 0;
+	        if ((mode & NormalTangentGenerator.MODE_NORMALS) && !mesh.hasVertexAttribute("hx_normal")) {
+	            mesh.addVertexAttribute("hx_normal", 3, streamIndex, true);
+	            comps += 3;
+	        }
+	        if ((mode & NormalTangentGenerator.MODE_TANGENTS) && !mesh.hasVertexAttribute("hx_tangent")) {
+				mesh.addVertexAttribute("hx_tangent", 4, streamIndex, true);
+				comps += 4;
+	        }
+	        var arr = [];
+	        for (var i = 0; i < comps; ++i)
+	            arr[i] = 0;
+
+	        mesh.setVertexData(arr, streamIndex);
 	    },
 
 	    _calculateFaceVectors: function(useFaceWeights)
@@ -26529,88 +26562,6 @@
 
 	/**
 	 * @classdesc
-	 * HCLIP is an Importer for Helix' (binary) animation clip format. Yields an {@linkcode AnimationClip} object.
-	 *
-	 * @constructor
-	 *
-	 * @extends Importer
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function HCLIP()
-	{
-	    Importer.call(this, AnimationClip, URLLoader.DATA_BINARY);
-	}
-
-	HCLIP.prototype = Object.create(Importer.prototype);
-
-	HCLIP.VERSION = "0.1.0";
-
-	HCLIP.VALUE_TYPE_SKELETON_POSE = 1;
-	HCLIP.VALUE_TYPE_NUMBER = 2;
-	HCLIP.VALUE_TYPE_FLOAT3 = 3;
-	HCLIP.VALUE_TYPE_QUATERNION = 4;
-
-
-	HCLIP.prototype.parse = function(data, target)
-	{
-	    var stream = new DataStream(data);
-
-	    var hash = stream.getString(7);
-	    if (hash !== "HX_CLIP")
-	        throw new Error("Invalid file hash!");
-
-	    var version = stream.getUint16Array(3).join(".");
-	    // pointless to check this now, only know when to support which versions in the future
-	    // if (version !== HCLIP.VERSION)
-	    //     throw new Error("Unsupported file version!");
-
-	// figure out type:
-	    var valueType = stream.getUint8();
-	    var numFrames = stream.getUint32();
-	    var info = stream.getUint8(); // numJoints in SkeletonPose
-
-	    for (var i = 0; i < numFrames; ++i) {
-	        var keyFrame = new HX.KeyFrame();
-	        keyFrame.time = stream.getUint32();
-	        keyFrame.value = this._readValue(stream, valueType, info);
-	        target.addKeyFrame(keyFrame);
-	    }
-
-	    this._notifyComplete(target);
-	};
-
-	HCLIP.prototype._readValue = function(stream, type, info)
-	{
-	    if (type === HCLIP.VALUE_TYPE_SKELETON_POSE) {
-	        var numJoints = info;
-	        var pose = new SkeletonPose();
-
-	        for (var i = 0; i < numJoints; ++i) {
-	            var jointPose = new SkeletonJointPose();
-
-	            jointPose.position.set(stream.getFloat32(), stream.getFloat32(), stream.getFloat32());
-	            jointPose.rotation.set(stream.getFloat32(), stream.getFloat32(), stream.getFloat32(), stream.getFloat32());
-	            jointPose.scale.set(stream.getFloat32(), stream.getFloat32(), stream.getFloat32());
-
-	            pose.setJointPose(i, jointPose);
-	        }
-
-	        return pose;
-	    }
-	    else if (type === AnimationClipExporter.VALUE_TYPE_FLOAT3) {
-	        return new HX.Float4(stream.getFloat32(), stream.getFloat32(), stream.getFloat32(), 0.0);
-	    }
-	    else if(type === AnimationClipExporter.VALUE_TYPE_QUATERNION) {
-	        return new HX.Quaternion(stream.getFloat32(), stream.getFloat32(), stream.getFloat32(), stream.getFloat32());
-	    }
-	    else if (type === AnimationClipExporter.VALUE_TYPE_NUMBER) {
-	        return stream.getFloat32();
-	    }
-	};
-
-	/**
-	 * @classdesc
 	 * HCM is an Importer for Helix' json-based cube map formats. Yields a {@linkcode TextureCube} object.
 	 *
 	 * @constructor
@@ -27125,6 +27076,117 @@
 	};
 
 	/**
+	 * AsyncTaskQueue allows queueing a bunch of functions which are executed "whenever", in order.
+	 *
+	 * @classdesc
+	 *
+	 * @constructor
+	 */
+	function AsyncTaskQueue()
+	{
+	    this.onComplete = new Signal();
+	    this.onProgress = new Signal();
+	    this._queue = [];
+	    this._childQueues = [];
+	    this._currentIndex = 0;
+	    this._isRunning = false;
+		this._timeout = undefined;
+	}
+
+	AsyncTaskQueue.prototype = {
+		/**
+		 * Indicates whether the queue is currently running or not.
+		 */
+		get isRunning() { return this._isRunning },
+
+		/**
+	     * Adds a function to execute. Provide the parameters for the function as parameters after the function.
+		 */
+		queue: function(func, rest)
+	    {
+	        // V8 engine doesn't perform well if not copying the array first before slicing
+	        var args = (arguments.length === 1 ? [arguments[0]] : Array.apply(null, arguments));
+
+	        this._queue.push({
+	            func: func,
+	            args: args.slice(1)
+	        });
+	    },
+
+		/**
+	     * Adds a child queue to execute. This can be done by queued tasks while this queue is already running.
+		 */
+	    addChildQueue: function(queue)
+	    {
+	        this._childQueues.push(queue);
+	    },
+
+		/**
+	     * Starts execution of the tasks in the queue.
+		 */
+		execute: function()
+	    {
+	        if (this._isRunning)
+	            throw new Error("Already running!");
+
+	        this._isRunning = true;
+	        this._currentIndex = 0;
+
+	        this._executeTask();
+	    },
+
+		/**
+	     * Cancels execution of the queue.
+		 */
+		cancel: function()
+	    {
+	        if (!this._isRunning) return;
+	        if (this._timeout !== undefined)
+	            clearTimeout(this._timeout);
+
+	        this._isRunning = false;
+	        this._timeout = undefined;
+	    },
+
+		/**
+	     * @ignore
+		 * @private
+		 */
+		_executeTask: function()
+	    {
+	        this._timeout = setTimeout(this._executeImpl.bind(this));
+	    },
+
+		/**
+		 * @ignore
+		 * @private
+		 */
+	    _executeImpl: function()
+	    {
+	        // cancelled
+	        if (!this._isRunning) return;
+
+	        this.onProgress.dispatch(this._currentIndex / this._queue.length);
+
+	        if (this._childQueues.length > 0) {
+	            var queue = this._childQueues.shift();
+	            queue.onComplete.bind(this._executeImpl, this);
+	            queue.execute();
+	        }
+	        else if (this._queue.length === this._currentIndex) {
+				this._isRunning = false;
+	            this.onComplete.dispatch();
+	        }
+	        else {
+	            var elm = this._queue[this._currentIndex];
+	            elm.func.apply(this, elm.args);
+	            ++this._currentIndex;
+	            this._executeTask();
+	        }
+	    }
+	};
+
+	/**
 	 * The data provided by the HX loader
 	 * @constructor
 	 */
@@ -27195,7 +27257,6 @@
 	var ObjectTypeMap = {
 		2: SceneNode,
 		3: Entity,
-		4: Mesh,
 		6: MeshInstance,
 		7: Skeleton,
 		8: SkeletonJoint,
@@ -27312,6 +27373,7 @@
 	function HX$1()
 	{
 		Importer.call(this, HXData, URLLoader.DATA_BINARY);
+
 		this._objects = null;
 		this._scenes = null;
 		this._padArrays = true;
@@ -27338,17 +27400,42 @@
 		this._defaultSceneIndex = 0;
 		this._objects = [];
 		this._scenes = [];
+		this._meshes = [];
 		this._lights = null;
 		this._dependencyLib = new AssetLibrary(null, this.options.crossOrigin);
 
 		this._parseHeader();
-
-		// TODO: Should we make this asynchronous somehow?
 		this._parseObjectList();
 
 		target.scenes = this._scenes;
 		target.defaultScene = this._scenes[this._defaultSceneIndex];
 
+		this._calcMissingMeshData();
+	};
+
+	HX$1.prototype._calcMissingMeshData = function()
+	{
+		var queue = new AsyncTaskQueue();
+		var generator = new NormalTangentGenerator();
+		for (var i = 0, len = this._meshes.length; i < len; ++i) {
+			var mode = 0;
+			var mesh = this._meshes[i];
+
+			if (!mesh.hasVertexAttribute("hx_normal"))
+				mode |= NormalTangentGenerator.MODE_NORMALS;
+
+			if (!mesh.hasVertexAttribute("hx_tangent"))
+				mode |= NormalTangentGenerator.MODE_TANGENTS;
+
+			queue.queue(generator.generate.bind(generator, mesh, mode));
+		}
+
+		queue.onComplete.bind(this._loadDependencies, this);
+		queue.execute();
+	};
+
+	HX$1.prototype._loadDependencies = function()
+	{
 		this._dependencyLib.onComplete.bind(this._onDependenciesLoaded, this);
 		this._dependencyLib.onProgress.bind(this._notifyProgress, this);
 		this._dependencyLib.load();
@@ -27404,6 +27491,10 @@
 				case ObjectTypes.SCENE:
 					object = this._parseObject(Scene, data);
 					this._scenes.push(object);
+					break;
+				case ObjectTypes.MESH:
+					object = this._parseObject(Mesh, data);
+					this._meshes.push(object);
 					break;
 				case ObjectTypes.MATERIAL:
 					object = this._parseMaterial(data);
@@ -30015,117 +30106,6 @@
 	};
 
 	/**
-	 * AsyncTaskQueue allows queueing a bunch of functions which are executed "whenever", in order.
-	 *
-	 * @classdesc
-	 *
-	 * @constructor
-	 */
-	function AsyncTaskQueue()
-	{
-	    this.onComplete = new Signal();
-	    this.onProgress = new Signal();
-	    this._queue = [];
-	    this._childQueues = [];
-	    this._currentIndex = 0;
-	    this._isRunning = false;
-		this._timeout = undefined;
-	}
-
-	AsyncTaskQueue.prototype = {
-		/**
-		 * Indicates whether the queue is currently running or not.
-		 */
-		get isRunning() { return this._isRunning },
-
-		/**
-	     * Adds a function to execute. Provide the parameters for the function as parameters after the function.
-		 */
-		queue: function(func, rest)
-	    {
-	        // V8 engine doesn't perform well if not copying the array first before slicing
-	        var args = (arguments.length === 1 ? [arguments[0]] : Array.apply(null, arguments));
-
-	        this._queue.push({
-	            func: func,
-	            args: args.slice(1)
-	        });
-	    },
-
-		/**
-	     * Adds a child queue to execute. This can be done by queued tasks while this queue is already running.
-		 */
-	    addChildQueue: function(queue)
-	    {
-	        this._childQueues.push(queue);
-	    },
-
-		/**
-	     * Starts execution of the tasks in the queue.
-		 */
-		execute: function()
-	    {
-	        if (this._isRunning)
-	            throw new Error("Already running!");
-
-	        this._isRunning = true;
-	        this._currentIndex = 0;
-
-	        this._executeTask();
-	    },
-
-		/**
-	     * Cancels execution of the queue.
-		 */
-		cancel: function()
-	    {
-	        if (!this._isRunning) return;
-	        if (this._timeout !== undefined)
-	            clearTimeout(this._timeout);
-
-	        this._isRunning = false;
-	        this._timeout = undefined;
-	    },
-
-		/**
-	     * @ignore
-		 * @private
-		 */
-		_executeTask: function()
-	    {
-	        this._timeout = setTimeout(this._executeImpl.bind(this));
-	    },
-
-		/**
-		 * @ignore
-		 * @private
-		 */
-	    _executeImpl: function()
-	    {
-	        // cancelled
-	        if (!this._isRunning) return;
-
-	        this.onProgress.dispatch(this._currentIndex / this._queue.length);
-
-	        if (this._childQueues.length > 0) {
-	            var queue = this._childQueues.shift();
-	            queue.onComplete.bind(this._executeImpl, this);
-	            queue.execute();
-	        }
-	        else if (this._queue.length === this._currentIndex) {
-				this._isRunning = false;
-	            this.onComplete.dispatch();
-	        }
-	        else {
-	            var elm = this._queue[this._currentIndex];
-	            elm.func.apply(this, elm.args);
-	            ++this._currentIndex;
-	            this._executeTask();
-	        }
-	    }
-	};
-
-	/**
 	 * @classdesc
 	 *
 	 * FixedLightsSystem is System that automatically assigns all lights in a scene to all materials in the scene.
@@ -32016,7 +31996,6 @@
 	exports.AssetLoader = AssetLoader;
 	exports.AudioFile = AudioFile;
 	exports.URLLoader = URLLoader;
-	exports.HCLIP = HCLIP;
 	exports.HCM = HCM;
 	exports.HMAT = HMAT;
 	exports.HX = HX$1;

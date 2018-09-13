@@ -3,16 +3,18 @@ function ChickenController()
 	HX.Component.call(this);
 
 	this._input = new HX.Input();
-	this._keyboard = new HX.Keyboard();
-	this._keyboard.map("Space", "startle");
-	this._keyboard.map(32, "startle");
+	this._mouse = new HX.Mouse();
+	this._touch = new HX.Touch();
+	this._mouse.map(HX.Mouse.BUTTON_LEFT, "startle");
+	this._touch.map(HX.Touch.TAP, "startle");
 }
 
 HX.Component.create(ChickenController);
 
 ChickenController.prototype.onAdded = function()
 {
-	this._input.enable(this._keyboard);
+	this._input.enable(this._mouse);
+	this._input.enable(this._touch);
 	this._input.onAction.bind(this._onAction, this);
 	this._animation = this.entity.getFirstComponentByType(HX.SkeletonAnimation);
 	this._animation.animationNode.fadeTo("Idle", 0);
@@ -20,7 +22,8 @@ ChickenController.prototype.onAdded = function()
 
 ChickenController.prototype.onRemoved = function()
 {
-	this._input.disable(this._keyboard);
+	this._input.disable(this._mouse);
+	this._input.disable(this._touch);
 	this._input.onAction.unbind(this._onAction);
 };
 

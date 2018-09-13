@@ -60,6 +60,12 @@ Touch.POS_Y = 3;
  */
 Touch.PINCH = 4;
 
+/**
+ * The button name for a "tap". This is 1 as long as the first finger is down.
+ */
+Touch.TAP = 5;
+
+
 Touch.prototype = Object.create(InputPlugin.prototype);
 
 /**
@@ -91,6 +97,9 @@ Touch.prototype.onDisabled = function()
 Touch.prototype._onTouchStart = function(event)
 {
 	var numTouches = event.touches.length;
+
+	if (numTouches === 1)
+		this.setValue(Touch.TAP, 1);
 
 	this._previousX = undefined;
 	this._previousY = undefined;
@@ -124,10 +133,9 @@ Touch.prototype._onTouchEnd = function(event)
 	var numTouches = event.touches.length;
 	var touch1 = event.touches[0];
 	if (numTouches === 0) {
-		// TODO: Add tap gesture if touch pos hasn't moved
+		this.setValue(Touch.TAP, 0);
 	}
 	else if (numTouches === 1) {
-		this._updatePos(touch1.clientX, touch1.clientY);
 		this._updatePos(touch1.clientX, touch1.clientY);
 	}
 };

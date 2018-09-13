@@ -288,7 +288,7 @@ HX.prototype._calcMissingMeshData = function()
 		if (!mesh.hasVertexAttribute("hx_normal"))
 			mode |= NormalTangentGenerator.MODE_NORMALS;
 
-		if (!mesh.hasVertexAttribute("hx_tangent"))
+		if (!mesh.hasVertexAttribute("hx_tangent") && mesh.hasVertexAttribute("hx_texCoord"))
 			mode |= NormalTangentGenerator.MODE_TANGENTS;
 
 		queue.queue(generator.generate.bind(generator, mesh, mode));

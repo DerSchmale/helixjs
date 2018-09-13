@@ -19,7 +19,14 @@ def write(object, file, object_map, visible):
     # we sorted the submesh list by their material indices, so the order should match that in the materials list
     mesh_ids = object_map.get_mapped_indices(mesh)
 
+    num_materials = len(mesh.materials)
+    if num_materials < len(mesh_ids):
+        print("WARNING: Length of materials mismatch in mesh " + mesh.name)
+
     for i, mesh_id in enumerate(mesh_ids):
+        if i >= num_materials:
+            break
+
         material = mesh.materials[i]
         material_id = object_map.get_mapped_indices(material)[0]
         mesh_instance_id = data.start_object(file, object_types.MESH_INSTANCE, object_map)

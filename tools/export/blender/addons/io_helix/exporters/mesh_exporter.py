@@ -122,6 +122,7 @@ def get_submesh(src, material_index, list, has_skinned_data):
 def get_skinned_data(mesh, armature, vertex_groups):
     data = []
     has_groups = False
+
     for v in mesh.vertices:
         joints = []
 
@@ -170,7 +171,7 @@ def write(mesh, file, object_map):
         if armature:
             break
 
-    if vertex_groups:
+    if vertex_groups and armature:
         skinned_data = get_skinned_data(mesh, armature, vertex_groups)
 
     sub_meshes = []

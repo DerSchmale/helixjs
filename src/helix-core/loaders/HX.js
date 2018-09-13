@@ -48,7 +48,10 @@ function HXData()
 {
 	this.defaultScene = null;
 	this.defaultCamera = null;
-	this.scenes = [];
+	this.scenes = {};
+	this.meshes = {};
+	this.materials = {};
+	this.entities = {};
 }
 
 var elementTypeLookUp = [
@@ -111,7 +114,6 @@ var ObjectTypes = {
 
 var ObjectTypeMap = {
 	2: SceneNode,
-	3: Entity,
 	6: MeshInstance,
 	7: Skeleton,
 	8: SkeletonJoint,
@@ -271,7 +273,6 @@ HX.prototype.parse = function(data, target)
 	this._parseHeader();
 	this._parseObjectList();
 
-	target.scenes = this._scenes;
 	target.defaultScene = this._scenes[this._defaultSceneIndex];
 
 	this._calcMissingMeshData();
@@ -355,19 +356,26 @@ HX.prototype._parseObjectList = function()
 			case ObjectTypes.SCENE:
 				object = this._parseObject(Scene, data);
 				this._scenes.push(object);
+				this._target.scenes[object.name] = object;
 				break;
 			case ObjectTypes.MESH:
 				object = this._parseObject(Mesh, data);
 				this._meshes.push(object);
+				this._target.meshes[object.name] = object;
 				break;
 			case ObjectTypes.BASIC_MATERIAL:
 				object = this._parseBasicMaterial(data);
+				this._target.materials[object.name] = object;
 				break;
 			case ObjectTypes.SKELETON_POSE:
 				object = this._parseSkeletonPose(data);
 				break;
 			case ObjectTypes.KEY_FRAME:
 				object = this._parseKeyFrame(data);
+				break;
+			case ObjectTypes.ENTITY:
+				object = this._parseObject(Entity, data);
+				this._target.entities[object.name] = object;
 				break;
 			case ObjectTypes.NULL:
 				return;

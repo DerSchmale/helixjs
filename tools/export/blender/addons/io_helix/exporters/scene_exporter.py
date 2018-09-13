@@ -1,5 +1,15 @@
 from .. import data, property_types, object_types
+from . import texture_exporter
 from mathutils import Color
+
+
+def write_skybox(texture, file, object_map):
+    skybox_id = data.start_object(file, object_types.SKYBOX, object_map)
+    data.end_object(file)
+
+    texture_id = texture_exporter.write(texture, file, object_map)
+    object_map.link(skybox_id, texture_id)
+    return skybox_id
 
 
 def write_ambient_light(light, file, object_map):
@@ -42,5 +52,10 @@ def write(scene, file, object_map):
             object_map.link(scene_id, entity_id)
 
     # light probes not currently supported
+
+    for slot in scene.world.texture_slots:
+        if slot and slot.use_map_horizon:
+            skybox_id = write_skybox(slot.texture, file, object_map)
+            object_map.link(scene_id, skybox_id)
 
     return scene_id

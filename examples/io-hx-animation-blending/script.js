@@ -5,7 +5,7 @@ var project = new DemoProject();
 
 project.queueAssets = function(assetLibrary)
 {
-    assetLibrary.queueAsset("scenes", "hx/untitled.hx", HX.AssetLibrary.Type.ASSET, HX.HX);
+    assetLibrary.queueAsset("scenes", "hx/chicken.hx", HX.AssetLibrary.Type.ASSET, HX.HX);
 };
 
 project.onInit = function()

@@ -37,7 +37,7 @@ import {AsyncTaskQueue} from "../utils/AsyncTaskQueue";
 import {NormalTangentGenerator} from "../utils/NormalTangentGenerator";
 import {TextureCube} from "../texture/TextureCube";
 import {EquirectangularTexture} from "../utils/EquirectangularTexture";
-import {Float2} from "../math/Float2";
+import {Skybox} from "../scene/Skybox";
 
 /**
  * The data provided by the HX loader
@@ -104,7 +104,8 @@ var ObjectTypes = {
 	ANIMATION_CLIP: 19,
 	SKELETON_ANIMATION: 20,
 	SKELETON_POSE: 21,	// properties contain position, rotation, scale per joint
-	KEY_FRAME: 22
+	KEY_FRAME: 22,
+	SKYBOX: 23
 };
 
 var ObjectTypeMap = {
@@ -123,7 +124,8 @@ var ObjectTypeMap = {
 	17: TextureCube,
 	18: BlendState,
 	19: AnimationClip,
-	20: SkeletonAnimation
+	20: SkeletonAnimation,
+	23: Skybox
 };
 
 // most ommitted properties take on their default value in Helix.
@@ -399,8 +401,8 @@ HX.prototype._parseObject = function(type, data)
 HX.prototype._parseKeyFrame = function(data)
 {
 	var frame = new KeyFrame();
-	var dataType = null;
-	var valueType = null;
+	var dataType = DataType.FLOAT;
+	var valueType = 0;
 
 	var type;
 	do {
@@ -811,6 +813,10 @@ HX.prototype._parseLinkList = function()
                 else
                     parent.specularTexture = child;
 			}
+			else if (parent instanceof Skybox) {
+				child = EquirectangularTexture.toCube(child, child.height, true);
+				parent.setTexture(child);
+			}
 			else
 				console.warn("Only BasicMaterial is currently supported. How did you even get in here?");
 		}
@@ -821,6 +827,9 @@ HX.prototype._parseLinkList = function()
             	else
                     parent.specularTexture = child;
             }
+			else if (parent instanceof Skybox) {
+				parent.setTexture(child);
+			}
         }
 		else if (child instanceof Skeleton) {
 			skeletonLinks.push({child: child, parent: parent, meta: meta});

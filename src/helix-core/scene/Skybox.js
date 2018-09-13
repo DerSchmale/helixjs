@@ -14,6 +14,8 @@ import {MeshInstance} from "../mesh/MeshInstance";
  * texture is passed, {@linkcode SkyboxMaterial} is used as material.
  * @constructor
  *
+ * @property material The material used by the texture.
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function Skybox(materialOrTexture)
@@ -32,7 +34,25 @@ function Skybox(materialOrTexture)
     this.addComponent(this._meshInstance);
 }
 
-Skybox.prototype = Object.create(Entity.prototype);
+Skybox.prototype = Object.create(Entity.prototype, {
+	material: {
+		get: function() {
+			return this._meshInstance.material;
+		},
+
+		set: function(value) {
+			this._meshInstance.material = value;
+		}
+	}
+});
+
+/**
+ * @ignore
+ */
+Skybox.prototype.setTexture = function(texture)
+{
+	this.material.setTexture("hx_skybox", texture);
+};
 
 /**
  * @ignore

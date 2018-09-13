@@ -37,6 +37,7 @@ import {AsyncTaskQueue} from "../utils/AsyncTaskQueue";
 import {NormalTangentGenerator} from "../utils/NormalTangentGenerator";
 import {TextureCube} from "../texture/TextureCube";
 import {EquirectangularTexture} from "../utils/EquirectangularTexture";
+import {Float2} from "../math/Float2";
 
 /**
  * The data provided by the HX loader
@@ -86,7 +87,7 @@ var ObjectTypes = {
 	SCENE_NODE: 2,
 	ENTITY: 3,
 	MESH: 4,
-	MATERIAL: 5,
+	BASIC_MATERIAL: 5,
 	MESH_INSTANCE: 6,
 	SKELETON: 7,
 	SKELETON_JOINT: 8,				// must be linked to SKELETON in order of their index!
@@ -122,8 +123,7 @@ var ObjectTypeMap = {
 	17: TextureCube,
 	18: BlendState,
 	19: AnimationClip,
-	20: SkeletonAnimation,
-	22: KeyFrame
+	20: SkeletonAnimation
 };
 
 // most ommitted properties take on their default value in Helix.
@@ -136,7 +136,7 @@ var PropertyTypes = {
 	COLOR: 4,							// 3 floats: rgb
 	COLOR_ALPHA: 5,						// 4 floats: rgba
 	DATA_TYPE: 6,						// 1 uint8: see dataTypeLookUp
-	NUM_DATA_COMPONENTS: 7,				// 1 uint8: can be 3 or 4 for vector data
+	VALUE_TYPE: 7,						// 1 uint8: 0: scalar, 1: Float3, 2: Float4, 3: Quaternion
 	VALUE: 8,							// type depends on DATA_TYPE
 
 	// header (meta) props
@@ -354,11 +354,14 @@ HX.prototype._parseObjectList = function()
 				object = this._parseObject(Mesh, data);
 				this._meshes.push(object);
 				break;
-			case ObjectTypes.MATERIAL:
-				object = this._parseMaterial(data);
+			case ObjectTypes.BASIC_MATERIAL:
+				object = this._parseBasicMaterial(data);
 				break;
 			case ObjectTypes.SKELETON_POSE:
 				object = this._parseSkeletonPose(data);
+				break;
+			case ObjectTypes.KEY_FRAME:
+				object = this._parseKeyFrame(data);
 				break;
 			case ObjectTypes.NULL:
 				return;
@@ -391,6 +394,37 @@ HX.prototype._parseObject = function(type, data)
 	var scene = new type();
 	this._readProperties(data, scene);
 	return scene;
+};
+
+HX.prototype._parseKeyFrame = function(data)
+{
+	var frame = new KeyFrame();
+	var dataType = null;
+	var valueType = null;
+
+	var type;
+	do {
+		type = data.getUint32();
+
+		// it's legal to only provide fe: position data, but fields can't be "sparsely" omitted
+		// if one joint pose contains it, all joint poses should contain it
+		switch (type) {
+			case PropertyTypes.TIME:
+				frame.time = data.getFloat32();
+				break;
+			case PropertyTypes.DATA_TYPE:
+				dataType = dataTypeLookUp[data.getUint8()];
+				break;
+			case PropertyTypes.VALUE_TYPE:
+				valueType = data.getUint8();
+				break;
+			case PropertyTypes.VALUE:
+				frame.value = parseValue(dataType, valueType, data);
+				break;
+		}
+	} while (type !== PropertyTypes.NULL);
+
+	return frame;
 };
 
 HX.prototype._parseSkeletonPose = function(data)
@@ -429,7 +463,7 @@ HX.prototype._parseSkeletonPose = function(data)
 	return pose;
 };
 
-HX.prototype._parseMaterial = function(data)
+HX.prototype._parseBasicMaterial = function(data)
 {
 	// TODO: May have to add to this in case it's a custom material
 	var material = new BasicMaterial();
@@ -586,9 +620,6 @@ HX.prototype._readProperties = function(data, target)
 			case PropertyTypes.INVERSE_BIND_POSE:
 				parseAffineMatrix(data, target.inverseBindPose);
 				break;
-			case PropertyTypes.TIME:
-				target.time = data.getFloat32();
-				break;
 		}
 	} while (type !== PropertyTypes.NULL)
 };
@@ -607,6 +638,36 @@ HX.prototype._handleURL = function(url, target)
 
 	this._dependencyLib.queueAsset(name, this._correctURL(url), AssetLibrary.Type.ASSET, dependencyType, null, target);
 };
+
+function parseValue(dataType, valueType, data)
+{
+	var func;
+	switch (dataType) {
+		case DataType.UNSIGNED_BYTE:
+			func = "getUint8";
+			break;
+		case DataType.UNSIGNED_SHORT:
+			func = "getUint16";
+			break;
+		case DataType.UNSIGNED_INT:
+			func = "getUint32";
+			break;
+		case DataType.FLOAT:
+			func = "getFloat32";
+			break;
+	}
+
+	if (valueType === 1)
+		return new Float4(data[func](), data[func](), data[func]());
+
+	if (valueType === 2)
+		return new Float4(data[func](), data[func](), data[func](), data[func]());
+
+	if (valueType === 3)
+		return new Quaternion(data[func](), data[func](), data[func](), data[func]());
+
+	return data[func]();
+}
 
 function parseLightingModel(data)
 {

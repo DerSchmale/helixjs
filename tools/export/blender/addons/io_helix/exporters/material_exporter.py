@@ -13,7 +13,7 @@ def write(material, file, object_map):
             continue
         texture_exporter.write(slot.texture, file, object_map)
 
-    material_id = data.start_object(file, object_types.MATERIAL, object_map)
+    material_id = data.start_object(file, object_types.BASIC_MATERIAL, object_map)
     # store the index where this material was written, since we need to grab it elsewhere
     object_map.map(material, material_id)
 

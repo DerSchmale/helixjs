@@ -38,6 +38,7 @@ import {NormalTangentGenerator} from "../utils/NormalTangentGenerator";
 import {TextureCube} from "../texture/TextureCube";
 import {EquirectangularTexture} from "../utils/EquirectangularTexture";
 import {Skybox} from "../scene/Skybox";
+import {OrthographicCamera} from "../camera/OrthographicCamera";
 
 /**
  * The data provided by the HX loader
@@ -120,6 +121,7 @@ var ObjectTypeMap = {
 	12: AmbientLight,
 	13: LightProbe,
 	14: PerspectiveCamera,
+	15: OrthographicCamera,
 	16: Texture2D,
 	17: TextureCube,
 	18: BlendState,
@@ -201,6 +203,7 @@ var PropertyTypes = {
 	// camera properties:
 	CLIP_DISTANCES: 90,					// 2 float32: near, far
 	FOV: 91,							// float32: vertical fov
+	HEIGHT: 92,							// float32: vertical height of orthographic projection
 
 	// skeleton / bone properties:
 	INVERSE_BIND_POSE: 100,				// 12 float32s: a matrix in column-major order ignoring the last row (affine matrix always contains 0, 0, 0, 1)
@@ -619,6 +622,9 @@ HX.prototype._readProperties = function(data, target)
 				break;
 			case PropertyTypes.FOV:
 				target.verticalFOV = data.getFloat32();
+				break;
+			case PropertyTypes.HEIGHT:
+				target.height = data.getFloat32();
 				break;
 			case PropertyTypes.INVERSE_BIND_POSE:
 				parseAffineMatrix(data, target.inverseBindPose);

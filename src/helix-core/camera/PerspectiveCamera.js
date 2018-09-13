@@ -4,7 +4,7 @@ import {Camera} from "./Camera";
  * @extends Camera
  *
  * @classdesc
- * PerspectiveCamera is a Camera used for rendering with perspective.
+ * PerspectiveCamera is a Camera used for rendering with perspective projection.
  *
  * @property {number} verticalFOV The vertical field of view in radians.
  *
@@ -18,7 +18,7 @@ function PerspectiveCamera()
 
     this._vFOV = 1.047198;  // radians!
     this._aspectRatio = 1;
-};
+}
 
 
 PerspectiveCamera.prototype = Object.create(Camera.prototype, {

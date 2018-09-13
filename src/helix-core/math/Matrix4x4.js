@@ -640,7 +640,7 @@ Matrix4x4.prototype =
 
         m[4] = 0;
         m[5] = 0;
-        m[6] = 2.0 * rcpDepth;
+        m[6] = -2.0 * rcpDepth;
         m[7] = 0;
 
         m[8] = 0;

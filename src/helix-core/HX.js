@@ -99,6 +99,7 @@ export {AudioListener} from "./audio/AudioListener";
 export {Camera} from "./camera/Camera";
 export {Frustum} from "./camera/Frustum";
 export {PerspectiveCamera} from "./camera/PerspectiveCamera";
+export {OrthographicCamera} from "./camera/OrthographicCamera";
 export {OrthographicOffCenterCamera} from "./camera/OrthographicOffCenterCamera";
 export {VRCamera} from "./camera/VRCamera";
 

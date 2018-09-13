@@ -42,6 +42,14 @@ import {OrthographicCamera} from "../camera/OrthographicCamera";
 
 /**
  * The data provided by the HX loader
+ *
+ * @property defaultScene The default scene (if provided)
+ * @property defaultCamera The default camera (if provided)
+ * @property scenes A map containing all scenes by name
+ * @property meshes A map containing all meshes by name
+ * @property materials A map containing all materials by name
+ * @property entities A map containing all entities by name
+ *
  * @constructor
  */
 function HXData()

@@ -206,8 +206,9 @@ var PropertyTypes = {
 	INVERSE_BIND_POSE: 100,				// 12 float32s: a matrix in column-major order ignoring the last row (affine matrix always contains 0, 0, 0, 1)
 
 	// animation properties:
-	TIME: 110,							// 1 float32
-	NUM_FRAMES: 111						// 1 uint16
+	TIME: 110,							// float32
+	LOOPING: 111,						// uint8
+	PLAYBACK_RATE: 112					// float32
 };
 
 var MaterialLinkMetaProp = {
@@ -621,6 +622,12 @@ HX.prototype._readProperties = function(data, target)
 				break;
 			case PropertyTypes.INVERSE_BIND_POSE:
 				parseAffineMatrix(data, target.inverseBindPose);
+				break;
+			case PropertyTypes.LOOPING:
+				target.looping = !!data.getUint8();
+				break;
+			case PropertyTypes.PLAYBACK_RATE:
+				target.playbackRate = data.getFloat32();
 				break;
 		}
 	} while (type !== PropertyTypes.NULL)

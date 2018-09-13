@@ -34,7 +34,6 @@ VRDummyCamera.prototype.updateMatrices = function(viewMatrix, projectionMatrix)
     this._viewMatrix.prepend(swapMatrix);
 
     this._projectionMatrix.set(projectionMatrix);
-    // this._projectionMatrix.swapColums(1, 2);
     this._projectionMatrixDirty = false;
 
     // the first frame may contain invalid data (all 0s)

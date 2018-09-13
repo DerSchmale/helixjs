@@ -18,7 +18,7 @@
   "dependencies": {
     "cannon": "^0.6.2",
     "pako": "^1.0.5",
-    "webvr-polyfill": "^0.10.6"
+    "webvr-polyfill": "^0.10.7"
   },
   "repository": {
     "type": "git",

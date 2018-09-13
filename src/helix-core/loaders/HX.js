@@ -35,6 +35,8 @@ import {KeyFrame} from "../animation/KeyFrame";
 import {SkeletonJointPose} from "../animation/skeleton/SkeletonJointPose";
 import {AsyncTaskQueue} from "../utils/AsyncTaskQueue";
 import {NormalTangentGenerator} from "../utils/NormalTangentGenerator";
+import {TextureCube} from "../texture/TextureCube";
+import {EquirectangularTexture} from "../utils/EquirectangularTexture";
 
 /**
  * The data provided by the HX loader
@@ -70,9 +72,9 @@ var blendFactors = [
 	BlendFactor.ZERO, BlendFactor.ONE,
 	BlendFactor.SOURCE_COLOR, BlendFactor.ONE_MINUS_SOURCE_COLOR,
 	BlendFactor.SOURCE_ALPHA, BlendFactor.ONE_MINUS_SOURCE_ALPHA,
-	BlendFactor.DESTINATION_ALPHA, BlendFactor.ONE_MINUS_DESTINATION_ALPHA,
 	BlendFactor.DESTINATION_COLOR, BlendFactor.ONE_MINUS_DESTINATION_COLOR,
-	BlendFactor.SOURCE_ALPHA_SATURATE, BlendFactor.CONSTANT_ALPHA, BlendFactor.ONE_MINUS_CONSTANT_ALPHA
+    BlendFactor.DESTINATION_ALPHA, BlendFactor.ONE_MINUS_DESTINATION_ALPHA,
+    BlendFactor.SOURCE_ALPHA_SATURATE, BlendFactor.CONSTANT_ALPHA, BlendFactor.ONE_MINUS_CONSTANT_ALPHA
 ];
 var blendOps = [
 	BlendOperation.ADD, BlendOperation.SUBTRACT, BlendOperation.REVERSE_SUBTRACT
@@ -116,6 +118,8 @@ var ObjectTypeMap = {
 	12: AmbientLight,
 	13: LightProbe,
 	14: PerspectiveCamera,
+	16: Texture2D,
+	17: TextureCube,
 	18: BlendState,
 	19: AnimationClip,
 	20: SkeletonAnimation,
@@ -131,6 +135,9 @@ var PropertyTypes = {
 	CAST_SHADOWS: 3,					// bool
 	COLOR: 4,							// 3 floats: rgb
 	COLOR_ALPHA: 5,						// 4 floats: rgba
+	DATA_TYPE: 6,						// 1 uint8: see dataTypeLookUp
+	NUM_DATA_COMPONENTS: 7,				// 1 uint8: can be 3 or 4 for vector data
+	VALUE: 8,							// type depends on DATA_TYPE
 
 	// header (meta) props
 	VERSION: 10,						// string formatted as "#.#.#"
@@ -187,7 +194,7 @@ var PropertyTypes = {
 	BLEND_STATE_SRC_FACTOR_ALPHA: 83,  // uint8
 	BLEND_STATE_DST_FACTOR_ALPHA: 84,	// uint8
 	BLEND_STATE_OPERATOR_ALPHA: 85,		// uint8
-	// COLOR_ALPHA: 4
+	// COLOR_ALPHA: 5
 
 	// camera properties:
 	CLIP_DISTANCES: 90,					// 2 float32: near, far
@@ -248,6 +255,7 @@ HX.prototype.parse = function(data, target)
 		throw new Error("Invalid file hash!");
 
 	this._defaultSceneIndex = 0;
+    this._lightingMode = 0;
 	this._objects = [];
 	this._scenes = [];
 	this._meshes = [];
@@ -349,9 +357,6 @@ HX.prototype._parseObjectList = function()
 			case ObjectTypes.MATERIAL:
 				object = this._parseMaterial(data);
 				break;
-			case ObjectTypes.TEXTURE_2D:
-				object = this._parseTexture2D(data);
-				break;
 			case ObjectTypes.SKELETON_POSE:
 				object = this._parseSkeletonPose(data);
 				break;
@@ -391,7 +396,6 @@ HX.prototype._parseObject = function(type, data)
 HX.prototype._parseSkeletonPose = function(data)
 {
 	var pose = new SkeletonPose();
-	var poses = [];
 	var posIndex = 0;
 	var rotIndex = 0;
 	var scaleIndex = 0;
@@ -423,13 +427,6 @@ HX.prototype._parseSkeletonPose = function(data)
 	} while (type !== PropertyTypes.NULL);
 
 	return pose;
-};
-
-HX.prototype._parseTexture2D = function(data)
-{
-	var texture = new Texture2D();
-	this._readProperties(data, texture);
-	return texture;
 };
 
 HX.prototype._parseMaterial = function(data)
@@ -739,13 +736,31 @@ HX.prototype._parseLinkList = function()
 			else
 				parent.addComponent(child);
 		}
+		else if (child instanceof BlendState) {
+			parent.blendState = child;
+        }
 		else if (child instanceof Texture2D) {
 			if (parent instanceof BasicMaterial) {
 				parent[MaterialLinkMetaProp[meta]] = child;
 			}
+			else if (parent instanceof LightProbe) {
+				child = EquirectangularTexture.toCube(child, child.height, true);
+                if (meta === 0)
+                    parent.diffuseTexture = child;
+                else
+                    parent.specularTexture = child;
+			}
 			else
 				console.warn("Only BasicMaterial is currently supported. How did you even get in here?");
 		}
+        else if (child instanceof TextureCube) {
+            if (parent instanceof LightProbe) {
+            	if (meta === 0)
+					parent.diffuseTexture = child;
+            	else
+                    parent.specularTexture = child;
+            }
+        }
 		else if (child instanceof Skeleton) {
 			skeletonLinks.push({child: child, parent: parent, meta: meta});
 		}

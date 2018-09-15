@@ -80,7 +80,7 @@ EntityProxy.prototype._growBounds = function(obj)
     var bound = new BoundingAABB();
     return function (obj) {
         if (obj.bounds) {
-            bound.transformFrom(obj.bounds, obj.matrix);
+            bound.transformFrom(obj.bounds, obj.worldMatrix);
             this._bounds.growToIncludeBound(bound);
         }
     }

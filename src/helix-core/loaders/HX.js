@@ -830,17 +830,15 @@ HX.prototype._parseLinkList = function()
             continue;
     	}
 
-		if (parent instanceof Scene) {
+		if (parent instanceof Scene)
             linkToScene(parent, child, meta, this._target);
-        }
         else if (parent instanceof EntityProxy && meta === 1)
-		{
             parent.node = child;
-		}
         else if (parent instanceof Entity)
             linkToEntity(parent, child, meta, this._target);
-		else if (parent instanceof SceneNode)
-			linkToSceneNode(parent, child, meta, this._target);
+		else if (parent instanceof SceneNode) {
+            linkToSceneNode(parent, child, meta, this._target);
+        }
 		else if (parent instanceof MeshInstance)
 		    linkToMeshInstance(parent, child);
 		else if (parent instanceof Material)
@@ -891,7 +889,7 @@ HX.prototype._parseLinkList = function()
 function linkToSceneNode(node, child, meta, hx)
 {
     if (child instanceof SceneNode) {
-		node.attach(child);
+        node.attach(child);
 		if (child instanceof Camera && meta === 1)
 			hx.defaultCamera = child;
     }

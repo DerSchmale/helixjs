@@ -7,12 +7,15 @@ from . import entity_exporter
 from .. import object_map
 
 
-def write(obj, scene):
-    if object_map.has_mapped_indices(obj):
+def write(obj, scene, in_group=False):
+    # groups don't keep indices, are unique
+    if not in_group and object_map.has_mapped_indices(obj):
         return object_map.get_mapped_indices(obj)[0]
 
     node_index = None
-    visible = obj.is_visible(scene)
+
+    # groups override visibility
+    visible = in_group or obj.is_visible(scene)
 
     if obj.type == "MESH":
         node_index = mesh_object_exporter.write(obj, visible)
@@ -35,12 +38,17 @@ def write(obj, scene):
     if node_index is None:
         return node_index
 
-    object_map.map(obj, node_index)
+    # groups don't keep indices, don't want to share
+    if not in_group:
+        object_map.map(obj, node_index)
+
     link_meta = int(obj == scene.camera)
 
     # can't parse the children of an unknown object
     for child in obj.children:
-        child_index = write(child, scene)
-        object_map.link(node_index, child_index, link_meta)
+        # only export layer 1
+        child_index = write(child, scene, in_group)
+        if child_index is not None:
+            object_map.link(node_index, child_index, link_meta)
 
     return node_index

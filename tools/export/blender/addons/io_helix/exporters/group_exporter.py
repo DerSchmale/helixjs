@@ -15,7 +15,6 @@ def write(group, scene):
 
         child_id = object_map.get_mapped_indices(child)[0]
 
-        # meta 1 = proxied link
-        object_map.link(group_id, child_id, 1)
+        object_map.link(group_id, child_id)
 
     return group_id

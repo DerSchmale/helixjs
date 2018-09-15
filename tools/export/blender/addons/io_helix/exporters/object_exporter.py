@@ -7,7 +7,7 @@ from . import entity_exporter
 from .. import object_map
 
 
-def write(obj, scene, link_meta=None):
+def write(obj, scene):
     if object_map.has_mapped_indices(obj):
         return object_map.get_mapped_indices(obj)[0]
 
@@ -30,19 +30,17 @@ def write(obj, scene, link_meta=None):
             node_index = entity_exporter.write_proxy(obj, visible=visible)
             # write the group:
             group_index = group_exporter.write(obj.dupli_group, scene)
-            object_map.link(node_index, group_index)
+            object_map.link(node_index, group_index, 1)
 
     if node_index is None:
         return node_index
 
     object_map.map(obj, node_index)
-    if link_meta is None:
-        link_meta = int(obj == scene.camera)
+    link_meta = int(obj == scene.camera)
 
     # can't parse the children of an unknown object
     for child in obj.children:
         child_index = write(child, scene)
         object_map.link(node_index, child_index, link_meta)
-
 
     return node_index

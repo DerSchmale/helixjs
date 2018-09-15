@@ -58,7 +58,6 @@ EntityProxy.prototype._traverse = function(node, visitor)
         }
 
         node.acceptVisitor(visitor, this.worldMatrix);
-        console.log(node);
     }
 
     for (var i = 0, len = node._children.length; i < len; ++i) {
@@ -80,8 +79,10 @@ EntityProxy.prototype._growBounds = function(obj)
 {
     var bound = new BoundingAABB();
     return function (obj) {
-        bound.transformFrom(obj.bounds, obj.matrix);
-        this._bounds.growToIncludeBound(bound);
+        if (obj.bounds) {
+            bound.transformFrom(obj.bounds, obj.matrix);
+            this._bounds.growToIncludeBound(bound);
+        }
     }
 }();
 

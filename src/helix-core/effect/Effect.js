@@ -1,4 +1,3 @@
-import {GL} from "../core/GL";
 import {Component} from "../entity/Component";
 
 /**

@@ -230,15 +230,6 @@ var PropertyTypes = {
 	PLAYBACK_RATE: 112					// float32
 };
 
-var MaterialLinkMetaProp = {
-	0: "colorMap",
-	1: "normalMap",
-	2: "specularMap",
-	3: "occlusionMap",
-	4: "emissionMap",
-	5: "maskMap"
-};
-
 /**
  * @classdesc
  * HX is an Importer for Helix' (binary) format. Yields a {@linkcode HXData} object.
@@ -823,110 +814,57 @@ HX.prototype._parseLinkList = function()
 	var deferredCommands = [];
 
 	while (data.bytesAvailable) {
-		var parentId = data.getUint32();
-		var childId = data.getUint32();
-		var meta = data.getUint8();
-		var parent = this._objects[parentId];
-		var child = this._objects[childId];
+        var parentId = data.getUint32();
+        var childId = data.getUint32();
+        var meta = data.getUint8();
+        var parent = this._objects[parentId];
+        var child = this._objects[childId];
 
-		if (parent instanceof KeyFrame) {
+        // these have to be handled later because their assignment requires their own links to be complete first
+        if (child instanceof Skeleton) {
+            skeletonLinks.push({child: child, parent: parent, meta: meta});
+            continue;
+        }
+        else if (child instanceof SkeletonAnimation) {
+            skeletonAnimationLinks.push({child: child, parent: parent, meta: meta});
+            continue;
+    	}
+
+		if (parent instanceof Scene) {
+            linkToScene(parent, child, meta, this._target);
+        }
+        else if (parent instanceof EntityProxy && meta === 1)
+		{
+            parent.node = child;
+		}
+        else if (parent instanceof Entity)
+            linkToEntity(parent, child, meta, this._target);
+		else if (parent instanceof SceneNode)
+			linkToSceneNode(parent, child, meta, this._target);
+		else if (parent instanceof MeshInstance)
+		    linkToMeshInstance(parent, child);
+		else if (parent instanceof Material)
+			linkToMaterial(parent, child, meta);
+		else if (parent instanceof LightProbe)
+            linkToLightProbe(parent, child, meta);
+		else if (parent instanceof Skybox)
+            linkToSkyBox(parent, child, meta);
+		else if (parent instanceof Skeleton) {
+			linkToSkeleton(parent, child, -1);
+            skeletons[childId] = parent;
+        }
+        else if (parent instanceof SkeletonJoint) {
+			var skeleton = skeletons[parentId];
+            linkToSkeleton(skeleton, child, skeleton.joints.indexOf(parent));
+            skeletons[childId] = skeleton;
+        }
+        else if (parent instanceof SkeletonAnimation) {
+            linkToSkeletonAnimation(parent, child, meta, deferredCommands);
+        }
+		else if (parent instanceof KeyFrame) {
 			parent.value = child;
-		}
-		else if (child instanceof Material)
-			parent.material = child;
-		else if (child instanceof Mesh) {
-			parent.mesh = child;
-		}
-		else if (child instanceof Entity || child instanceof SceneNode) {
-			if (parent instanceof EntityProxy && meta === 1) {
-				// attach as "proxied"
-				if (parent.node)
-					console.warn("Trying to assign multiple nodes to a single EntityProxy!");
-				else
-                	parent.node = child;
-            }
-            else
-				parent.attach(child);
-
-			if (child instanceof Camera && parent === this._target.defaultScene && meta === 1) {
-				this._target.defaultCamera = child;
-			}
-		}
-		else if (child instanceof Component) {
-			if (child instanceof SkeletonAnimation)
-				skeletonAnimationLinks.push({child: child, parent: parent, meta: meta});
-			else
-				parent.addComponent(child);
-		}
-		else if (child instanceof BlendState) {
-			parent.blendState = child;
         }
-		else if (child instanceof Texture2D) {
-			if (parent instanceof BasicMaterial) {
-				parent[MaterialLinkMetaProp[meta]] = child;
-			}
-			else if (parent instanceof LightProbe) {
-				child = EquirectangularTexture.toCube(child, child.height, true);
-                if (meta === 0)
-                    parent.diffuseTexture = child;
-                else
-                    parent.specularTexture = child;
-			}
-			else if (parent instanceof Skybox) {
-				child = EquirectangularTexture.toCube(child, child.height, true);
-				parent.setTexture(child);
-			}
-			else
-				console.warn("Only BasicMaterial is currently supported. How did you even get in here?");
-		}
-        else if (child instanceof TextureCube) {
-            if (parent instanceof LightProbe) {
-            	if (meta === 0)
-					parent.diffuseTexture = child;
-            	else
-                    parent.specularTexture = child;
-            }
-			else if (parent instanceof Skybox) {
-				parent.setTexture(child);
-			}
-        }
-		else if (child instanceof Skeleton) {
-			skeletonLinks.push({child: child, parent: parent, meta: meta});
-		}
-		else if (child instanceof SkeletonJoint) {
-			var skeleton;
-			if (parent instanceof Skeleton) {
-				skeleton = parent;
-				child.parentIndex = -1;
-			}
-			else {
-				skeleton = skeletons[parentId];
-				child.parentIndex = skeleton.joints.indexOf(parent);
-			}
-
-			skeleton.joints.push(child);
-			skeletons[childId] = skeleton;
-		}
-		else if (child instanceof AnimationClip) {
-			if (parent instanceof SkeletonAnimation) {
-				if (!parent.animationNode)
-					parent.animationNode = new SkeletonXFadeNode();
-
-				console.assert(parent.animationNode instanceof SkeletonXFadeNode, "Can't assign clip directly to skeleton when also assigning blend trees");
-
-				parent.animationNode.addClip(child);
-
-				if (meta === 1)
-					deferredCommands.push(parent.animationNode.fadeTo.bind(parent._blendTree.rootNode, child.name, 0, false));
-			}
-			else {
-				// TODO: Implement importing blend trees
-			}
-		}
-		else if (child instanceof SkeletonPose) {
-			// TODO: So if parent is not keyframe, could it also be assigned directly to an object?
-		}
-		else if (child instanceof KeyFrame) {
+		else if (parent instanceof AnimationClip) {
 			parent.addKeyFrame(child);
 		}
 	}
@@ -950,5 +888,98 @@ HX.prototype._parseLinkList = function()
 		deferredCommands[i]();
 };
 
+function linkToSceneNode(node, child, meta, hx)
+{
+    if (child instanceof SceneNode) {
+		node.attach(child);
+		if (child instanceof Camera && meta === 1)
+			hx.defaultCamera = child;
+    }
+}
+
+function linkToEntity(entity, child, meta, hx)
+{
+    if (child instanceof Component) {
+        entity.addComponent(child);
+        return;
+    }
+
+    linkToSceneNode(entity, child, meta, hx);
+}
+
+function linkToScene(scene, child, meta, hx)
+{
+    if (child instanceof Skybox) {
+        scene.skybox = child;
+        return;
+    }
+
+    linkToEntity(scene, child, meta, hx);
+}
+
+var MaterialLinkMetaProp = {
+    0: "colorMap",
+    1: "normalMap",
+    2: "specularMap",
+    3: "occlusionMap",
+    4: "emissionMap",
+    5: "maskMap"
+};
+
+function linkToMaterial(material, child, meta)
+{
+	if (child instanceof BlendState)
+        material.blendState = child;
+	else if (child instanceof Texture2D)
+        material[MaterialLinkMetaProp[meta]] = child;
+
+}
+
+function linkToMeshInstance(meshInstance, child)
+{
+    if (child instanceof Material)
+        meshInstance.material = child;
+    else if (child instanceof Mesh)
+        meshInstance.mesh = child;
+}
+function linkToSkyBox(probe, child)
+{
+    if (child instanceof Texture2D)
+        child = EquirectangularTexture.toCube(child, child.height, true);
+
+    skybox.setTexture(child);
+}
+
+function linkToLightProbe(probe, child, meta)
+{
+	if (child instanceof Texture2D)
+        child = EquirectangularTexture.toCube(child, child.height, true);
+
+	if (meta === 0)
+		parent.diffuseTexture = child;
+	else
+		parent.specularTexture = child;
+}
+
+function linkToSkeleton(skeleton, child, parentIndex)
+{
+    child.parentIndex = parentIndex;
+    skeleton.joints.push(child);
+}
+
+function linkToSkeletonAnimation(animation, child, meta, deferredCommands)
+{
+    if (child instanceof AnimationClip) {
+        if (!animation.animationNode)
+            animation.animationNode = new SkeletonXFadeNode();
+
+        console.assert(animation.animationNode instanceof SkeletonXFadeNode, "Can't assign clip directly to skeleton when also assigning blend trees");
+
+        animation.animationNode.addClip(child);
+
+        if (meta === 1)
+            deferredCommands.push(animation.animationNode.fadeTo.bind(animation.animationNode, child.name, 0, false));
+    }
+}
 
 export {HX, HXData};

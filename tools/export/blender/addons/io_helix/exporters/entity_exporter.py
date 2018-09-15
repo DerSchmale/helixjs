@@ -26,14 +26,14 @@ def write_props(object, orientation=None, visible=True):
 # in Blender, we're only ever exporting Entity objects, not scene nodes
 # orientation allows changing the orientation of fe: a light (down vs fwd in HX)
 def write(object, orientation=None, visible=True):
-    c = data.start_object(ObjectType.ENTITY)
+    index = data.start_object(ObjectType.ENTITY)
     write_props(object, orientation, visible)
     data.end_object()
-    return c
+    return index
 
 
 def write_proxy(object, orientation=None, visible=True):
-    c = data.start_object(ObjectType.ENTITY_PROXY)
+    index = data.start_object(ObjectType.ENTITY_PROXY)
     write_props(object, orientation, visible)
     data.end_object()
-    return c
+    return index

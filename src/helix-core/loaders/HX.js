@@ -83,7 +83,6 @@ var dataTypeLookUp = {
 };
 
 var cullModes = [CullMode.NONE, CullMode.FRONT, CullMode.BACK, CullMode.ALL];
-var blendStates = [null, BlendState.ADD, BlendState.MULTIPLY, BlendState.ALPHA];
 var blendFactors = [
 	BlendFactor.ZERO, BlendFactor.ONE,
 	BlendFactor.SOURCE_COLOR, BlendFactor.ONE_MINUS_SOURCE_COLOR,
@@ -613,7 +612,8 @@ HX.prototype._readProperties = function(data, target)
 				target.cullMode = cullModes[data.getUint8()];
 				break;
 			case PropertyTypes.BLEND_STATE:
-				target.blendState = blendStates[data.getUint8()];
+				target.blendState = [null, BlendState.ADD, BlendState.MULTIPLY, BlendState.ALPHA][data.getUint8()];
+				console.log(target.blendState);
 				break;
 			case PropertyTypes.WRITE_DEPTH:
 				target.writeDepth = !!data.getUint8();

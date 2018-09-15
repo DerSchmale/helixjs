@@ -25,12 +25,13 @@ def write(material):
     roughness = math.pow(2.0 / (material.specular_hardness + 2.0), .25)
     data.write_float32_prop(PropertyType.ROUGHNESS, roughness)
 
-    if material.game_settings.alpha_blend == "ADD":
-        data.write_uint8_prop(PropertyType.BLEND_STATE, 1)
-    elif material.game_settings.alpha_blend == "ALPHA" or material.game_settings.alpha_blend == "ALPHA_SORT":
-        data.write_uint8_prop(PropertyType.BLEND_STATE, 3)
-    elif material.game_settings.alpha_blend == "CLIP":
-        data.write_uint8_prop(PropertyType.ALPHA_THRESHOLD, .5)
+    if material.use_transparency:
+        if material.game_settings.alpha_blend == "ADD":
+            data.write_uint8_prop(PropertyType.BLEND_STATE, 1)
+        elif material.game_settings.alpha_blend == "CLIP":
+            data.write_uint8_prop(PropertyType.ALPHA_THRESHOLD, .5)
+        else:
+            data.write_uint8_prop(PropertyType.BLEND_STATE, 3)
 
     if not material.game_settings.use_backface_culling:
         data.write_uint8_prop(PropertyType.CULL_MODE, 0)

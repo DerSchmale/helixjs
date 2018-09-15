@@ -25,6 +25,7 @@ SpotShadowCasterCollector.prototype.getRenderList = function() { return this._re
 
 SpotShadowCasterCollector.prototype.collect = function(camera, scene)
 {
+    this.reset();
     this._camera = camera;
     this._renderList = [];
     camera.worldMatrix.getColumn(1, this._cameraYAxis);
@@ -41,7 +42,7 @@ SpotShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
     if (!meshInstance.castShadows || !meshInstance.enabled) return;
 
     var entity = meshInstance.entity;
-    var worldBounds = entity.worldBounds;
+    var worldBounds = this.getProxiedBounds(entity);
     var cameraYAxis = this._cameraYAxis;
     var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
     var skeleton = meshInstance.skeleton;
@@ -58,15 +59,15 @@ SpotShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
     // distance along Z axis:
     var center = worldBounds._center;
     renderItem.renderOrderHint = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
-    renderItem.worldMatrix = entity.worldMatrix;
+    renderItem.worldMatrix = this.getProxiedMatrix(entity);
     renderItem.worldBounds = worldBounds;
 
     renderList.push(renderItem);
 };
 
-SpotShadowCasterCollector.prototype.qualifies = function(object)
+SpotShadowCasterCollector.prototype.qualifies = function(object, forceBounds)
 {
-    return object.visible && object.worldBounds.intersectsConvexSolid(this._frustumPlanes, 6);
+    return object.visible && (forceBounds || object.worldBounds.intersectsConvexSolid(this._frustumPlanes, 6));
 };
 
 export { SpotShadowCasterCollector };

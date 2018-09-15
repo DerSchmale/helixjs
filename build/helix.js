@@ -2325,18 +2325,6 @@
 	var SENSOR_FREQUENCY = 60;
 	var X_AXIS = new Vector3(1, 0, 0);
 	var Z_AXIS = new Vector3(0, 0, 1);
-	var orientation = {};
-	if (screen.orientation) {
-	  orientation = screen.orientation;
-	} else if (screen.msOrientation) {
-	  orientation = screen.msOrientation;
-	} else {
-	  Object.defineProperty(orientation, 'angle', {
-	    get: function get$$1() {
-	      return window.orientation || 0;
-	    }
-	  });
-	}
 	var SENSOR_TO_VR = new Quaternion();
 	SENSOR_TO_VR.setFromAxisAngle(X_AXIS, -Math.PI / 2);
 	SENSOR_TO_VR.multiply(new Quaternion().setFromAxisAngle(Z_AXIS, Math.PI / 2));
@@ -2350,12 +2338,9 @@
 	    this.api = null;
 	    this.errors = [];
 	    this._sensorQ = new Quaternion();
-	    this._worldToScreenQ = new Quaternion();
 	    this._outQ = new Quaternion();
 	    this._onSensorRead = this._onSensorRead.bind(this);
 	    this._onSensorError = this._onSensorError.bind(this);
-	    this._onOrientationChange = this._onOrientationChange.bind(this);
-	    this._onOrientationChange();
 	    this.init();
 	  }
 	  createClass(PoseSensor, [{
@@ -2363,7 +2348,10 @@
 	    value: function init() {
 	      var sensor = null;
 	      try {
-	        sensor = new RelativeOrientationSensor({ frequency: SENSOR_FREQUENCY });
+	        sensor = new RelativeOrientationSensor({
+	          frequency: SENSOR_FREQUENCY,
+	          referenceFrame: 'screen'
+	        });
 	        sensor.addEventListener('error', this._onSensorError);
 	      } catch (error) {
 	        this.errors.push(error);
@@ -2383,7 +2371,6 @@
 	        this.sensor.addEventListener('reading', this._onSensorRead);
 	        this.sensor.start();
 	      }
-	      window.addEventListener('orientationchange', this._onOrientationChange);
 	    }
 	  }, {
 	    key: 'useDeviceMotion',
@@ -2412,7 +2399,6 @@
 	      var out = this._outQ;
 	      out.copy(SENSOR_TO_VR);
 	      out.multiply(this._sensorQ);
-	      out.multiply(this._worldToScreenQ);
 	      if (this.config.YAW_ONLY) {
 	        out.x = out.z = 0;
 	        out.normalize();
@@ -2439,12 +2425,6 @@
 	  }, {
 	    key: '_onSensorRead',
 	    value: function _onSensorRead() {}
-	  }, {
-	    key: '_onOrientationChange',
-	    value: function _onOrientationChange() {
-	      var angle = -orientation.angle * Math.PI / 180;
-	      this._worldToScreenQ.setFromAxisAngle(Z_AXIS, angle);
-	    }
 	  }]);
 	  return PoseSensor;
 	}();
@@ -3396,7 +3376,7 @@
 	});
 	var CardboardVRDisplay = unwrapExports$$1(cardboardVrDisplay);
 
-	var version = "0.10.6";
+	var version = "0.10.7";
 
 	var DefaultConfig = {
 	  ADDITIONAL_VIEWERS: [],
@@ -3408,7 +3388,6 @@
 	  DPDB_URL: 'https://dpdb.webvr.rocks/dpdb.json',
 	  K_FILTER: 0.98,
 	  PREDICTION_TIME_S: 0.040,
-	  TOUCH_PANNER_DISABLED: true,
 	  CARDBOARD_UI_DISABLED: false,
 	  ROTATE_INSTRUCTIONS_DISABLED: false,
 	  YAW_ONLY: false,
@@ -3448,7 +3427,6 @@
 	      CARDBOARD_UI_DISABLED: this.config.CARDBOARD_UI_DISABLED,
 	      K_FILTER: this.config.K_FILTER,
 	      PREDICTION_TIME_S: this.config.PREDICTION_TIME_S,
-	      TOUCH_PANNER_DISABLED: this.config.TOUCH_PANNER_DISABLED,
 	      ROTATE_INSTRUCTIONS_DISABLED: this.config.ROTATE_INSTRUCTIONS_DISABLED,
 	      YAW_ONLY: this.config.YAW_ONLY,
 	      BUFFER_SCALE: this.config.BUFFER_SCALE,
@@ -3605,6 +3583,14 @@
 
 	ShaderLibrary._files['lighting_ggx.glsl'] = '#ifdef HX_VISIBILITY_TERM\nfloat hx_geometryTerm(vec3 normal, vec3 dir, float k)\n{\n    float d = max(-dot(normal, dir), 0.0);\n    return d / (d * (1.0 - k) + k);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness)\n{\n	float k = roughness + 1.0;\n	k = k * k * .125;\n	return hx_geometryTerm(normal, viewDir, k) * hx_geometryTerm(normal, lightDir, k);\n}\n#endif\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n    float mappedRoughness =  geometry.roughness * geometry.roughness;\n\n	float distribution = hx_ggxDistribution(mappedRoughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef HX_VISIBILITY_TERM\n    specularColor *= hx_lightVisibility(geometry.normal, viewDir, lightDir, geometry.roughness);\n#endif\n}';
 
+	ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    int castShadows;\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            if (viewPos.y < light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    vec4 shadowMapCoord = shadowMatrix * vec4(viewPos, 1.0);\n    float shadow = hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n\n    // this can occur when meshInstance.castShadows = false, or using inherited bounds\n    bool isOutside = max(shadowMapCoord.x, shadowMapCoord.y) > 1.0 || min(shadowMapCoord.x, shadowMapCoord.y) < 0.0;\n    if (isOutside) shadow = 1.0;\n\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.y > light.maxShadowDistance));\n}\n#endif';
+
+	ShaderLibrary._files['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_PROBE_K1 .9921\n\n// really only used for clustered\nstruct HX_Probe\n{\n    int hasDiffuse;\n    int hasSpecular;\n    float numMipLevels;\n    float intensity;\n};\n\n/*\nvar minRoughness = 0.0014;\nvar maxPower = 2.0 / (minRoughness * minRoughness) - 2.0;\nvar maxMipFactor = (exp2(-10.0/Math.sqrt(maxPower)) - HX_PROBE_K0)/HX_PROBE_K1;\nvar HX_PROBE_SCALE = 1.0 / maxMipFactor\n*/\n\n#define HX_PROBE_SCALE\n\nvec3 hx_calculateDiffuseProbeLight(samplerCube texture, vec3 normal)\n{\n	return hx_gammaToLinear(textureCube(texture, normal.xzy).xyz);\n}\n\nvec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)\n{\n    #if defined(HX_TEXTURE_LOD) || defined (HX_GLSL_300_ES)\n    // knald method:\n        float power = 2.0/(roughness * roughness) - 2.0;\n        float factor = (exp2(-10.0/sqrt(power)) - HX_PROBE_K0)/HX_PROBE_K1;\n//        float mipLevel = numMips * (1.0 - clamp(factor * HX_PROBE_SCALE, 0.0, 1.0));\n        float mipLevel = numMips * (1.0 - clamp(factor, 0.0, 1.0));\n        #ifdef HX_GLSL_300_ES\n        vec4 specProbeSample = textureLod(texture, reflectedViewDir.xzy, mipLevel);\n        #else\n        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir.xzy, mipLevel);\n        #endif\n    #else\n        vec4 specProbeSample = textureCube(texture, reflectedViewDir.xzy);\n    #endif\n	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor;\n}';
+
+	ShaderLibrary._files['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position;\n    float radius;\n    float rcpRadius;\n\n    float depthBias;\n    mat4 shadowMapMatrix;\n    int castShadows;\n    vec4 shadowTiles[6];    // for each cube face\n};\n\nvoid hx_calculateLight(HX_PointLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_PointLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec3 dir = viewPos - light.position;\n    // go from view space back to world space, as a vector\n    float dist = length(dir);\n    dir = mat3(light.shadowMapMatrix) * dir;\n\n    // swizzle to opengl cube map space\n    dir = dir.xzy;\n\n    vec3 absDir = abs(dir);\n    float maxDir = max(max(absDir.x, absDir.y), absDir.z);\n    vec2 uv;\n    vec4 tile;\n    if (absDir.x == maxDir) {\n        tile = dir.x > 0.0? light.shadowTiles[0]: light.shadowTiles[1];\n        // signs are important (hence division by either dir or absDir\n        uv = vec2(-dir.z / dir.x, -dir.y / absDir.x);\n    }\n    else if (absDir.y == maxDir) {\n        tile = dir.y > 0.0? light.shadowTiles[4]: light.shadowTiles[5];\n        uv = vec2(dir.x / absDir.y, dir.z / dir.y);\n    }\n    else {\n        tile = dir.z > 0.0? light.shadowTiles[2]: light.shadowTiles[3];\n        uv = vec2(dir.x / dir.z, -dir.y / absDir.z);\n    }\n\n    // match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    uv *= .95;\n\n    vec4 shadowMapCoord;\n    shadowMapCoord.xy = uv * tile.xy + tile.zw;\n    shadowMapCoord.z = dist * light.rcpRadius;\n    shadowMapCoord.w = 1.0;\n    return  hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
+
+	ShaderLibrary._files['spot_light.glsl'] = 'struct HX_SpotLight\n{\n    vec3 color;\n    vec3 position;\n    vec3 direction;\n    float radius;\n    float rcpRadius;\n\n    vec2 angleData;    // cos(inner), rcp(cos(outer) - cos(inner))\n\n    mat4 shadowMapMatrix;\n    float depthBias;\n    int castShadows;\n\n    vec4 shadowTile;    // xy = scale, zw = offset\n};\n\nvoid hx_calculateLight(HX_SpotLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n\n    float cosAngle = dot(light.direction, direction);\n\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n    attenuation *=  saturate((cosAngle - light.angleData.x) * light.angleData.y);\n\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_SpotLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec4 shadowMapCoord = light.shadowMapMatrix * vec4(viewPos, 1.0);\n    shadowMapCoord /= shadowMapCoord.w;\n    // *.9 --> match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    shadowMapCoord.xy = shadowMapCoord.xy * .95 * light.shadowTile.xy + light.shadowTile.zw;\n    shadowMapCoord.z = length(viewPos - light.position) * light.rcpRadius;\n    return hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
+
 	ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	hx_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
 	ShaderLibrary._files['bloom_composite_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
@@ -3634,26 +3620,6 @@
 	ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	hx_FragColor = vec4(l, l, l, 1.0);\n}';
 
 	ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	hx_FragColor = color / (1.0 + lum);\n}';
-
-	ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    int castShadows;\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            if (viewPos.y < light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    vec4 shadowMapCoord = shadowMatrix * vec4(viewPos, 1.0);\n    float shadow = hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n\n    // this can occur when meshInstance.castShadows = false, or using inherited bounds\n    bool isOutside = max(shadowMapCoord.x, shadowMapCoord.y) > 1.0 || min(shadowMapCoord.x, shadowMapCoord.y) < 0.0;\n    if (isOutside) shadow = 1.0;\n\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.y > light.maxShadowDistance));\n}\n#endif';
-
-	ShaderLibrary._files['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_PROBE_K1 .9921\n\n// really only used for clustered\nstruct HX_Probe\n{\n    int hasDiffuse;\n    int hasSpecular;\n    float numMipLevels;\n    float intensity;\n};\n\n/*\nvar minRoughness = 0.0014;\nvar maxPower = 2.0 / (minRoughness * minRoughness) - 2.0;\nvar maxMipFactor = (exp2(-10.0/Math.sqrt(maxPower)) - HX_PROBE_K0)/HX_PROBE_K1;\nvar HX_PROBE_SCALE = 1.0 / maxMipFactor\n*/\n\n#define HX_PROBE_SCALE\n\nvec3 hx_calculateDiffuseProbeLight(samplerCube texture, vec3 normal)\n{\n	return hx_gammaToLinear(textureCube(texture, normal.xzy).xyz);\n}\n\nvec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)\n{\n    #if defined(HX_TEXTURE_LOD) || defined (HX_GLSL_300_ES)\n    // knald method:\n        float power = 2.0/(roughness * roughness) - 2.0;\n        float factor = (exp2(-10.0/sqrt(power)) - HX_PROBE_K0)/HX_PROBE_K1;\n//        float mipLevel = numMips * (1.0 - clamp(factor * HX_PROBE_SCALE, 0.0, 1.0));\n        float mipLevel = numMips * (1.0 - clamp(factor, 0.0, 1.0));\n        #ifdef HX_GLSL_300_ES\n        vec4 specProbeSample = textureLod(texture, reflectedViewDir.xzy, mipLevel);\n        #else\n        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir.xzy, mipLevel);\n        #endif\n    #else\n        vec4 specProbeSample = textureCube(texture, reflectedViewDir.xzy);\n    #endif\n	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor;\n}';
-
-	ShaderLibrary._files['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position;\n    float radius;\n    float rcpRadius;\n\n    float depthBias;\n    mat4 shadowMapMatrix;\n    int castShadows;\n    vec4 shadowTiles[6];    // for each cube face\n};\n\nvoid hx_calculateLight(HX_PointLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_PointLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec3 dir = viewPos - light.position;\n    // go from view space back to world space, as a vector\n    float dist = length(dir);\n    dir = mat3(light.shadowMapMatrix) * dir;\n\n    // swizzle to opengl cube map space\n    dir = dir.xzy;\n\n    vec3 absDir = abs(dir);\n    float maxDir = max(max(absDir.x, absDir.y), absDir.z);\n    vec2 uv;\n    vec4 tile;\n    if (absDir.x == maxDir) {\n        tile = dir.x > 0.0? light.shadowTiles[0]: light.shadowTiles[1];\n        // signs are important (hence division by either dir or absDir\n        uv = vec2(-dir.z / dir.x, -dir.y / absDir.x);\n    }\n    else if (absDir.y == maxDir) {\n        tile = dir.y > 0.0? light.shadowTiles[4]: light.shadowTiles[5];\n        uv = vec2(dir.x / absDir.y, dir.z / dir.y);\n    }\n    else {\n        tile = dir.z > 0.0? light.shadowTiles[2]: light.shadowTiles[3];\n        uv = vec2(dir.x / dir.z, -dir.y / absDir.z);\n    }\n\n    // match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    uv *= .95;\n\n    vec4 shadowMapCoord;\n    shadowMapCoord.xy = uv * tile.xy + tile.zw;\n    shadowMapCoord.z = dist * light.rcpRadius;\n    shadowMapCoord.w = 1.0;\n    return  hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
-
-	ShaderLibrary._files['spot_light.glsl'] = 'struct HX_SpotLight\n{\n    vec3 color;\n    vec3 position;\n    vec3 direction;\n    float radius;\n    float rcpRadius;\n\n    vec2 angleData;    // cos(inner), rcp(cos(outer) - cos(inner))\n\n    mat4 shadowMapMatrix;\n    float depthBias;\n    int castShadows;\n\n    vec4 shadowTile;    // xy = scale, zw = offset\n};\n\nvoid hx_calculateLight(HX_SpotLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n\n    float cosAngle = dot(light.direction, direction);\n\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n    attenuation *=  saturate((cosAngle - light.angleData.x) * light.angleData.y);\n\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_SpotLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec4 shadowMapCoord = light.shadowMapMatrix * vec4(viewPos, 1.0);\n    shadowMapCoord /= shadowMapCoord.w;\n    // *.9 --> match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    shadowMapCoord.xy = shadowMapCoord.xy * .95 * light.shadowTile.xy + light.shadowTile.zw;\n    shadowMapCoord.z = length(viewPos - light.position) * light.rcpRadius;\n    return hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
-
-	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
-
-	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
-
-	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
-
-	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
-
-	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
 
 	ShaderLibrary._files['default_geometry_fragment.glsl'] = 'uniform vec3 color;\nuniform vec3 emissiveColor;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(METALLIC_ROUGHNESS_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\nvarying_in vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef OCCLUSION_MAP\nuniform sampler2D occlusionMap;\n#endif\n\n#ifdef EMISSION_MAP\nuniform sampler2D emissionMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    varying_in vec3 normal;\n\n    #ifdef NORMAL_MAP\n    varying_in vec3 tangent;\n    varying_in vec3 bitangent;\n\n    uniform sampler2D normalMap;\n    #endif\n#endif\n\n#ifndef HX_SKIP_SPECULAR\nuniform float roughness;\nuniform float roughnessRange;\nuniform float normalSpecularReflectance;\nuniform float metallicness;\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\n#endif\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#ifdef VERTEX_COLORS\nvarying_in vec3 vertexColor;\n#endif\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    data.color = hx_gammaToLinear(outputColor);\n\n#ifndef HX_SKIP_SPECULAR\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = normalSpecularReflectance;\n    float roughnessOut = roughness;\n#endif\n\n#if defined(HX_SKIP_NORMALS) && defined(NORMAL_ROUGHNESS_MAP) && !defined(HX_SKIP_SPECULAR)\n    vec4 normalSample = texture2D(normalMap, texCoords);\n    roughnessOut -= roughnessRange * (normalSample.w - .5);\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    vec3 fragNormal = normal;\n\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz - .5);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (normalSample.w - .5);\n        #endif\n    #endif\n\n    #ifdef DOUBLE_SIDED\n        fragNormal *= gl_FrontFacing? 1.0 : -1.0;\n    #endif\n    data.normal = normalize(fragNormal);\n#endif\n\n#ifndef HX_SKIP_SPECULAR\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n\n          #ifdef METALLIC_ROUGHNESS_MAP\n              roughnessOut -= roughnessRange * (specSample.y - .5);\n              metallicnessOut *= specSample.z;\n\n          #else\n              roughnessOut -= roughnessRange * (specSample.x - .5);\n\n              #ifdef SPECULAR_MAP\n                  specNormalReflOut *= specSample.y;\n                  metallicnessOut *= specSample.z;\n              #endif\n          #endif\n    #endif\n\n    data.metallicness = metallicnessOut;\n    data.normalSpecularReflectance = specNormalReflOut;\n    data.roughness = roughnessOut;\n#endif\n\n    data.occlusion = 1.0;\n\n#ifdef OCCLUSION_MAP\n    data.occlusion = texture2D(occlusionMap, texCoords).x;\n#endif\n\n    vec3 emission = emissiveColor;\n#ifdef EMISSION_MAP\n    emission *= texture2D(emissionMap, texCoords).xyz;\n#endif\n\n    data.emission = hx_gammaToLinear(emission);\n    return data;\n}';
 
@@ -3716,6 +3682,18 @@
 	ShaderLibrary._files['shadow_vsm.glsl'] = '#derivatives\n\nvec4 hx_getShadowMapValue(float depth)\n{\n    float dx = dFdx(depth);\n    float dy = dFdy(depth);\n    float moment2 = depth * depth + 0.25*(dx*dx + dy*dy);\n\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    return vec4(depth, moment2, 0.0, 1.0);\n    #else\n    return vec4(hx_floatToRG8(depth), hx_floatToRG8(moment2));\n    #endif\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    vec4 s = texture2D(shadowMap, shadowMapCoord.xy);\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    vec2 moments = s.xy;\n    #else\n    vec2 moments = vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    #endif\n    shadowMapCoord.z += depthBias;\n\n    float variance = moments.y - moments.x * moments.x;\n    variance = max(variance, HX_VSM_MIN_VARIANCE);\n\n    float diff = shadowMapCoord.z - moments.x;\n    float upperBound = 1.0;\n\n    // transparents could be closer to the light than casters\n    if (diff > 0.0)\n        upperBound = variance / (variance + diff*diff);\n\n    return saturate((upperBound - HX_VSM_LIGHT_BLEED_REDUCTION) * HX_VSM_RCP_LIGHT_BLEED_REDUCTION_RANGE);\n}';
 
 	ShaderLibrary._files['vsm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nvec2 readValues(vec2 coord)\n{\n    vec4 s = texture2D(source, coord);\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    return s.xy;\n    #else\n    return vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    #endif\n}\n\nvoid main()\n{\n    vec2 total = readValues(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValues(uv + offset) + readValues(uv - offset);\n	}\n\n    total *= RCP_NUM_SAMPLES;\n\n#if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    hx_FragColor = vec4(total, 0.0, 1.0);\n#else\n	hx_FragColor.xy = hx_floatToRG8(total.x);\n	hx_FragColor.zw = hx_floatToRG8(total.y);\n#endif\n}';
+
+	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
+
+	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
+
+	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
+
+	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
+
+	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
 
 	ShaderLibrary._files['snippets_general.glsl'] = '#define HX_LOG_10 2.302585093\n\n#ifdef HX_GLSL_300_ES\n// replace some outdated function names\nvec4 texture2D(sampler2D s, vec2 uv) { return texture(s, uv); }\nvec4 textureCube(samplerCube s, vec3 uvw) { return texture(s, uvw); }\n\n#define vertex_attribute in\n#define varying_in in\n#define varying_out out\n\n#ifdef HX_FRAGMENT_SHADER\nout vec4 hx_FragColor;\n#endif\n\n#else\n\n#define vertex_attribute attribute\n#define varying_in varying\n#define varying_out varying\n#define hx_FragColor gl_FragColor\n\n#endif\n\nfloat saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);\n    // cannot fract first value or 1 would not be encodable\n    enc.yzw = fract(enc.yzw);\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc.y = fract(enc.y);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec2 hx_encodeNormal(vec3 normal)\n{\n    vec2 data;\n    float p = sqrt(-normal.y*8.0 + 8.0);\n    data = normal.xz / p + .5;\n    return data;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    vec3 normal;\n    data.xy = data.xy*4.0 - 2.0;\n    float f = dot(data.xy, data.xy);\n    float g = sqrt(1.0 - f * .25);\n    normal.xz = data.xy * g;\n    normal.y = -(1.0 - f * .5);\n    return normal;\n}\n\nfloat hx_log10(float val)\n{\n    return log(val) / HX_LOG_10;\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\n/*float hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}*/\n\nfloat hx_decodeLinearDepth(vec4 samp)\n{\n    return hx_RG8ToFloat(samp.zw);\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = 1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return unproj.xyz / unproj.y;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewY(float depthSample, mat4 projectionMatrix)\n{\n    // View Y maps to NDC Z!!!\n    // y = projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[1][2])\n    return projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[1][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\n// https://seblagarde.wordpress.com/2011/08/17/hello-world/\nvec3 hx_fresnelProbe(vec3 normalSpecularReflectance, vec3 lightDir, vec3 normal, float roughness)\n{\n    float cosAngle = 1.0 - max(dot(normal, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    float gloss = (1.0 - roughness) * (1.0 - roughness);\n    vec3 bound = max(vec3(gloss), normalSpecularReflectance);\n    return normalSpecularReflectance + (bound - normalSpecularReflectance) * power;\n}\n\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}\n\nvec4 hx_sampleDefaultDither(sampler2D ditherTexture, vec2 uv)\n{\n    vec4 s = texture2D(ditherTexture, uv);\n\n    #ifndef HX_FLOAT_TEXTURES\n    s = s * 2.0 - 1.0;\n    #endif\n\n    return s;\n}\n\nvec3 hx_intersectCubeMap(vec3 rayOrigin, vec3 cubeCenter, vec3 rayDir, float cubeSize)\n{\n    vec3 t = (cubeSize * sign(rayDir) - (rayOrigin - cubeCenter)) / rayDir;\n    float minT = min(min(t.x, t.y), t.z);\n    return rayOrigin + minT * rayDir;\n}\n\n// sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.\n#ifdef HX_USE_SKINNING_TEXTURE\n#define HX_RCP_MAX_SKELETON_JOINTS 1.0 / float(HX_MAX_SKELETON_JOINTS - 1)\nmat4 hx_getSkinningMatrixImpl(vec4 weights, vec4 indices, sampler2D tex)\n{\n    mat4 m = mat4(0.0);\n    for (int i = 0; i < 4; ++i) {\n        mat4 t;\n        float index = indices[i] * HX_RCP_MAX_SKELETON_JOINTS;\n        t[0] = texture2D(tex, vec2(index, 0.0));\n        t[1] = texture2D(tex, vec2(index, 0.5));\n        t[2] = texture2D(tex, vec2(index, 1.0));\n        t[3] = vec4(0.0, 0.0, 0.0, 1.0);\n        m += weights[i] * t;\n    }\n    return m;\n}\n#define hx_getSkinningMatrix(v) hx_getSkinningMatrixImpl(hx_jointWeights, hx_jointIndices, hx_skinningTexture)\n#else\n#define hx_getSkinningMatrix(v) ( hx_jointWeights.x * mat4(hx_skinningMatrices[int(hx_jointIndices.x) * 3], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.y * mat4(hx_skinningMatrices[int(hx_jointIndices.y) * 3], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.z * mat4(hx_skinningMatrices[int(hx_jointIndices.z) * 3], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.w * mat4(hx_skinningMatrices[int(hx_jointIndices.w) * 3], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) )\n#endif';
 
@@ -6826,7 +6804,7 @@
 		set bounds(value)
 		{
 			this._bounds = value;
-			this._invalidateBounds();
+			this.invalidateBounds();
 		},
 
 		/**
@@ -6845,7 +6823,7 @@
 			this._dynamicBounds = value;
 
 			if (value)
-				this._invalidateBounds();
+				this.invalidateBounds();
 			else
 				this._boundsInvalid = false;
 		},
@@ -6898,7 +6876,7 @@
 	        if (streamIndex === 0)
 	            this._numVertices = data.length / this._vertexStrides[0];
 
-			this._invalidateBounds();
+			this.invalidateBounds();
 	    },
 
 	    /**
@@ -7172,7 +7150,7 @@
 	     * @ignore
 		 * @private
 		 */
-		_invalidateBounds: function()
+		invalidateBounds: function()
 	    {
 	    	if (this._dynamicBounds) {
 				this._boundsInvalid = true;
@@ -13833,7 +13811,7 @@
 				comps += 4;
 	        }
 	        var arr = [];
-	        for (var i = 0; i < comps; ++i)
+	        for (var i = 0, len = comps * mesh.numVertices; i < len; ++i)
 	            arr[i] = 0;
 
 	        mesh.setVertexData(arr, streamIndex);
@@ -14038,8 +14016,10 @@
 	        }
 
 	        this._mesh.setVertexData(normalData, this._normalAttrib.streamIndex);
-	        if (this._tangentAttrib && this._normalAttrib.streamIndex !== this._tangentAttrib.streamIndex)
+
+	        if (this._tangentAttrib && this._normalAttrib.streamIndex !== this._tangentAttrib.streamIndex) {
 	            this._mesh.setVertexData(tangentData, this._tangentAttrib.streamIndex);
+	        }
 	    },
 
 	    _getFloat3At: function(i, offset, stride, target, data)
@@ -14908,8 +14888,7 @@
 	    this._renderOrderHint = 0.0;
 
 		this._Transform_applyMatrix = Transform.prototype._applyMatrix;
-		this._Transform_invalidateMatrix = Transform.prototype._invalidateMatrix;
-	}
+		this._Transform_invalidateMatrix = Transform.prototype._invalidateMatrix;}
 
 	SceneNode.prototype = Object.create(Transform.prototype, {
 	    parent: {
@@ -15249,7 +15228,7 @@
 	    this._ancestorsVisible = value;
 
 	    for (var i = 0, len = this._children.length; i < len; ++i) {
-			this._children[i]._updateAncestorsVisible(value);
+			this._children[i]._updateAncestorsVisible(this._visible && value);
 	    }
 	};
 
@@ -15570,16 +15549,23 @@
 			 */
 			acceptVisitor: null,
 
+	        /**
+			 * @ignore
+	         * @private
+	         */
 			_updateBounds: function ()
 			{
 			},
 
-			_invalidateBounds: function ()
+	        /**
+			 * Marks the bounds as invalid, causing them to be recalculated when next queried.
+	         */
+			invalidateBounds: function ()
 			{
 				this._boundsInvalid = true;
 
 				if (this.entity)
-					this.entity._invalidateBounds();
+					this.entity.invalidateBounds();
 			},
 
 			/**
@@ -15727,21 +15713,21 @@
 
 				if (this._mesh) {
 					this._mesh.onLayoutChanged.unbind(this._onMaterialOrMeshChange);
-					this._mesh.onBoundsChanged.unbind(this._invalidateBounds);
+					this._mesh.onBoundsChanged.unbind(this.invalidateBounds);
 					this._mesh.onMorphDataCreated.unbind(this._initMorphData);
 				}
 
 				this._mesh = mesh;
 
 				mesh.onLayoutChanged.bind(this._onMaterialOrMeshChange, this);
-				mesh.onBoundsChanged.bind(this._invalidateBounds, this);
+				mesh.onBoundsChanged.bind(this.invalidateBounds, this);
 				mesh.onMorphDataCreated.bind(this._initMorphData, this);
 
 				this._initMorphData();
 
 				this._meshMaterialLinkInvalid = true;
 
-				this._invalidateBounds();
+				this.invalidateBounds();
 			}
 		},
 
@@ -15984,6 +15970,8 @@
 	{
 		var clone = new MeshInstance(this._mesh, this._material);
 		clone.castShadows = this.castShadows;
+		if (this.skeleton)
+			clone.skeleton = this.skeleton;
 		if (this.skeletonPose)
 			clone.skeletonPose = this.skeletonPose.clone();
 		return clone;
@@ -16075,8 +16063,8 @@
 	 * Entity represents a node in the Scene graph that can have {@linkcode Component} objects added to it, which can
 	 * define its behavior in a modular way.
 	 *
-	 * @property {BoundingVolume} worldBounds The bounding volume for this node in world coordinates. This does not include
-	 * children
+	 * @property {BoundingVolume} worldBounds The bounding volume for this entity in world coordinates. This does not include
+	 * children.
 	 *
 	 * @property {Messenger} messenger The Messenger to which elements can listen for certain names Signals related to this Entity.
 	 *
@@ -16171,7 +16159,7 @@
 			component.onAdded();
 
 		if (component.bounds)
-			this._invalidateBounds();
+			this.invalidateBounds();
 
 		this._onComponentsChange.dispatch(this, oldHash);
 	};
@@ -16191,9 +16179,9 @@
 	};
 
 	/**
-	 * @ignore
+	 * Marks the bounds as invalid, causing them to be recalculated when next queried.
 	 */
-	Entity.prototype._invalidateBounds = function ()
+	Entity.prototype.invalidateBounds = function ()
 	{
 		this._boundsInvalid = true;
 		this._invalidateWorldBounds();
@@ -16266,7 +16254,7 @@
 			component.onRemoved();
 
 		if (component.bounds)
-			this._invalidateBounds();
+			this.invalidateBounds();
 	};
 
 	/**
@@ -16377,6 +16365,7 @@
 		}
 
 		this._SceneNode_setScene(scene);
+		this._invalidateWorldBounds();
 	};
 
 	/**
@@ -16389,6 +16378,7 @@
 
 	/**
 	 * @ignore
+	 * proxyMatrix is only available when wrapped in an EntityProxy
 	 */
 	Entity.prototype.acceptVisitor = function(visitor)
 	{
@@ -16444,6 +16434,15 @@
 		}
 
 		SceneNode.prototype._bindSkeleton.call(this, skeleton, pose, root);
+	};
+
+	/**
+	 * @ignore
+	 */
+	Entity.prototype._updateChildAdded = function(child)
+	{
+		SceneNode.prototype._updateChildAdded.call(this, child);
+		this.invalidateBounds();
 	};
 
 	/**
@@ -17142,7 +17141,7 @@
 
 	            set: function(value) {
 	                this._radius = value;
-	                this._invalidateBounds();
+	                this.invalidateBounds();
 	            }
 	        }
 	    },
@@ -17349,7 +17348,7 @@
 
 	            set: function(value) {
 	                this._radius = value;
-					this._invalidateBounds();
+					this.invalidateBounds();
 	            }
 	        },
 
@@ -17363,7 +17362,7 @@
 	                this._outerAngle = MathX.clamp(this._outerAngle, this._innerAngle, Math.PI);
 	                this._cosInner = Math.cos(this._innerAngle * .5);
 	                this._cosOuter = Math.cos(this._outerAngle * .5);
-					this._invalidateBounds();
+					this.invalidateBounds();
 	            }
 	        },
 
@@ -17377,7 +17376,7 @@
 	                this._innerAngle = MathX.clamp(this._innerAngle, 0, this._outerAngle);
 	                this._cosInner = Math.cos(this._innerAngle * .5);
 	                this._cosOuter = Math.cos(this._outerAngle * .5);
-					this._invalidateBounds();
+					this.invalidateBounds();
 	            }
 	        }
 	    },
@@ -19582,25 +19581,157 @@
 	};
 
 	/**
+	 *
+	 * @classdesc
+	 * ObjectPool allows pooling reusable objects. All it needs is a "next" property to keep it in the list.
+	 *
 	 * @ignore
 	 * @constructor
 	 *
 	 * @author derschmale <http://www.derschmale.com>
 	 */
+	function ObjectPool(type)
+	{
+	    var head = null;
+	    var pool = null;
+
+	    this.getItem = function()
+	    {
+	        var item;
+
+	        if (head) {
+	            item = head;
+	            head = head.next;
+	        }
+	        else {
+	            item = new type();
+	            item.next = pool;
+	            pool = item;
+	        }
+
+	        return item;
+	    };
+
+	    this.reset = function()
+	    {
+	        head = pool;
+	    };
+	}
+
+	/**
+	 * @ignore
+	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+
+	var workBounds = new BoundingAABB();
+
 	function SceneVisitor()
 	{
-
+	    this._proxyMatrix = null;
+	    this._proxyBounds = null;
+	    this._proxy = null;
+	    this._proxyStack = []; // both a stack and a matrix pool
+	    this._matrixStack = []; // both a stack and a matrix pool
+	    this._stackIndex = -1;   // the current index into the stack/pool
+	    this._matrixPool = new ObjectPool(Matrix4x4);
+	    this._proxyBoundsInvalid = false;
 	}
 
 	SceneVisitor.prototype =
 	{
+	    reset: function()
+	    {
+	        this._matrixPool.reset();
+	    },
+
 	    // the entry point depends on the concrete subclass (collect, etc)
 	    qualifies: function(object) {},
+
+	    // worldMatrix and worldBounds need to be passed through getProxiedBounds and getProxiedMatrix here!
 	    visitLight: function(light) {},
 	    visitAmbientLight: function(light) {},
 		visitMeshInstance: function (meshInstance) {},
 	    visitScene: function (scene) {},
-	    visitEffect: function(effect) {}
+	    visitEffect: function(effect) {},
+
+	    // used for EntityProxy transforms
+	    pushProxy: function(proxy)
+	    {
+	        var matrix;
+
+	        if (this._proxyMatrix) {
+	            matrix = this._matrixPool.getItem();
+	            // the current (parent) matrix * the child matrix
+	            Matrix4x4.multiply(this._proxyMatrix, proxy.worldMatrix, matrix);
+	            this._proxyBounds = workBounds;
+	            this._proxyBoundsInvalid = true;
+	        }
+	        else {
+	            // won't be changed, can store as is
+	            matrix = proxy.worldMatrix;
+	            this._proxyBounds = proxy.worldBounds;
+	            this._proxyBoundsInvalid = false;
+	        }
+
+	        this._proxy = proxy;
+	        this._proxyMatrix = matrix;
+	        this._matrixStack.push(matrix);
+	        this._proxyStack.push(proxy);
+	    },
+
+	    // used for EntityProxy transforms
+	    popProxy: function()
+	    {
+	        this._matrixStack.pop();
+	        this._proxyStack.pop();
+
+	        var len = this._matrixStack.length;
+
+	        if (len === 0) {
+	            this._proxy = null;
+	            this._proxyMatrix = null;
+	            this._proxyBounds = null;
+	        }
+	        else {
+	            this._proxyMatrix = this._matrixStack[len - 1];
+	            this._proxy = this._proxyStack[len - 1];
+
+	            if (len === 1) {
+	                this._proxyBounds = this._proxy.worldBounds;
+	                this._proxyBoundsInvalid = false;
+	            }
+	            else if (len > 1) {
+	                this._proxyBounds = workBounds;
+	                this._proxyBoundsInvalid = true;
+	            }
+	        }
+	    },
+
+	    getProxiedBounds: function(node)
+	    {
+	        if (this._proxyMatrix) {
+	            if (this._proxyBoundsInvalid) {
+	                this._proxyBounds.transformFrom(this._proxy.bounds, this._proxyMatrix);
+	                this._proxyBoundsInvalid = false;
+	            }
+	            return this._proxyBounds;
+	        }
+	        else {
+	            return node.worldBounds;
+	        }
+	    },
+
+	    getProxiedMatrix: function(node)
+	    {
+	        if (this._proxyMatrix) {
+	            var matrix = this._matrixPool.getItem();
+	            return Matrix4x4.multiply(this._proxyMatrix, node.worldMatrix, matrix);
+	        }
+	        else
+	            return node.worldMatrix;
+	    }
 	};
 
 	/**
@@ -19872,52 +20003,16 @@
 	};
 
 	/**
-	 *
-	 * @classdesc
-	 * ObjectPool allows pooling reusable objects. All it needs is a "next" property to keep it in the list.
-	 *
 	 * @ignore
 	 * @constructor
 	 *
 	 * @author derschmale <http://www.derschmale.com>
 	 */
-	function ObjectPool(type)
-	{
-	    var head = null;
-	    var pool = null;
 
-	    this.getItem = function()
-	    {
-	        var item;
-
-	        if (head) {
-	            item = head;
-	            head = head.next;
-	        }
-	        else {
-	            item = new type();
-	            item.next = pool;
-	            pool = item;
-	        }
-
-	        return item;
-	    };
-
-	    this.reset = function()
-	    {
-	        head = pool;
-	    };
-	}
-
-	/**
-	 * @ignore
-	 * @constructor
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
 	function RenderItem()
 	{
 	    this.worldMatrix = null;
+	    this.proxyMatrix = new Matrix4x4();    // assigned if worldMatrix = null
 	    this.meshInstance = null;
 	    this.skeleton = null;
 	    this.skeletonMatrices = null;
@@ -20002,6 +20097,7 @@
 
 	RenderCollector.prototype.collect = function(camera, scene)
 	{
+	    this.reset();
 	    this._camera = camera;
 	    camera.worldMatrix.getColumn(1, this._cameraYAxis);
 	    this._frustumPlanes = camera.frustum.planes;
@@ -20021,9 +20117,9 @@
 		this._camera.acceptVisitorPost(this);
 	};
 
-	RenderCollector.prototype.qualifies = function(object)
+	RenderCollector.prototype.qualifies = function(object, forceBounds)
 	{
-	    return object.hierarchyVisible && object.worldBounds.intersectsConvexSolid(this._frustumPlanes, 6);
+	    return object.hierarchyVisible && (forceBounds || object.worldBounds.intersectsConvexSolid(this._frustumPlanes, 6));
 	};
 
 	RenderCollector.prototype.visitScene = function (scene)
@@ -20044,7 +20140,7 @@
 		if (!meshInstance.enabled) return;
 
 		var entity = meshInstance.entity;
-		var worldBounds = entity.worldBounds;
+		var worldBounds = this.getProxiedBounds(entity);
 	    var cameraYAxis = this._cameraYAxis;
 	    var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
 	    var skeleton = meshInstance.skeleton;
@@ -20070,8 +20166,7 @@
 	    // distance along Z axis:
 	    var center = worldBounds._center;
 	    renderItem.renderOrderHint = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
-	    renderItem.worldMatrix = entity.worldMatrix;
-	    renderItem.worldBounds = worldBounds;
+	    renderItem.worldMatrix = this.getProxiedMatrix(entity);
 
 	    var bucket = (material.blendState || material.needsBackbuffer)? transparentList : opaqueLists[path];
 	    bucket.push(renderItem);
@@ -20451,6 +20546,100 @@
 	{
 	    return new Terrain(this._terrainSize, this._minElevation, this._maxElevation, this._numLevels, this._material, this._detail);
 	};
+
+	/**
+	 * EntityProxy allows wrapping SceneNode objects and treating them as children. A difference with regular children is
+	 * that the same scene node can be shared across entity proxies and their state is always identical, with the exception
+	 * of their final transforms.
+	 */
+	function EntityProxy()
+	{
+	    Entity.call(this);
+	    this._wrapped = [];
+	    this._Entity_acceptVisitor = Entity.prototype.acceptVisitor;
+	    this._Entity_updateBounds = Entity.prototype._updateBounds;
+	    this._growBounds = this._growBounds.bind(this);
+	}
+
+	EntityProxy.prototype = Object.create(Entity.prototype);
+
+	/**
+	 * Adds an object to the proxy.
+	 */
+	EntityProxy.prototype.add = function(node)
+	{
+	    this._wrapped.push(node);
+	    this._growBounds(node);
+	};
+
+	/**
+	 * Adds an object to the proxy.
+	 */
+	EntityProxy.prototype.remove = function(node)
+	{
+	    var index = this._wrapped.indexOf(node);
+	    this._wrapped.splice(index, 1);
+	    this.invalidateBounds();
+	};
+
+
+	/**
+	 * @ignore
+	 */
+	EntityProxy.prototype.acceptVisitor = function(visitor)
+	{
+	    this._Entity_acceptVisitor(visitor);
+
+	    visitor.pushProxy(this);
+
+	    for (var i = 0, len = this._wrapped.length; i < len; ++i) {
+	        this._traverse(this._wrapped[i], visitor);
+	    }
+
+	    visitor.popProxy();
+	};
+
+	/**
+	 * @ignore
+	 * Traverse the wrapped children's hierarchy and "acceptVisitor" for all of the entities.
+	 */
+	EntityProxy.prototype._traverse = function(node, visitor)
+	{
+	    // the only validity testing is done on this Entity, the rest is force-accepted.
+	    if (node.acceptVisitor) {
+	        if (!visitor.qualifies(node, true)) {
+	            return;
+	        }
+
+	        node.acceptVisitor(visitor, this.worldMatrix);
+	        console.log(node);
+	    }
+
+	    for (var i = 0, len = node._children.length; i < len; ++i) {
+	        var child = node._children[i];
+	        this._traverse(child, visitor);
+	    }
+	};
+
+	/**
+	 * @inheritDoc
+	 */
+	EntityProxy.prototype._updateBounds = function()
+	{
+	    this._Entity_updateBounds();
+
+	    for (var i = 0, len = this._wrapped.length; i < len; ++i)
+	        this._wrapped[i].applyFunction(this._growBounds);
+	};
+
+	EntityProxy.prototype._growBounds = function(obj)
+	{
+	    var bound = new BoundingAABB();
+	    return function (obj) {
+	        bound.transformFrom(obj.bounds, obj.matrix);
+	        this._bounds.growToIncludeBound(bound);
+	    }
+	}();
 
 	/**
 	 * @classdesc
@@ -27436,6 +27625,14 @@
 
 	/**
 	 * The data provided by the HX loader
+	 *
+	 * @property defaultScene The default scene (if provided)
+	 * @property defaultCamera The default camera (if provided)
+	 * @property scenes A map containing all scenes by name
+	 * @property meshes A map containing all meshes by name
+	 * @property materials A map containing all materials by name
+	 * @property entities A map containing all entities by name
+	 *
 	 * @constructor
 	 */
 	function HXData()
@@ -27446,6 +27643,7 @@
 		this.meshes = {};
 		this.materials = {};
 		this.entities = {};
+		this.cameras = {};
 	}
 
 	var elementTypeLookUp = [
@@ -27503,11 +27701,13 @@
 		SKELETON_ANIMATION: 20,
 		SKELETON_POSE: 21,	// properties contain position, rotation, scale per joint
 		KEY_FRAME: 22,
-		SKYBOX: 23
+		SKYBOX: 23,
+		ENTITY_PROXY: 24
 	};
 
 	var ObjectTypeMap = {
 		2: SceneNode,
+		3: Entity,
 		6: MeshInstance,
 		7: Skeleton,
 		8: SkeletonJoint,
@@ -27523,7 +27723,8 @@
 		18: BlendState,
 		19: AnimationClip,
 		20: SkeletonAnimation,
-		23: Skybox
+		23: Skybox,
+		24: EntityProxy
 	};
 
 	// most ommitted properties take on their default value in Helix.
@@ -27683,7 +27884,7 @@
 			if (!mesh.hasVertexAttribute("hx_normal"))
 				mode |= NormalTangentGenerator.MODE_NORMALS;
 
-			if (!mesh.hasVertexAttribute("hx_tangent") && mesh.hasVertexAttribute("hx_texCoord"))
+			if (!mesh.hasVertexAttribute("hx_tangent"))
 				mode |= NormalTangentGenerator.MODE_TANGENTS;
 
 			queue.queue(generator.generate.bind(generator, mesh, mode));
@@ -27767,8 +27968,18 @@
 				case ObjectTypes.KEY_FRAME:
 					object = this._parseKeyFrame(data);
 					break;
+				case ObjectTypes.PERSPECTIVE_CAMERA:
+				case ObjectTypes.ORTHOGRAPHIC_CAMERA:
+	                object = this._parseObject(ObjectTypeMap[type], data);
+	                this._target.cameras[object.name] = object;
+					break;
 				case ObjectTypes.ENTITY:
-					object = this._parseObject(Entity, data);
+	            case ObjectTypes.ENTITY_PROXY:
+					object = this._parseObject(ObjectTypeMap[type], data);
+
+					while (this._target.entities[object.name])
+	                    object.name = object.name + "_";
+
 					this._target.entities[object.name] = object;
 					break;
 				case ObjectTypes.NULL:
@@ -27799,9 +28010,9 @@
 
 	HX$1.prototype._parseObject = function(type, data)
 	{
-		var scene = new type();
-		this._readProperties(data, scene);
-		return scene;
+		var object = new type();
+		this._readProperties(data, object);
+		return object;
 	};
 
 	HX$1.prototype._parseKeyFrame = function(data)
@@ -28051,6 +28262,11 @@
 			case "jpeg":
 			case "png":
 				dependencyType = JPG;
+				break;
+			default:
+				// fallbacks for missing extensions
+	            if (target instanceof Texture2D)
+	            	dependencyType = JPG;
 		}
 
 		this._dependencyLib.queueAsset(name, this._correctURL(url), AssetLibrary.Type.ASSET, dependencyType, null, target);
@@ -28202,9 +28418,15 @@
 			else if (child instanceof Mesh) {
 				parent.mesh = child;
 			}
-			else if (child instanceof Entity) {
-				parent.attach(child);
-				if (parent === this._target.defaultScene && meta === 1) {
+			else if (child instanceof Entity || child instanceof SceneNode) {
+				if (parent instanceof EntityProxy && meta === 1) {
+					// attach as "proxied"
+	                parent.add(child);
+	            }
+	            else
+					parent.attach(child);
+
+				if (child instanceof Camera && parent === this._target.defaultScene && meta === 1) {
 					this._target.defaultCamera = child;
 				}
 			}
@@ -28287,7 +28509,6 @@
 			var link = skeletonLinks[i];
 			parent = link.parent;
 			child = link.child;
-			meta = link.meta;
 			parent.skeleton = child;
 		}
 
@@ -28295,7 +28516,6 @@
 			var link = skeletonAnimationLinks[i];
 			parent = link.parent;
 			child = link.child;
-			meta = link.meta;
 			parent.addComponent(child);
 		}
 
@@ -28714,6 +28934,7 @@
 
 	CascadeShadowCasterCollector.prototype.collect = function(camera, scene)
 	{
+	    this.reset();
 	    this._collectorCamera = camera;
 	    camera.worldMatrix.getColumn(1, this._cameraYAxis);
 	    this._bounds.clear();
@@ -28753,7 +28974,7 @@
 	    var skeleton = meshInstance.skeleton;
 		var skeletonMatrices = meshInstance.skeletonMatrices;
 	    var entity = meshInstance.entity;
-	    var worldBounds = entity.worldBounds;
+	    var worldBounds = this.getProxiedBounds(entity);
 	    this._bounds.growToIncludeBound(worldBounds);
 
 	    var passIndex = MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS;
@@ -28774,12 +28995,13 @@
 	                var renderItem = this._renderItemPool.getItem();
 	                renderItem.pass = material.getPass(passIndex);
 	                renderItem.meshInstance = meshInstance;
-	                renderItem.worldMatrix = entity.worldMatrix;
+	                renderItem.worldMatrix = this.getProxiedMatrix(entity);
 	                renderItem.material = material;
 	                renderItem.skeleton = skeleton;
 	                renderItem.skeletonMatrices = skeletonMatrices;
 	                var center = worldBounds._center;
 	                renderItem.renderOrderHint = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
+	                renderItem.worldBounds = worldBounds;
 
 	                renderList.push(renderItem);
 	            }
@@ -28787,9 +29009,9 @@
 	    }
 	};
 
-	CascadeShadowCasterCollector.prototype.qualifies = function(object)
+	CascadeShadowCasterCollector.prototype.qualifies = function(object, forceBounds)
 	{
-	        return object.hierarchyVisible && object.worldBounds.intersectsConvexSolid(this._cullPlanes, this._numCullPlanes);
+	        return object.hierarchyVisible && (forceBounds || object.worldBounds.intersectsConvexSolid(this._cullPlanes, this._numCullPlanes));
 	};
 
 	/**
@@ -29063,6 +29285,7 @@
 
 	OmniShadowCasterCollector.prototype.collect = function(cameras, scene)
 	{
+	    this.reset();
 	    this._cameras = cameras;
 	    this._renderLists = [];
 
@@ -29087,8 +29310,8 @@
 		if (!meshInstance.castShadows || !meshInstance.enabled) return;
 
 		var entity = meshInstance.entity;
-		var worldBounds = entity.worldBounds;
-		var worldMatrix = entity.worldMatrix;
+		var worldBounds = this.getProxiedBounds(entity);
+		var worldMatrix = this.getProxiedMatrix(entity);
 	    // basically, this does 6 frustum tests at once
 	    var planes = this._octantPlanes;
 	    var side0 = worldBounds.classifyAgainstPlane(planes[0]);
@@ -29143,10 +29366,10 @@
 	    renderList.push(renderItem);
 	};
 
-	OmniShadowCasterCollector.prototype.qualifies = function(object)
+	OmniShadowCasterCollector.prototype.qualifies = function(object, forceBounds)
 	{
 	    // for now, only interested if it intersects the point light volume at all
-	    return object.hierarchyVisible && object.worldBounds.intersectsBound(this._lightBounds);
+	    return object.hierarchyVisible && (forceBounds || object.worldBounds.intersectsBound(this._lightBounds));
 	};
 
 	/**
@@ -29258,6 +29481,7 @@
 
 	SpotShadowCasterCollector.prototype.collect = function(camera, scene)
 	{
+	    this.reset();
 	    this._camera = camera;
 	    this._renderList = [];
 	    camera.worldMatrix.getColumn(1, this._cameraYAxis);
@@ -29274,7 +29498,7 @@
 	    if (!meshInstance.castShadows || !meshInstance.enabled) return;
 
 	    var entity = meshInstance.entity;
-	    var worldBounds = entity.worldBounds;
+	    var worldBounds = this.getProxiedBounds(entity);
 	    var cameraYAxis = this._cameraYAxis;
 	    var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
 	    var skeleton = meshInstance.skeleton;
@@ -29291,15 +29515,15 @@
 	    // distance along Z axis:
 	    var center = worldBounds._center;
 	    renderItem.renderOrderHint = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
-	    renderItem.worldMatrix = entity.worldMatrix;
+	    renderItem.worldMatrix = this.getProxiedMatrix(entity);
 	    renderItem.worldBounds = worldBounds;
 
 	    renderList.push(renderItem);
 	};
 
-	SpotShadowCasterCollector.prototype.qualifies = function(object)
+	SpotShadowCasterCollector.prototype.qualifies = function(object, forceBounds)
 	{
-	    return object.visible && object.worldBounds.intersectsConvexSolid(this._frustumPlanes, 6);
+	    return object.visible && (forceBounds || object.worldBounds.intersectsConvexSolid(this._frustumPlanes, 6));
 	};
 
 	/**
@@ -31783,9 +32007,9 @@
 	/**
 	 * @ignore
 	 */
-	Raycaster.prototype.qualifies = function(object)
+	Raycaster.prototype.qualifies = function(object, forceBounds)
 	{
-	    return object.raycast && object.visible && object.worldBounds.intersectsRay(this._ray);
+	    return object.raycast && object.visible && (forceBounds || object.worldBounds.intersectsRay(this._ray));
 	};
 
 	/**
@@ -31799,7 +32023,7 @@
 	    var dir = this._ray.direction;
 	    var dirX = dir.x, dirY = dir.y, dirZ = dir.z;
 	    var origin = this._ray.origin;
-	    var bounds = entity.worldBounds;
+	    var bounds = this.getProxiedBounds(entity);
 	    var center = bounds.center;
 	    var ex = bounds._halfExtentX;
 	    var ey = bounds._halfExtentY;
@@ -31815,7 +32039,7 @@
 
 	    // the closest projected point on the ray is the order
 	    potential.closestDistanceSqr = ex * dirX + ey * dirY + ez * dirZ;
-	    potential.objectMatrix.inverseAffineOf(entity.worldMatrix);
+	    potential.objectMatrix.inverseAffineOf(this.getProxiedMatrix(entity));
 
 	    this._potentials.push(potential);
 	};
@@ -31845,7 +32069,7 @@
 	    }
 
 	    if (hitData.entity) {
-	        var worldMatrix = hitData.entity.worldMatrix;
+	        var worldMatrix = this.getProxiedMatrix(hitData.entity);
 			worldMatrix.transformPoint(hitData.point, hitData.point);
 			worldMatrix.transformNormal(hitData.faceNormal, hitData.faceNormal);
 		}
@@ -32168,6 +32392,7 @@
 	exports.Skybox = Skybox;
 	exports.Terrain = Terrain;
 	exports.Entity = Entity;
+	exports.EntityProxy = EntityProxy;
 	exports.EntitySystem = EntitySystem;
 	exports.EntitySet = EntitySet;
 	exports.Component = Component;

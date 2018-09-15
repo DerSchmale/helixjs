@@ -45,6 +45,7 @@ RenderCollector.prototype.getTransparentRenderList = function() { return this._t
 
 RenderCollector.prototype.collect = function(camera, scene)
 {
+    this.reset();
     this._camera = camera;
     camera.worldMatrix.getColumn(1, this._cameraYAxis);
     this._frustumPlanes = camera.frustum.planes;
@@ -64,9 +65,9 @@ RenderCollector.prototype.collect = function(camera, scene)
 	this._camera.acceptVisitorPost(this);
 };
 
-RenderCollector.prototype.qualifies = function(object)
+RenderCollector.prototype.qualifies = function(object, forceBounds)
 {
-    return object.hierarchyVisible && object.worldBounds.intersectsConvexSolid(this._frustumPlanes, 6);
+    return object.hierarchyVisible && (forceBounds || object.worldBounds.intersectsConvexSolid(this._frustumPlanes, 6));
 };
 
 RenderCollector.prototype.visitScene = function (scene)
@@ -87,7 +88,7 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance)
 	if (!meshInstance.enabled) return;
 
 	var entity = meshInstance.entity;
-	var worldBounds = entity.worldBounds;
+	var worldBounds = this.getProxiedBounds(entity);
     var cameraYAxis = this._cameraYAxis;
     var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
     var skeleton = meshInstance.skeleton;
@@ -113,8 +114,7 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance)
     // distance along Z axis:
     var center = worldBounds._center;
     renderItem.renderOrderHint = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
-    renderItem.worldMatrix = entity.worldMatrix;
-    renderItem.worldBounds = worldBounds;
+    renderItem.worldMatrix = this.getProxiedMatrix(entity);
 
     var bucket = (material.blendState || material.needsBackbuffer)? transparentList : opaqueLists[path];
     bucket.push(renderItem);

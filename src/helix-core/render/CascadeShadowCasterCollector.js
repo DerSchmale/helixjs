@@ -31,6 +31,7 @@ CascadeShadowCasterCollector.prototype.getRenderList = function(index) { return 
 
 CascadeShadowCasterCollector.prototype.collect = function(camera, scene)
 {
+    this.reset();
     this._collectorCamera = camera;
     camera.worldMatrix.getColumn(1, this._cameraYAxis);
     this._bounds.clear();
@@ -70,7 +71,7 @@ CascadeShadowCasterCollector.prototype.visitMeshInstance = function (meshInstanc
     var skeleton = meshInstance.skeleton;
 	var skeletonMatrices = meshInstance.skeletonMatrices;
     var entity = meshInstance.entity;
-    var worldBounds = entity.worldBounds;
+    var worldBounds = this.getProxiedBounds(entity);
     this._bounds.growToIncludeBound(worldBounds);
 
     var passIndex = MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS;
@@ -91,12 +92,13 @@ CascadeShadowCasterCollector.prototype.visitMeshInstance = function (meshInstanc
                 var renderItem = this._renderItemPool.getItem();
                 renderItem.pass = material.getPass(passIndex);
                 renderItem.meshInstance = meshInstance;
-                renderItem.worldMatrix = entity.worldMatrix;
+                renderItem.worldMatrix = this.getProxiedMatrix(entity);
                 renderItem.material = material;
                 renderItem.skeleton = skeleton;
                 renderItem.skeletonMatrices = skeletonMatrices;
                 var center = worldBounds._center;
                 renderItem.renderOrderHint = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
+                renderItem.worldBounds = worldBounds;
 
                 renderList.push(renderItem);
             }
@@ -104,9 +106,9 @@ CascadeShadowCasterCollector.prototype.visitMeshInstance = function (meshInstanc
     }
 };
 
-CascadeShadowCasterCollector.prototype.qualifies = function(object)
+CascadeShadowCasterCollector.prototype.qualifies = function(object, forceBounds)
 {
-        return object.hierarchyVisible && object.worldBounds.intersectsConvexSolid(this._cullPlanes, this._numCullPlanes);
+        return object.hierarchyVisible && (forceBounds || object.worldBounds.intersectsConvexSolid(this._cullPlanes, this._numCullPlanes));
 };
 
 export { CascadeShadowCasterCollector };

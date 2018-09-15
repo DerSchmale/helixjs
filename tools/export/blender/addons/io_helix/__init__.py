@@ -10,6 +10,7 @@ from bpy_extras.io_utils import ExportHelper
 from bpy.props import StringProperty
 from bpy.types import Operator
 from . import exporter
+from . import export_options
 
 class ExportHelix(Operator, ExportHelper):
     """Define export properties for Helix files"""
@@ -47,10 +48,10 @@ class ExportHelix(Operator, ExportHelper):
         elif self.lighting_mode == "DYNAMIC":
             lighting_mode_index = 2
 
-        return exporter.write_hx(context, self.filepath,
-                                 lighting_mode=lighting_mode_index,
-                                 export_shadows=self.export_shadows
-                                 )
+        export_options.export_shadows = self.export_shadows
+        export_options.lighting_mode = self.lighting_mode
+        export_options.file_path = self.filepath
+        return exporter.write_hx()
 
     def draw(self, context):
         layout = self.layout
@@ -65,7 +66,6 @@ class ExportHelix(Operator, ExportHelper):
         row.prop(self, "export_shadows")
 
 
-# Only needed if you want to add into a dynamic menu
 def menu_func_export(self, context):
     self.layout.operator(ExportHelix.bl_idname, text="Helix (.hx)")
 

@@ -1,4 +1,5 @@
 import struct
+from . import object_map
 
 NULL_MARK = 0
 
@@ -14,7 +15,7 @@ def reset():
 
 
 # returns the index of the current object
-def start_object(file, type, object_map):
+def start_object(file, type):
     global num_started
     global num_ended
     assert num_started == num_ended

@@ -62,7 +62,7 @@ Component.create(PointLight,
 
             set: function(value) {
                 this._radius = value;
-                this._invalidateBounds();
+                this.invalidateBounds();
             }
         }
     },

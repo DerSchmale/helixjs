@@ -1,6 +1,7 @@
 import bpy
 import struct
-from .. import data, data_types, property_types, object_types
+from .. import data, object_map
+from ..constants import DataType, ObjectType, PropertyType
 
 class SubMesh:
     def __init__(self):
@@ -8,6 +9,7 @@ class SubMesh:
         self.num_uvs = 0
         self.vertex_stride = 0
         self.material_index = 0
+        self.has_vertex_color = False
         self.has_skinning_data = False
         self.skinning_data = []
         self.vertex_data = []
@@ -15,7 +17,7 @@ class SubMesh:
         self.hash_index_map = {}
         self.index_count = 0
 
-    def get_vertex_hash(self, pos, normal, uvs, bind_data):
+    def get_vertex_hash(self, pos, normal, uvs, bind_data, color):
         vertex_hash = "/" + str(pos) + "/" + str(normal) + "/"
 
         for uv in uvs:
@@ -25,12 +27,16 @@ class SubMesh:
             for j in bind_data:
                 vertex_hash = vertex_hash + str(j) + "/"
 
+        if color:
+            vertex_hash = vertex_hash + str(color) + "/"
+
         return vertex_hash
 
-    def add_vertex(self, pos, normal, uvs, bind_data):
+    def add_vertex(self, pos, normal, uvs, bind_data, color):
         assert len(uvs) == self.num_uvs
+        assert (color is not None) == self.has_vertex_color
 
-        vertex_hash = self.get_vertex_hash(pos, normal, uvs, bind_data)
+        vertex_hash = self.get_vertex_hash(pos, normal, uvs, bind_data, color)
 
         if vertex_hash in self.hash_index_map:
             index = self.hash_index_map[vertex_hash]
@@ -44,6 +50,9 @@ class SubMesh:
             for uv in uvs:
                 self.vertex_data.extend(list(uv))
 
+            if color:
+                self.vertex_data.extend(list(color))
+
             if self.has_skinning_data:
                 self.skinning_data.extend([j[0] for j in bind_data])
                 self.skinning_data.extend([j[1] for j in bind_data])
@@ -51,48 +60,50 @@ class SubMesh:
         self.index_data.append(index)
 
 
-def write_submesh(sub_mesh, file, object_map, src_mesh):
-    sub_mesh_index = data.start_object(file, object_types.MESH, object_map)
+def write_submesh(sub_mesh, file, src_mesh):
+    sub_mesh_index = data.start_object(file, ObjectType.MESH)
     object_map.map(src_mesh, sub_mesh_index)
-    data.write_string_prop(file, property_types.NAME, sub_mesh.name)
+    data.write_string_prop(file, PropertyType.NAME, sub_mesh.name)
     num_vertices = int(len(sub_mesh.vertex_data) / sub_mesh.vertex_stride)
-    data.write_uint32_prop(file, property_types.NUM_VERTICES, num_vertices)
+    data.write_uint32_prop(file, PropertyType.NUM_VERTICES, num_vertices)
 
-    write_attribute(file, "hx_position", 3, data_types.FLOAT32)
-    write_attribute(file, "hx_normal", 3, data_types.FLOAT32)
+    write_attribute(file, "hx_position", 3, DataType.FLOAT32)
+    write_attribute(file, "hx_normal", 3, DataType.FLOAT32)
 
     for i in range(0, sub_mesh.num_uvs):
         name = "hx_texCoord"
         if i > 0:
             name = name + str(i)
-        write_attribute(file, name, 2, data_types.FLOAT32)
+        write_attribute(file, name, 2, DataType.FLOAT32)
+
+    if sub_mesh.has_vertex_color:
+        write_attribute(file, "hx_vertexColor", 3, DataType.FLOAT32)
 
     # skinning data in stream 1
     if sub_mesh.has_skinning_data:
-        write_attribute(file, "hx_jointIndices", 4, data_types.FLOAT32, 1)
-        write_attribute(file, "hx_jointWeights", 4, data_types.FLOAT32, 1)
+        write_attribute(file, "hx_jointIndices", 4, DataType.FLOAT32, 1)
+        write_attribute(file, "hx_jointWeights", 4, DataType.FLOAT32, 1)
 
     if num_vertices > 65535:
         # we'll need 32 bit to index all vertices
-        index_type = data_types.UINT32
+        index_type = DataType.UINT32
     else:
         # 16 bit indices is enough
-        index_type = data_types.UINT16
+        index_type = DataType.UINT16
 
-    data.write_uint32_prop(file, property_types.NUM_INDICES, len(sub_mesh.index_data))
-    data.write_uint8_prop(file, property_types.INDEX_TYPE, index_type)
+    data.write_uint32_prop(file, PropertyType.NUM_INDICES, len(sub_mesh.index_data))
+    data.write_uint8_prop(file, PropertyType.INDEX_TYPE, index_type)
 
     # knowing format and count, we can write the actual indices
-    if index_type == data_types.UINT16:
-        data.write_uint16_array_prop(file, property_types.INDEX_DATA, sub_mesh.index_data)
+    if index_type == DataType.UINT16:
+        data.write_uint16_array_prop(file, PropertyType.INDEX_DATA, sub_mesh.index_data)
     else:
-        data.write_uint32_array_prop(file, property_types.INDEX_DATA, sub_mesh.index_data)
+        data.write_uint32_array_prop(file, PropertyType.INDEX_DATA, sub_mesh.index_data)
 
-    # TODO: Handle skinning data in multiple streams?
-    data.write_float32_array_prop(file, property_types.VERTEX_STREAM_DATA, sub_mesh.vertex_data)
+    data.write_float32_array_prop(file, PropertyType.VERTEX_STREAM_DATA, sub_mesh.vertex_data)
 
     if sub_mesh.has_skinning_data:
-        data.write_float32_array_prop(file, property_types.VERTEX_STREAM_DATA, sub_mesh.skinning_data)
+        data.write_float32_array_prop(file, PropertyType.VERTEX_STREAM_DATA, sub_mesh.skinning_data)
 
     data.end_object(file)
 
@@ -107,9 +118,12 @@ def get_submesh(src, material_index, list, has_skinned_data):
     sub.name = src.name
     sub.material_index = material_index
     sub.num_uvs = len(src.uv_layers)
+    sub.has_vertex_color = len(src.vertex_colors) > 0
     sub.has_skinning_data = has_skinned_data
     # positions (3), normals (3), uvs (2 per layer)
     sub.vertex_stride = 6 + sub.num_uvs * 2
+    if sub.has_vertex_color:
+        sub.vertex_stride += 3
 
     # multiple HX.Mesh objects due to more materials being used
     if len(list) > 0:
@@ -154,9 +168,11 @@ def get_skinned_data(mesh, armature, vertex_groups):
     return data
 
 
-def write(mesh, file, object_map):
+def write(mesh, file):
     if object_map.has_mapped_indices(mesh):
         return
+
+    print("[HX] Writing Mesh " + mesh.name)
 
     skinned_data = None
     vertex_groups = None
@@ -180,6 +196,7 @@ def write(mesh, file, object_map):
         vi = mesh.loops[loop_index].vertex_index
         v = mesh.vertices[vi].co
         n = mesh.vertices[vi].normal
+        color = None
         uvs = []
 
         if not p.use_smooth:
@@ -188,11 +205,14 @@ def write(mesh, file, object_map):
         for uv_layer in mesh.uv_layers:
             uvs.append(uv_layer.data[loop_index].uv)
 
+        if len(mesh.vertex_colors) > 0:
+            color = mesh.vertex_colors[0].data[loop_index].color
+
         bind_data = None
         if skinned_data:
             bind_data = skinned_data[vi]
 
-        sub_mesh.add_vertex(v, n, uvs, bind_data)
+        sub_mesh.add_vertex(v, n, uvs, bind_data, color)
 
     for p in mesh.polygons:
         sub_mesh = get_submesh(mesh, p.material_index, sub_meshes, bool(skinned_data))
@@ -209,11 +229,11 @@ def write(mesh, file, object_map):
     sub_meshes.sort(key=lambda sub_mesh: str(sub_mesh.material_index))
 
     for s in sub_meshes:
-        write_submesh(s, file, object_map, mesh)
+        write_submesh(s, file, mesh)
 
 
 def write_attribute(file, name, num_components, data_type, stream_index = 0):
-    data.start_property(file, property_types.VERTEX_ATTRIBUTE)
+    data.start_property(file, PropertyType.VERTEX_ATTRIBUTE)
     file.write(name.encode("utf-8"))
     # write end-of-string, and attribute info
     file.write(struct.pack("<BBBB", 0, num_components, data_type, stream_index))

@@ -39,6 +39,8 @@ import {TextureCube} from "../texture/TextureCube";
 import {EquirectangularTexture} from "../utils/EquirectangularTexture";
 import {Skybox} from "../scene/Skybox";
 import {OrthographicCamera} from "../camera/OrthographicCamera";
+import {EntityProxy} from "../entity/EntityProxy";
+import {Camera} from "../camera/Camera";
 
 /**
  * The data provided by the HX loader
@@ -60,6 +62,7 @@ function HXData()
 	this.meshes = {};
 	this.materials = {};
 	this.entities = {};
+	this.cameras = {};
 }
 
 var elementTypeLookUp = [
@@ -117,11 +120,13 @@ var ObjectTypes = {
 	SKELETON_ANIMATION: 20,
 	SKELETON_POSE: 21,	// properties contain position, rotation, scale per joint
 	KEY_FRAME: 22,
-	SKYBOX: 23
+	SKYBOX: 23,
+	ENTITY_PROXY: 24
 };
 
 var ObjectTypeMap = {
 	2: SceneNode,
+	3: Entity,
 	6: MeshInstance,
 	7: Skeleton,
 	8: SkeletonJoint,
@@ -137,7 +142,8 @@ var ObjectTypeMap = {
 	18: BlendState,
 	19: AnimationClip,
 	20: SkeletonAnimation,
-	23: Skybox
+	23: Skybox,
+	24: EntityProxy
 };
 
 // most ommitted properties take on their default value in Helix.
@@ -166,7 +172,7 @@ var PropertyTypes = {
 	ELEMENT_TYPE: 22,					// uint8: index of elementTypeLookUp: if omitted, set to TRIANGLES
 	INDEX_TYPE: 23,						// uint8, either 21 (uint16) or 22 (uint32) as defined by dataTypeLookUp
 	INDEX_DATA: 24,						// list of length = numIndices and type defined by INDEX_TYPE. Must come after NUM_INDICES and INDEX_TYPES
-	VERTEX_ATTRIBUTE: 25,				// value is tuplet <string name, uint8 numComponents, uint8 componentType [see data_types], uint8 streamIndex>
+	VERTEX_ATTRIBUTE: 25,				// value is tuplet <string name, uint8 numComponents, uint8 componentType [see DataTypes], uint8 streamIndex>
 	VERTEX_STREAM_DATA: 26,				// raw data list, length depends on all the attributes for the current stream. Must come after NUM_VERTICES and all VERTEX_ATTRIBUTE fields and appear in order of their stream index.
 
 	// Scene Node / Entity data
@@ -297,7 +303,7 @@ HX.prototype._calcMissingMeshData = function()
 		if (!mesh.hasVertexAttribute("hx_normal"))
 			mode |= NormalTangentGenerator.MODE_NORMALS;
 
-		if (!mesh.hasVertexAttribute("hx_tangent") && mesh.hasVertexAttribute("hx_texCoord"))
+		if (!mesh.hasVertexAttribute("hx_tangent"))
 			mode |= NormalTangentGenerator.MODE_TANGENTS;
 
 		queue.queue(generator.generate.bind(generator, mesh, mode));
@@ -381,8 +387,18 @@ HX.prototype._parseObjectList = function()
 			case ObjectTypes.KEY_FRAME:
 				object = this._parseKeyFrame(data);
 				break;
+			case ObjectTypes.PERSPECTIVE_CAMERA:
+			case ObjectTypes.ORTHOGRAPHIC_CAMERA:
+                object = this._parseObject(ObjectTypeMap[type], data);
+                this._target.cameras[object.name] = object;
+				break;
 			case ObjectTypes.ENTITY:
-				object = this._parseObject(Entity, data);
+            case ObjectTypes.ENTITY_PROXY:
+				object = this._parseObject(ObjectTypeMap[type], data);
+
+				while (this._target.entities[object.name])
+                    object.name = object.name + "_";
+
 				this._target.entities[object.name] = object;
 				break;
 			case ObjectTypes.NULL:
@@ -413,9 +429,9 @@ HX.prototype._parseObjectList = function()
 
 HX.prototype._parseObject = function(type, data)
 {
-	var scene = new type();
-	this._readProperties(data, scene);
-	return scene;
+	var object = new type();
+	this._readProperties(data, object);
+	return object;
 };
 
 HX.prototype._parseKeyFrame = function(data)
@@ -665,6 +681,11 @@ HX.prototype._handleURL = function(url, target)
 		case "jpeg":
 		case "png":
 			dependencyType = JPG;
+			break;
+		default:
+			// fallbacks for missing extensions
+            if (target instanceof Texture2D)
+            	dependencyType = JPG;
 	}
 
 	this._dependencyLib.queueAsset(name, this._correctURL(url), AssetLibrary.Type.ASSET, dependencyType, null, target);
@@ -816,9 +837,18 @@ HX.prototype._parseLinkList = function()
 		else if (child instanceof Mesh) {
 			parent.mesh = child;
 		}
-		else if (child instanceof Entity) {
-			parent.attach(child);
-			if (parent === this._target.defaultScene && meta === 1) {
+		else if (child instanceof Entity || child instanceof SceneNode) {
+			if (parent instanceof EntityProxy && meta === 1) {
+				// attach as "proxied"
+				if (parent.node)
+					console.warn("Trying to assign multiple nodes to a single EntityProxy!");
+				else
+                	parent.node = child;
+            }
+            else
+				parent.attach(child);
+
+			if (child instanceof Camera && parent === this._target.defaultScene && meta === 1) {
 				this._target.defaultCamera = child;
 			}
 		}
@@ -906,7 +936,6 @@ HX.prototype._parseLinkList = function()
 		var link = skeletonLinks[i];
 		parent = link.parent;
 		child = link.child;
-		meta = link.meta;
 		parent.skeleton = child;
 	}
 
@@ -914,7 +943,6 @@ HX.prototype._parseLinkList = function()
 		var link = skeletonAnimationLinks[i];
 		parent = link.parent;
 		child = link.child;
-		meta = link.meta;
 		parent.addComponent(child);
 	}
 

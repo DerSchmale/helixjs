@@ -104,21 +104,21 @@ Component.create(MeshInstance, {
 
 			if (this._mesh) {
 				this._mesh.onLayoutChanged.unbind(this._onMaterialOrMeshChange);
-				this._mesh.onBoundsChanged.unbind(this._invalidateBounds);
+				this._mesh.onBoundsChanged.unbind(this.invalidateBounds);
 				this._mesh.onMorphDataCreated.unbind(this._initMorphData);
 			}
 
 			this._mesh = mesh;
 
 			mesh.onLayoutChanged.bind(this._onMaterialOrMeshChange, this);
-			mesh.onBoundsChanged.bind(this._invalidateBounds, this);
+			mesh.onBoundsChanged.bind(this.invalidateBounds, this);
 			mesh.onMorphDataCreated.bind(this._initMorphData, this);
 
 			this._initMorphData();
 
 			this._meshMaterialLinkInvalid = true;
 
-			this._invalidateBounds();
+			this.invalidateBounds();
 		}
 	},
 
@@ -361,6 +361,8 @@ MeshInstance.prototype.clone = function()
 {
 	var clone = new MeshInstance(this._mesh, this._material);
 	clone.castShadows = this.castShadows;
+	if (this.skeleton)
+		clone.skeleton = this.skeleton;
 	if (this.skeletonPose)
 		clone.skeletonPose = this.skeletonPose.clone();
 	return clone;

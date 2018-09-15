@@ -42,6 +42,7 @@ OmniShadowCasterCollector.prototype.setLightBounds = function(value)
 
 OmniShadowCasterCollector.prototype.collect = function(cameras, scene)
 {
+    this.reset();
     this._cameras = cameras;
     this._renderLists = [];
 
@@ -66,8 +67,8 @@ OmniShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
 	if (!meshInstance.castShadows || !meshInstance.enabled) return;
 
 	var entity = meshInstance.entity;
-	var worldBounds = entity.worldBounds;
-	var worldMatrix = entity.worldMatrix;
+	var worldBounds = this.getProxiedBounds(entity);
+	var worldMatrix = this.getProxiedMatrix(entity);
     // basically, this does 6 frustum tests at once
     var planes = this._octantPlanes;
     var side0 = worldBounds.classifyAgainstPlane(planes[0]);
@@ -122,10 +123,10 @@ OmniShadowCasterCollector.prototype._addTo = function(meshInstance, cubeFace, wo
     renderList.push(renderItem);
 };
 
-OmniShadowCasterCollector.prototype.qualifies = function(object)
+OmniShadowCasterCollector.prototype.qualifies = function(object, forceBounds)
 {
     // for now, only interested if it intersects the point light volume at all
-    return object.hierarchyVisible && object.worldBounds.intersectsBound(this._lightBounds);
+    return object.hierarchyVisible && (forceBounds || object.worldBounds.intersectsBound(this._lightBounds));
 };
 
 export { OmniShadowCasterCollector };

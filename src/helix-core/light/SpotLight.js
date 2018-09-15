@@ -89,7 +89,7 @@ Component.create(SpotLight,
 
             set: function(value) {
                 this._radius = value;
-				this._invalidateBounds();
+				this.invalidateBounds();
             }
         },
 
@@ -103,7 +103,7 @@ Component.create(SpotLight,
                 this._outerAngle = MathX.clamp(this._outerAngle, this._innerAngle, Math.PI);
                 this._cosInner = Math.cos(this._innerAngle * .5);
                 this._cosOuter = Math.cos(this._outerAngle * .5);
-				this._invalidateBounds();
+				this.invalidateBounds();
             }
         },
 
@@ -117,7 +117,7 @@ Component.create(SpotLight,
                 this._innerAngle = MathX.clamp(this._innerAngle, 0, this._outerAngle);
                 this._cosInner = Math.cos(this._innerAngle * .5);
                 this._cosOuter = Math.cos(this._outerAngle * .5);
-				this._invalidateBounds();
+				this.invalidateBounds();
             }
         }
     },

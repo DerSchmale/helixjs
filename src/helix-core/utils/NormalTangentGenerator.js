@@ -84,7 +84,7 @@ NormalTangentGenerator.prototype =
 			comps += 4;
         }
         var arr = [];
-        for (var i = 0; i < comps; ++i)
+        for (var i = 0, len = comps * mesh.numVertices; i < len; ++i)
             arr[i] = 0;
 
         mesh.setVertexData(arr, streamIndex);
@@ -289,8 +289,10 @@ NormalTangentGenerator.prototype =
         }
 
         this._mesh.setVertexData(normalData, this._normalAttrib.streamIndex);
-        if (this._tangentAttrib && this._normalAttrib.streamIndex !== this._tangentAttrib.streamIndex)
+
+        if (this._tangentAttrib && this._normalAttrib.streamIndex !== this._tangentAttrib.streamIndex) {
             this._mesh.setVertexData(tangentData, this._tangentAttrib.streamIndex);
+        }
     },
 
     _getFloat3At: function(i, offset, stride, target, data)

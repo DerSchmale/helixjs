@@ -2,6 +2,7 @@
 import {Matrix4x4} from "../math/Matrix4x4";
 import {Transform} from "../math/Transform";
 import {SkeletonPose} from "../animation/skeleton/SkeletonPose";
+import {BoundingAABB} from "./BoundingAABB";
 
 
 var nameCounter = 0;
@@ -54,7 +55,7 @@ function SceneNode()
     this._renderOrderHint = 0.0;
 
 	this._Transform_applyMatrix = Transform.prototype._applyMatrix;
-	this._Transform_invalidateMatrix = Transform.prototype._invalidateMatrix;
+	this._Transform_invalidateMatrix = Transform.prototype._invalidateMatrix;;
 }
 
 SceneNode.prototype = Object.create(Transform.prototype, {
@@ -395,7 +396,7 @@ SceneNode.prototype._updateAncestorsVisible = function(value)
     this._ancestorsVisible = value;
 
     for (var i = 0, len = this._children.length; i < len; ++i) {
-		this._children[i]._updateAncestorsVisible(value);
+		this._children[i]._updateAncestorsVisible(this._visible && value);
     }
 };
 
@@ -437,5 +438,6 @@ SceneNode.prototype._bindSkeleton = function(skeleton, pose, root)
 	for (var i = 0, len = this._children.length; i < len; ++i)
 	    this._children[i]._bindSkeleton(skeleton, pose, root);
 };
+
 
 export { SceneNode };

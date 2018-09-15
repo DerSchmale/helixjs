@@ -4,15 +4,14 @@ import {Bitfield} from "../core/Bitfield";
 import {BoundingAABB} from "../scene/BoundingAABB";
 import {MeshInstance} from "../mesh/MeshInstance";
 import {Messenger} from "../core/Messenger";
-import {Matrix4x4} from "../math/Matrix4x4";
 
 /**
  * @classdesc
  * Entity represents a node in the Scene graph that can have {@linkcode Component} objects added to it, which can
  * define its behavior in a modular way.
  *
- * @property {BoundingVolume} worldBounds The bounding volume for this node in world coordinates. This does not include
- * children
+ * @property {BoundingVolume} worldBounds The bounding volume for this entity in world coordinates. This does not include
+ * children.
  *
  * @property {Messenger} messenger The Messenger to which elements can listen for certain names Signals related to this Entity.
  *
@@ -107,7 +106,7 @@ Entity.prototype.addComponent = function(component)
 		component.onAdded();
 
 	if (component.bounds)
-		this._invalidateBounds();
+		this.invalidateBounds();
 
 	this._onComponentsChange.dispatch(this, oldHash);
 };
@@ -127,9 +126,9 @@ Entity.prototype._invalidateWorldMatrix = function()
 };
 
 /**
- * @ignore
+ * Marks the bounds as invalid, causing them to be recalculated when next queried.
  */
-Entity.prototype._invalidateBounds = function ()
+Entity.prototype.invalidateBounds = function ()
 {
 	this._boundsInvalid = true;
 	this._invalidateWorldBounds();
@@ -202,7 +201,7 @@ Entity.prototype.removeComponent = function(component)
 		component.onRemoved();
 
 	if (component.bounds)
-		this._invalidateBounds();
+		this.invalidateBounds();
 };
 
 /**
@@ -313,6 +312,7 @@ Entity.prototype._setScene = function(scene)
 	}
 
 	this._SceneNode_setScene(scene);
+	this._invalidateWorldBounds();
 };
 
 /**
@@ -325,6 +325,7 @@ Entity.prototype._createBoundingVolume = function()
 
 /**
  * @ignore
+ * proxyMatrix is only available when wrapped in an EntityProxy
  */
 Entity.prototype.acceptVisitor = function(visitor)
 {
@@ -382,5 +383,13 @@ Entity.prototype._bindSkeleton = function(skeleton, pose, root)
 	SceneNode.prototype._bindSkeleton.call(this, skeleton, pose, root);
 };
 
+/**
+ * @ignore
+ */
+Entity.prototype._updateChildAdded = function(child)
+{
+	SceneNode.prototype._updateChildAdded.call(this, child);
+	this.invalidateBounds();
+};
 
 export { Entity };

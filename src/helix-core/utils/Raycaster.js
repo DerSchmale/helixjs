@@ -73,9 +73,9 @@ Raycaster.prototype.cast = function(ray, scene)
 /**
  * @ignore
  */
-Raycaster.prototype.qualifies = function(object)
+Raycaster.prototype.qualifies = function(object, forceBounds)
 {
-    return object.raycast && object.visible && object.worldBounds.intersectsRay(this._ray);
+    return object.raycast && object.visible && (forceBounds || object.worldBounds.intersectsRay(this._ray));
 };
 
 /**
@@ -89,7 +89,7 @@ Raycaster.prototype.visitMeshInstance = function (meshInstance)
     var dir = this._ray.direction;
     var dirX = dir.x, dirY = dir.y, dirZ = dir.z;
     var origin = this._ray.origin;
-    var bounds = entity.worldBounds;
+    var bounds = this.getProxiedBounds(entity);
     var center = bounds.center;
     var ex = bounds._halfExtentX;
     var ey = bounds._halfExtentY;
@@ -105,7 +105,7 @@ Raycaster.prototype.visitMeshInstance = function (meshInstance)
 
     // the closest projected point on the ray is the order
     potential.closestDistanceSqr = ex * dirX + ey * dirY + ez * dirZ;
-    potential.objectMatrix.inverseAffineOf(entity.worldMatrix);
+    potential.objectMatrix.inverseAffineOf(this.getProxiedMatrix(entity));
 
     this._potentials.push(potential);
 };
@@ -135,7 +135,7 @@ Raycaster.prototype._findClosest = function()
     }
 
     if (hitData.entity) {
-        var worldMatrix = hitData.entity.worldMatrix;
+        var worldMatrix = this.getProxiedMatrix(hitData.entity);
 		worldMatrix.transformPoint(hitData.point, hitData.point);
 		worldMatrix.transformNormal(hitData.faceNormal, hitData.faceNormal);
 	}

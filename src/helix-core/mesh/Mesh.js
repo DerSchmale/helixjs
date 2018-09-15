@@ -106,7 +106,7 @@ Mesh.prototype = {
 	set bounds(value)
 	{
 		this._bounds = value;
-		this._invalidateBounds();
+		this.invalidateBounds();
 	},
 
 	/**
@@ -125,7 +125,7 @@ Mesh.prototype = {
 		this._dynamicBounds = value;
 
 		if (value)
-			this._invalidateBounds();
+			this.invalidateBounds();
 		else
 			this._boundsInvalid = false;
 	},
@@ -178,7 +178,7 @@ Mesh.prototype = {
         if (streamIndex === 0)
             this._numVertices = data.length / this._vertexStrides[0];
 
-		this._invalidateBounds();
+		this.invalidateBounds();
     },
 
     /**
@@ -452,7 +452,7 @@ Mesh.prototype = {
      * @ignore
 	 * @private
 	 */
-	_invalidateBounds: function()
+	invalidateBounds: function()
     {
     	if (this._dynamicBounds) {
 			this._boundsInvalid = true;

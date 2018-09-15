@@ -59,6 +59,7 @@ export {Skybox} from "./scene/Skybox";
 export {Terrain} from "./scene/Terrain";
 
 export {Entity} from "./entity/Entity";
+export {EntityProxy} from "./entity/EntityProxy";
 export {EntitySystem} from "./entity/EntitySystem";
 export {EntitySet} from "./entity/EntitySet";
 export {Component} from "./entity/Component";

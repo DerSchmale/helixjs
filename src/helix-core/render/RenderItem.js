@@ -4,9 +4,12 @@
  *
  * @author derschmale <http://www.derschmale.com>
  */
+import {Matrix4x4} from "../math/Matrix4x4";
+
 export function RenderItem()
 {
     this.worldMatrix = null;
+    this.proxyMatrix = new Matrix4x4();    // assigned if worldMatrix = null
     this.meshInstance = null;
     this.skeleton = null;
     this.skeletonMatrices = null;

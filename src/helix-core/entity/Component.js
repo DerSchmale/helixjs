@@ -104,16 +104,23 @@ Component.prototype =
 		 */
 		acceptVisitor: null,
 
+        /**
+		 * @ignore
+         * @private
+         */
 		_updateBounds: function ()
 		{
 		},
 
-		_invalidateBounds: function ()
+        /**
+		 * Marks the bounds as invalid, causing them to be recalculated when next queried.
+         */
+		invalidateBounds: function ()
 		{
 			this._boundsInvalid = true;
 
 			if (this.entity)
-				this.entity._invalidateBounds();
+				this.entity.invalidateBounds();
 		},
 
 		/**

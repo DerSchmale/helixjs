@@ -1,29 +1,30 @@
-from .. import data, property_types, object_types
+from .. import data, object_map
+from ..constants import ObjectType, PropertyType
 
 
-def write_bone(bone, file, object_map):
-    bone_id = data.start_object(file, object_types.SKELETON_JOINT, object_map)
-    data.write_string_prop(file, property_types.NAME, bone.name)
+def write_bone(bone, file):
+    bone_id = data.start_object(file, ObjectType.SKELETON_JOINT)
+    data.write_string_prop(file, PropertyType.NAME, bone.name)
     inverse_bind_matrix = bone.matrix_local.inverted()
-    data.write_affine_matrix_prop(file, property_types.INVERSE_BIND_POSE, inverse_bind_matrix)
+    data.write_affine_matrix_prop(file, PropertyType.INVERSE_BIND_POSE, inverse_bind_matrix)
     data.end_object(file)
     object_map.map(bone, bone_id)
     return bone_id
 
 
-def write(armature, file, object_map):
+def write(armature, file):
     if object_map.has_mapped_indices(armature):
         return object_map.get_mapped_indices(armature)[0]
 
-    skeleton_id = data.start_object(file, object_types.SKELETON, object_map)
-    data.write_string_prop(file, property_types.NAME, armature.name)
+    skeleton_id = data.start_object(file, ObjectType.SKELETON)
+    data.write_string_prop(file, PropertyType.NAME, armature.name)
     data.end_object(file)
 
     object_map.map(armature, skeleton_id)
 
     # bones are ordered by hierarchy
     for bone in armature.bones:
-        bone_id = write_bone(bone, file, object_map)
+        bone_id = write_bone(bone, file)
         if bone.parent:
             parent_id = object_map.get_mapped_indices(bone.parent)[0]
         else:

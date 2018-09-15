@@ -71,8 +71,8 @@ EntityProxy.prototype._traverse = function(node, visitor)
  */
 EntityProxy.prototype._updateBounds = function()
 {
-    this._Entity_updateBounds();
-    this._node.applyFunction(this._growBounds);
+	this._Entity_updateBounds();
+	this._node.applyFunction(this._growBounds);
 };
 
 EntityProxy.prototype._growBounds = function(obj)

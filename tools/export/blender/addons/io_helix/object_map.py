@@ -1,5 +1,6 @@
 map = None
 
+
 def init():
     global object_map
     object_map = ObjectMap()

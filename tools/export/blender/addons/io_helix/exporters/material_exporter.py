@@ -6,43 +6,43 @@ from .. import data, object_map
 from ..constants import ObjectType, PropertyType
 
 
-def write(material, file):
+def write(material):
     if object_map.has_mapped_indices(material):
         return
 
     for slot in material.texture_slots:
         if not slot or not slot.use:
             continue
-        texture_exporter.write(slot.texture, file)
+        texture_exporter.write(slot.texture)
 
-    material_id = data.start_object(file, ObjectType.BASIC_MATERIAL)
+    material_id = data.start_object(ObjectType.BASIC_MATERIAL)
     # store the index where this material was written, since we need to grab it elsewhere
     object_map.map(material, material_id)
 
-    data.write_string_prop(file, PropertyType.NAME, material.name)
-    data.write_color_prop(file, PropertyType.COLOR, material.diffuse_color)
+    data.write_string_prop(PropertyType.NAME, material.name)
+    data.write_color_prop(PropertyType.COLOR, material.diffuse_color)
 
     roughness = math.pow(2.0 / (material.specular_hardness + 2.0), .25)
-    data.write_float32_prop(file, PropertyType.ROUGHNESS, roughness)
+    data.write_float32_prop(PropertyType.ROUGHNESS, roughness)
 
     if material.game_settings.alpha_blend == "ADD":
-        data.write_uint8_prop(file, PropertyType.BLEND_STATE, 1)
+        data.write_uint8_prop(PropertyType.BLEND_STATE, 1)
     elif material.game_settings.alpha_blend == "ALPHA" or material.game_settings.alpha_blend == "ALPHA_SORT":
-        data.write_uint8_prop(file, PropertyType.BLEND_STATE, 3)
+        data.write_uint8_prop(PropertyType.BLEND_STATE, 3)
     elif material.game_settings.alpha_blend == "CLIP":
-        data.write_uint8_prop(file, PropertyType.ALPHA_THRESHOLD, .5)
+        data.write_uint8_prop(PropertyType.ALPHA_THRESHOLD, .5)
 
     if not material.game_settings.use_backface_culling:
-        data.write_uint8_prop(file, PropertyType.CULL_MODE, 0)
+        data.write_uint8_prop(PropertyType.CULL_MODE, 0)
 
     if material.use_vertex_color_paint:
-        data.write_uint8_prop(file, PropertyType.USE_VERTEX_COLORS, 1)
+        data.write_uint8_prop(PropertyType.USE_VERTEX_COLORS, 1)
 
     if material.alpha < 1.0:
-        data.write_float32_prop(file, PropertyType.ALPHA, material.alpha)
+        data.write_float32_prop(PropertyType.ALPHA, material.alpha)
 
     if material.emit > 0.0:
-        data.write_color_prop(file, PropertyType.EMISSIVE_COLOR, Color((material.emit, material.emit, material.emit)))
+        data.write_color_prop(PropertyType.EMISSIVE_COLOR, Color((material.emit, material.emit, material.emit)))
 
     for slot in material.texture_slots:
         # unsupported texture types
@@ -64,4 +64,4 @@ def write(material, file):
         if slot.use_map_alpha:
             object_map.link(material_id, tex_id, 5)
 
-    data.end_object(file)
+    data.end_object()

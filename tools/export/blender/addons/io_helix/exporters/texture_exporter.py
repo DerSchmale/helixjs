@@ -12,7 +12,7 @@ extensionMap = {
 }
 
 
-def write(tex, file):
+def write(tex):
     if object_map.has_mapped_indices(tex):
         return
 
@@ -21,14 +21,14 @@ def write(tex, file):
             print ("Only texture type 'IMAGE' is supported; skipping texture '" + tex.name + "'")
         return
 
-    id = data.start_object(file, ObjectType.TEXTURE_2D)
-    data.write_string_prop(file, PropertyType.NAME, tex.name)
-    data.write_uint8_prop(file, PropertyType.WRAP_MODE, extensionMap[tex.extension])
+    id = data.start_object(ObjectType.TEXTURE_2D)
+    data.write_string_prop(PropertyType.NAME, tex.name)
+    data.write_uint8_prop(PropertyType.WRAP_MODE, extensionMap[tex.extension])
 
     if not tex.use_interpolation:
-        data.write_uint8_prop(file, PropertyType.FILTER, 0)
+        data.write_uint8_prop(PropertyType.FILTER, 0)
     else:
-        data.write_uint8_prop(file, PropertyType.FILTER, 3)   # anisoptropic as default
+        data.write_uint8_prop(PropertyType.FILTER, 3)   # anisoptropic as default
 
     print ("[HX] Writing image: " + tex.image.filepath)
     # replace windows-style path separators and remove leading/trailing slashes (this confuses os.path)
@@ -38,9 +38,9 @@ def write(tex, file):
     target_file = "textures/" + os.path.basename(filename)
     tex.image.save_render(os.path.dirname(export_options.file_path) + "/" + target_file)
 
-    data.write_string_prop(file, PropertyType.URL, target_file)
+    data.write_string_prop(PropertyType.URL, target_file)
 
-    data.end_object(file)
+    data.end_object()
 
     object_map.map(tex, id)
     return id

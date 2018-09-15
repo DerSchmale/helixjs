@@ -2,13 +2,13 @@ from ..constants import ObjectType, PropertyType
 from . import object_exporter
 from .. import data, object_map
 
-def write(group, file, scene):
-    group_id = data.start_object(file, ObjectType.SCENE_NODE)
-    data.write_vector_prop(file, PropertyType.POSITION, group.dupli_offset)
-    data.end_object(file)
+def write(group, scene):
+    group_id = data.start_object(ObjectType.SCENE_NODE)
+    data.write_vector_prop(PropertyType.POSITION, group.dupli_offset)
+    data.end_object()
 
     for child in group.objects:
-        object_id = object_exporter.write(child, file, scene)
+        object_id = object_exporter.write(child, scene)
 
         if object_id is None:
             continue

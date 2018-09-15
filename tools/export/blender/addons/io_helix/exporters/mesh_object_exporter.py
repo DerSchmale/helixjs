@@ -5,16 +5,16 @@ from .. import data, object_map
 from ..constants import ObjectType, PropertyType
 
 
-def write(object, file, visible):
+def write(object, visible):
     # these only actually write if they haven't written before
     mesh = object.data
-    mesh_exporter.write(mesh, file)
+    mesh_exporter.write(mesh)
 
     for material in mesh.materials:
-        material_exporter.write(material, file)
+        material_exporter.write(material)
 
     # write the basic entity data
-    entity_id = entity_exporter.write(object, file, visible=visible)
+    entity_id = entity_exporter.write(object, visible=visible)
 
     # write the mesh instance components
     # we sorted the submesh list by their material indices, so the order should match that in the materials list
@@ -30,9 +30,9 @@ def write(object, file, visible):
 
         material = mesh.materials[i]
         material_id = object_map.get_mapped_indices(material)[0]
-        mesh_instance_id = data.start_object(file, ObjectType.MESH_INSTANCE)
-        data.write_uint8_prop(file, PropertyType.CAST_SHADOWS, int(material.use_cast_shadows))
-        data.end_object(file)
+        mesh_instance_id = data.start_object(ObjectType.MESH_INSTANCE)
+        data.write_uint8_prop(PropertyType.CAST_SHADOWS, int(material.use_cast_shadows))
+        data.end_object()
         object_map.link(mesh_instance_id, mesh_id)
         object_map.link(entity_id, mesh_instance_id)
         object_map.link(mesh_instance_id, material_id)

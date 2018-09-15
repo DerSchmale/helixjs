@@ -60,29 +60,29 @@ class SubMesh:
         self.index_data.append(index)
 
 
-def write_submesh(sub_mesh, file, src_mesh):
-    sub_mesh_index = data.start_object(file, ObjectType.MESH)
+def write_submesh(sub_mesh, src_mesh):
+    sub_mesh_index = data.start_object(ObjectType.MESH)
     object_map.map(src_mesh, sub_mesh_index)
-    data.write_string_prop(file, PropertyType.NAME, sub_mesh.name)
+    data.write_string_prop(PropertyType.NAME, sub_mesh.name)
     num_vertices = int(len(sub_mesh.vertex_data) / sub_mesh.vertex_stride)
-    data.write_uint32_prop(file, PropertyType.NUM_VERTICES, num_vertices)
+    data.write_uint32_prop(PropertyType.NUM_VERTICES, num_vertices)
 
-    write_attribute(file, "hx_position", 3, DataType.FLOAT32)
-    write_attribute(file, "hx_normal", 3, DataType.FLOAT32)
+    write_attribute("hx_position", 3, DataType.FLOAT32)
+    write_attribute("hx_normal", 3, DataType.FLOAT32)
 
     for i in range(0, sub_mesh.num_uvs):
         name = "hx_texCoord"
         if i > 0:
             name = name + str(i)
-        write_attribute(file, name, 2, DataType.FLOAT32)
+        write_attribute(name, 2, DataType.FLOAT32)
 
     if sub_mesh.has_vertex_color:
-        write_attribute(file, "hx_vertexColor", 3, DataType.FLOAT32)
+        write_attribute("hx_vertexColor", 3, DataType.FLOAT32)
 
     # skinning data in stream 1
     if sub_mesh.has_skinning_data:
-        write_attribute(file, "hx_jointIndices", 4, DataType.FLOAT32, 1)
-        write_attribute(file, "hx_jointWeights", 4, DataType.FLOAT32, 1)
+        write_attribute("hx_jointIndices", 4, DataType.FLOAT32, 1)
+        write_attribute("hx_jointWeights", 4, DataType.FLOAT32, 1)
 
     if num_vertices > 65535:
         # we'll need 32 bit to index all vertices
@@ -91,21 +91,21 @@ def write_submesh(sub_mesh, file, src_mesh):
         # 16 bit indices is enough
         index_type = DataType.UINT16
 
-    data.write_uint32_prop(file, PropertyType.NUM_INDICES, len(sub_mesh.index_data))
-    data.write_uint8_prop(file, PropertyType.INDEX_TYPE, index_type)
+    data.write_uint32_prop(PropertyType.NUM_INDICES, len(sub_mesh.index_data))
+    data.write_uint8_prop(PropertyType.INDEX_TYPE, index_type)
 
     # knowing format and count, we can write the actual indices
     if index_type == DataType.UINT16:
-        data.write_uint16_array_prop(file, PropertyType.INDEX_DATA, sub_mesh.index_data)
+        data.write_uint16_array_prop(PropertyType.INDEX_DATA, sub_mesh.index_data)
     else:
-        data.write_uint32_array_prop(file, PropertyType.INDEX_DATA, sub_mesh.index_data)
+        data.write_uint32_array_prop(PropertyType.INDEX_DATA, sub_mesh.index_data)
 
-    data.write_float32_array_prop(file, PropertyType.VERTEX_STREAM_DATA, sub_mesh.vertex_data)
+    data.write_float32_array_prop(PropertyType.VERTEX_STREAM_DATA, sub_mesh.vertex_data)
 
     if sub_mesh.has_skinning_data:
-        data.write_float32_array_prop(file, PropertyType.VERTEX_STREAM_DATA, sub_mesh.skinning_data)
+        data.write_float32_array_prop(PropertyType.VERTEX_STREAM_DATA, sub_mesh.skinning_data)
 
-    data.end_object(file)
+    data.end_object()
 
 
 def get_submesh(src, material_index, list, has_skinned_data):
@@ -168,7 +168,7 @@ def get_skinned_data(mesh, armature, vertex_groups):
     return data
 
 
-def write(mesh, file):
+def write(mesh):
     if object_map.has_mapped_indices(mesh):
         return
 
@@ -229,11 +229,11 @@ def write(mesh, file):
     sub_meshes.sort(key=lambda sub_mesh: str(sub_mesh.material_index))
 
     for s in sub_meshes:
-        write_submesh(s, file, mesh)
+        write_submesh(s, mesh)
 
 
-def write_attribute(file, name, num_components, data_type, stream_index = 0):
-    data.start_property(file, PropertyType.VERTEX_ATTRIBUTE)
-    file.write(name.encode("utf-8"))
+def write_attribute(name, num_components, data_type, stream_index = 0):
+    data.start_property(PropertyType.VERTEX_ATTRIBUTE)
+    data.write(name.encode("utf-8"))
     # write end-of-string, and attribute info
-    file.write(struct.pack("<BBBB", 0, num_components, data_type, stream_index))
+    data.write(struct.pack("<BBBB", 0, num_components, data_type, stream_index))

@@ -5,9 +5,9 @@ from . import armature_exporter
 from . import entity_exporter
 
 
-def write(object, file, visible, scene):
-    armature_id = armature_exporter.write(object.data, file)
-    entity_id = entity_exporter.write(object, file, visible=visible)
+def write(object, visible, scene):
+    armature_id = armature_exporter.write(object.data)
+    entity_id = entity_exporter.write(object, visible=visible)
     object_map.link(entity_id, armature_id)
 
     if not object.animation_data:
@@ -16,8 +16,8 @@ def write(object, file, visible, scene):
     # If the object has NLA tracks, we could have several actions
     # if the current track is active, link it with id 1
 
-    animation_id = data.start_object(file, ObjectType.SKELETON_ANIMATION)
-    data.end_object(file)
+    animation_id = data.start_object(ObjectType.SKELETON_ANIMATION)
+    data.end_object()
     object_map.link(entity_id, animation_id)
 
     # if we have tracks, assume we've got multiple clips to export
@@ -31,7 +31,7 @@ def write(object, file, visible, scene):
         for track in tracks:
             track.mute = False
             for strip in track.strips:
-                action_id = action_exporter.write_armature_action(strip.action, object, file, scene)
+                action_id = action_exporter.write_armature_action(strip.action, object, scene)
                 object_map.link(animation_id, action_id, int(strip.active))
             track.mute = True
 
@@ -39,7 +39,7 @@ def write(object, file, visible, scene):
             track.mute = mute_states[i]
 
     elif object.animation_data.action:
-        action_id = action_exporter.write_armature_action(object.animation_data.action, object, file, scene)
+        action_id = action_exporter.write_armature_action(object.animation_data.action, object, scene)
         object_map.link(animation_id, action_id, 1)
 
     return entity_id

@@ -7,7 +7,7 @@ from . import entity_exporter
 from .. import object_map
 
 
-def write(obj, file, scene, link_meta=None):
+def write(obj, scene, link_meta=None):
     if object_map.has_mapped_indices(obj):
         return object_map.get_mapped_indices(obj)[0]
 
@@ -15,21 +15,21 @@ def write(obj, file, scene, link_meta=None):
     visible = obj.is_visible(scene)
 
     if obj.type == "MESH":
-        node_index = mesh_object_exporter.write(obj, file, visible)
+        node_index = mesh_object_exporter.write(obj, visible)
     elif obj.type == "LAMP":
-        node_index = light_exporter.write(obj, file, visible)
+        node_index = light_exporter.write(obj, visible)
     elif obj.type == "CAMERA":
-        node_index = camera_exporter.write(obj, file)
+        node_index = camera_exporter.write(obj)
     elif obj.type == "ARMATURE":
         # In Blender, the armature is a scene object, linked to armature data.
         # but it can also have a position etc.
-        node_index = armature_object_exporter.write(obj, file, visible, scene)
+        node_index = armature_object_exporter.write(obj, visible, scene)
     elif obj.type == "EMPTY":
         if obj.dupli_type == "GROUP" and obj.dupli_group:
             # write the parent proxy:
-            node_index = entity_exporter.write_proxy(obj, file, visible=visible)
+            node_index = entity_exporter.write_proxy(obj, visible=visible)
             # write the group:
-            group_index = group_exporter.write(obj.dupli_group, file, scene)
+            group_index = group_exporter.write(obj.dupli_group, scene)
             object_map.link(node_index, group_index)
 
     if node_index is None:
@@ -41,7 +41,7 @@ def write(obj, file, scene, link_meta=None):
 
     # can't parse the children of an unknown object
     for child in obj.children:
-        child_index = write(child, file, scene)
+        child_index = write(child, scene)
         object_map.link(node_index, child_index, link_meta)
 
 

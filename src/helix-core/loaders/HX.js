@@ -240,7 +240,6 @@ var PropertyTypes = {
 	MASK_MAP_OFFSET: 127,				// 2 float32 (u, v)
 	EMISSION_MAP_SCALE: 128,			// 2 float32 (u, v)
 	EMISSION_MAP_OFFSET: 129			// 2 float32 (u, v)
-
 };
 
 /**
@@ -510,9 +509,9 @@ HX.prototype._parseBasicMaterial = function(data)
 	// TODO: May have to add to this in case it's a custom material
 	var material = new BasicMaterial();
 	material.roughness = .5;
-	if (this._lightingMode) {
+	if (this._lightingMode === 1)
 		material.fixedLights = this._lights;
-	}
+
 	this._readProperties(data, material);
 	return material;
 };

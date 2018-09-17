@@ -30,7 +30,8 @@ class ExportHelix(Operator, ExportHelper):
         name="Export mode",
         description="Defines the way lights are applied in Helix",
         items=(("ALL", "All", "All scenes are exported."),
-               ("SELECTED_SCENE", "Selected Scene", "Only the selected scene is exported.")
+               ("SELECTED_SCENE", "Selected Scene", "Only the selected scene is exported."),
+               ("SELECTED_OBJECTS", "Selected Object", "Only the selected objects and its children are exported.")
                ),
         default="SELECTED_SCENE"
     )
@@ -53,7 +54,10 @@ class ExportHelix(Operator, ExportHelper):
     def execute(self, context):
         export_options.export_mode = self.export_mode
         export_options.export_shadows = self.export_shadows
-        export_options.lighting_mode = self.lighting_mode
+        if self.export_mode == "SELECTED_OBJECTS":
+            export_options.lighting_mode = "OFF"
+        else:
+            export_options.lighting_mode = self.lighting_mode
         export_options.file_path = self.filepath
         return exporter.write_hx()
 
@@ -67,6 +71,7 @@ class ExportHelix(Operator, ExportHelper):
         row.label(text="LIGHTING:")
 
         row = layout.row()
+        row.enabled = self.export_mode != "SELECTED_OBJECTS"
         row.prop(self, "lighting_mode")
 
         row = layout.row()

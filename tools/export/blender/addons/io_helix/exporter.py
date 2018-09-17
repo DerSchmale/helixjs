@@ -48,6 +48,11 @@ def write_scene_graphs():
         write_scene(bpy.context.scene)
 
 
+def write_selected_objects():
+    for obj in bpy.context.selected_objects:
+        object_exporter.write(obj, bpy.context.scene)
+
+
 def write_links():
     links = object_map.get_links()
     for link in links:
@@ -60,7 +65,10 @@ def write_hx():
     object_map.init()
     data.open_file(export_options.file_path)
     write_header()
-    write_scene_graphs()
+    if export_options.export_mode == "SELECTED_OBJECTS":
+        write_selected_objects()
+    else:
+        write_scene_graphs()
     data.end_object_list()
     write_links()
     data.close_file()

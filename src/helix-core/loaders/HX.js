@@ -239,7 +239,7 @@ var PropertyTypes = {
 	MASK_MAP_SCALE: 126,				// 2 float32 (u, v)
 	MASK_MAP_OFFSET: 127,				// 2 float32 (u, v)
 	EMISSION_MAP_SCALE: 128,			// 2 float32 (u, v)
-	EMISSION_MAP_OFFSET: 129,			// 2 float32 (u, v)
+	EMISSION_MAP_OFFSET: 129			// 2 float32 (u, v)
 
 };
 

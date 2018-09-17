@@ -141,7 +141,6 @@ BasicMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP = 3;
  */
 BasicMaterial.SPECULAR_MAP_METALLIC_ROUGHNESS = 4;
 
-
 BasicMaterial.prototype = Object.create(Material.prototype,
     {
         doubleSided: {
@@ -206,6 +205,7 @@ BasicMaterial.prototype = Object.create(Material.prototype,
 
             set: function (value)
             {
+				console.log(this.name, value);
                 if (!!this._colorMap !== !!value) {
                     this._invalidate();
                 }

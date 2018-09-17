@@ -95,7 +95,11 @@ HX_GeometryData hx_geometry()
         #ifdef COLOR_MAP_SCALE_OFFSET
             uv = uv * colorMapScale + colorMapOffset;
         #endif
-        outputColor *= texture2D(colorMap, uv);
+        #ifdef COLOR_MAP_ADD
+            outputColor += texture2D(colorMap, uv);
+        #else
+            outputColor *= texture2D(colorMap, uv);
+        #endif
     #endif
 
     #ifdef MASK_MAP

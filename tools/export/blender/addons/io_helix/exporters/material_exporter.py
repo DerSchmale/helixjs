@@ -11,8 +11,9 @@ def write(material):
         return
 
     for slot in material.texture_slots:
-        if not slot or not slot.use:
+        if not is_slot_supported(slot):
             continue
+
         texture_exporter.write(slot.texture)
 
     material_id = data.start_object(ObjectType.BASIC_MATERIAL)
@@ -46,8 +47,7 @@ def write(material):
         data.write_color_prop(PropertyType.EMISSIVE_COLOR, Color((material.emit, material.emit, material.emit)))
 
     for slot in material.texture_slots:
-        # unsupported texture types
-        if not slot or not object_map.has_mapped_indices(slot.texture):
+        if not is_slot_supported(slot):
             continue
 
         tex_id = object_map.get_mapped_indices(slot.texture)[0]
@@ -86,3 +86,7 @@ def write_tex_scale_offset(slot, scale_type, offset_type):
 
     data.write_vector2_prop(scale_type, slot.scale)
     data.write_vector2_prop(offset_type, slot.offset)
+
+
+def is_slot_supported(slot):
+    return bool(slot) and slot.use and slot.texture_coords == "UV"

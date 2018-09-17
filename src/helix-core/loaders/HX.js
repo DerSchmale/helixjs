@@ -41,6 +41,7 @@ import {Skybox} from "../scene/Skybox";
 import {OrthographicCamera} from "../camera/OrthographicCamera";
 import {EntityProxy} from "../entity/EntityProxy";
 import {Camera} from "../camera/Camera";
+import {Float2} from "../math/Float2";
 
 /**
  * The data provided by the HX loader
@@ -226,7 +227,20 @@ var PropertyTypes = {
 	// animation properties:
 	TIME: 110,							// float32
 	LOOPING: 111,						// uint8
-	PLAYBACK_RATE: 112					// float32
+	PLAYBACK_RATE: 112,					// float32
+
+	// material/texture mapping props
+	COLOR_MAP_SCALE: 120,				// 2 float32 (u, v)
+	COLOR_MAP_OFFSET: 121,				// 2 float32 (u, v)
+	NORMAL_MAP_SCALE: 122,				// 2 float32 (u, v)
+	NORMAL_MAP_OFFSET: 123,				// 2 float32 (u, v)
+	SPECULAR_MAP_SCALE: 124,			// 2 float32 (u, v)
+	SPECULAR_MAP_OFFSET: 125,			// 2 float32 (u, v)
+	MASK_MAP_SCALE: 126,				// 2 float32 (u, v)
+	MASK_MAP_OFFSET: 127,				// 2 float32 (u, v)
+	EMISSION_MAP_SCALE: 128,			// 2 float32 (u, v)
+	EMISSION_MAP_OFFSET: 129,			// 2 float32 (u, v)
+
 };
 
 /**
@@ -613,13 +627,42 @@ HX.prototype._readProperties = function(data, target)
 				break;
 			case PropertyTypes.BLEND_STATE:
 				target.blendState = [null, BlendState.ADD, BlendState.MULTIPLY, BlendState.ALPHA][data.getUint8()];
-				console.log(target.blendState);
 				break;
 			case PropertyTypes.WRITE_DEPTH:
 				target.writeDepth = !!data.getUint8();
 				break;
 			case PropertyTypes.WRITE_COLOR:
 				target.writeColor = !!data.getUint8();
+				break;
+			case PropertyTypes.COLOR_MAP_SCALE:
+				target.colorMapScale = new Float2(data.getFloat32(), data.getFloat32());
+				break;
+			case PropertyTypes.COLOR_MAP_OFFSET:
+				target.colorMapOffset = new Float2(data.getFloat32(), data.getFloat32());
+				break;
+			case PropertyTypes.NORMAL_MAP_SCALE:
+				target.normalMapScale = new Float2(data.getFloat32(), data.getFloat32());
+				break;
+			case PropertyTypes.NORMAL_MAP_OFFSET:
+				target.normalMapOffset = new Float2(data.getFloat32(), data.getFloat32());
+				break;
+			case PropertyTypes.SPECULAR_MAP_SCALE:
+				target.specularMapScale = new Float2(data.getFloat32(), data.getFloat32());
+				break;
+			case PropertyTypes.SPECULAR_MAP_OFFSET:
+				target.specularMapOffset = new Float2(data.getFloat32(), data.getFloat32());
+				break;
+			case PropertyTypes.EMISSION_MAP_SCALE:
+				target.emissionMapScale = new Float2(data.getFloat32(), data.getFloat32());
+				break;
+			case PropertyTypes.EMISSION_MAP_OFFSET:
+				target.emissionMapOffset = new Float2(data.getFloat32(), data.getFloat32());
+				break;
+			case PropertyTypes.MASK_MAP_SCALE:
+				target.maskMapScale = new Float2(data.getFloat32(), data.getFloat32());
+				break;
+			case PropertyTypes.MASK_MAP_OFFSET:
+				target.maskMapOffset = new Float2(data.getFloat32(), data.getFloat32());
 				break;
 			case PropertyTypes.BLEND_STATE_SRC_FACTOR:
 				target.srcFactor = blendFactors[data.getUint8()];
@@ -836,9 +879,8 @@ HX.prototype._parseLinkList = function()
             parent.node = child;
         else if (parent instanceof Entity)
             linkToEntity(parent, child, meta, this._target);
-		else if (parent instanceof SceneNode) {
+		else if (parent instanceof SceneNode)
             linkToSceneNode(parent, child, meta, this._target);
-        }
 		else if (parent instanceof MeshInstance)
 		    linkToMeshInstance(parent, child);
 		else if (parent instanceof Material)
@@ -898,7 +940,7 @@ function linkToSceneNode(node, child, meta, hx)
 function linkToEntity(entity, child, meta, hx)
 {
     if (child instanceof Component) {
-        entity.addComponent(child);
+		entity.addComponent(child);
         return;
     }
 

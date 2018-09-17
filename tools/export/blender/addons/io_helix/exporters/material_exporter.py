@@ -1,5 +1,5 @@
 import math
-from mathutils import Color
+from mathutils import Color, Vector
 
 from . import texture_exporter
 from .. import data, object_map
@@ -54,15 +54,35 @@ def write(material):
 
         if slot.use_map_color_diffuse:
             object_map.link(material_id, tex_id, 0)
+            write_tex_scale_offset(slot, PropertyType.COLOR_MAP_SCALE, PropertyType.COLOR_MAP_OFFSET)
+
         if slot.use_map_normal:
             object_map.link(material_id, tex_id, 1)
-        if slot.use_map_specular:
+            write_tex_scale_offset(slot, PropertyType.NORMAL_MAP_SCALE, PropertyType.NORMAL_MAP_OFFSET)
+
+        if slot.use_map_hardness:
             object_map.link(material_id, tex_id, 2)
+            # assume this is a gloss map
+            data.write_uint8_prop(PropertyType.SPECULAR_MAP_MODE, 1)
+            write_tex_scale_offset(slot, PropertyType.SPECULAR_MAP_SCALE, PropertyType.SPECULAR_MAP_OFFSET)
+
         if slot.use_map_ambient:
             object_map.link(material_id, tex_id, 3)
+
         if slot.use_map_color_emission and material.emit > 0.0:
             object_map.link(material_id, tex_id, 4)
+            write_tex_scale_offset(slot, PropertyType.EMISSION_MAP_SCALE, PropertyType.EMISSION_MAP_OFFSET)
+
         if slot.use_map_alpha:
             object_map.link(material_id, tex_id, 5)
+            write_tex_scale_offset(slot, PropertyType.MASK_MAP_SCALE, PropertyType.MASK_MAP_OFFSET)
 
     data.end_object()
+
+
+def write_tex_scale_offset(slot, scale_type, offset_type):
+    if slot.scale == Vector((1.0, 1.0, 1.0)) and slot.offset == Vector((0.0, 0.0, 0.0)):
+        return
+
+    data.write_vector2_prop(scale_type, slot.scale)
+    data.write_vector2_prop(offset_type, slot.offset)

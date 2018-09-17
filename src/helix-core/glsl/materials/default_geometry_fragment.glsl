@@ -3,54 +3,79 @@ uniform vec3 emissiveColor;
 uniform float alpha;
 
 #if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(METALLIC_ROUGHNESS_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)
-varying_in vec2 texCoords;
+    varying_in vec2 texCoords;
 #endif
 
 #ifdef COLOR_MAP
-uniform sampler2D colorMap;
+    uniform sampler2D colorMap;
+
+    #ifdef COLOR_MAP_SCALE_OFFSET
+        uniform vec2 colorMapScale;
+        uniform vec2 colorMapOffset;
+    #endif
 #endif
 
 #ifdef OCCLUSION_MAP
-uniform sampler2D occlusionMap;
+    uniform sampler2D occlusionMap;
 #endif
 
 #ifdef EMISSION_MAP
-uniform sampler2D emissionMap;
+    uniform sampler2D emissionMap;
+
+    #ifdef EMISSION_MAP_SCALE_OFFSET
+        uniform vec2 emissionMapScale;
+        uniform vec2 emissionMapOffset;
+    #endif
 #endif
 
 #ifdef MASK_MAP
-uniform sampler2D maskMap;
+    uniform sampler2D maskMap;
+
+    #ifdef MASK_MAP_SCALE_OFFSET
+        uniform vec2 maskMapScale;
+        uniform vec2 maskMapOffset;
+    #endif
 #endif
 
 #ifndef HX_SKIP_NORMALS
     varying_in vec3 normal;
 
     #ifdef NORMAL_MAP
-    varying_in vec3 tangent;
-    varying_in vec3 bitangent;
+        varying_in vec3 tangent;
+        varying_in vec3 bitangent;
 
-    uniform sampler2D normalMap;
+        uniform sampler2D normalMap;
+
+        #ifdef NORMAL_MAP_SCALE_OFFSET
+            uniform vec2 normalMapScale;
+            uniform vec2 normalMapOffset;
+        #endif
+
     #endif
 #endif
 
 #ifndef HX_SKIP_SPECULAR
-uniform float roughness;
-uniform float roughnessRange;
-uniform float normalSpecularReflectance;
-uniform float metallicness;
+    uniform float roughness;
+    uniform float roughnessRange;
+    uniform float normalSpecularReflectance;
+    uniform float metallicness;
 
-#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)
-uniform sampler2D specularMap;
-#endif
+    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)
+        uniform sampler2D specularMap;
 
+        #ifdef SPECULAR_MAP_SCALE_OFFSET
+            uniform vec2 specularMapScale;
+            uniform vec2 specularMapOffset;
+        #endif
+    #endif
 #endif
 
 #if defined(ALPHA_THRESHOLD)
-uniform float alphaThreshold;
+    uniform float alphaThreshold;
 #endif
 
 #ifdef VERTEX_COLORS
-varying_in vec3 vertexColor;
+    varying_in vec3 vertexColor;
 #endif
 
 HX_GeometryData hx_geometry()
@@ -63,12 +88,22 @@ HX_GeometryData hx_geometry()
         outputColor.xyz *= vertexColor;
     #endif
 
+    vec2 uv;
+
     #ifdef COLOR_MAP
-        outputColor *= texture2D(colorMap, texCoords);
+        uv = texCoords;
+        #ifdef COLOR_MAP_SCALE_OFFSET
+            uv = uv * colorMapScale + colorMapOffset;
+        #endif
+        outputColor *= texture2D(colorMap, uv);
     #endif
 
     #ifdef MASK_MAP
-        outputColor.w *= texture2D(maskMap, texCoords).x;
+        uv = texCoords;
+        #ifdef MASK_MAP_SCALE_OFFSET
+            uv = uv * maskMapScale + maskMapOffset;
+        #endif
+        outputColor.w *= texture2D(maskMap, uv).x;
     #endif
 
     #ifdef ALPHA_THRESHOLD
@@ -84,7 +119,11 @@ HX_GeometryData hx_geometry()
 #endif
 
 #if defined(HX_SKIP_NORMALS) && defined(NORMAL_ROUGHNESS_MAP) && !defined(HX_SKIP_SPECULAR)
-    vec4 normalSample = texture2D(normalMap, texCoords);
+    uv = texCoords;
+    #ifdef NORMAL_MAP_SCALE_OFFSET
+        uv = uv * normalMapScale + normalMapOffset;
+    #endif
+    vec4 normalSample = texture2D(normalMap, uv);
     roughnessOut -= roughnessRange * (normalSample.w - .5);
 #endif
 
@@ -92,7 +131,11 @@ HX_GeometryData hx_geometry()
     vec3 fragNormal = normal;
 
     #ifdef NORMAL_MAP
-        vec4 normalSample = texture2D(normalMap, texCoords);
+        uv = texCoords;
+        #ifdef NORMAL_MAP_SCALE_OFFSET
+            uv = uv * normalMapScale + normalMapOffset;
+        #endif
+        vec4 normalSample = texture2D(normalMap, uv);
         mat3 TBN;
         TBN[2] = normalize(normal);
         TBN[0] = normalize(tangent);
@@ -113,21 +156,25 @@ HX_GeometryData hx_geometry()
 
 #ifndef HX_SKIP_SPECULAR
     #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)
-          vec4 specSample = texture2D(specularMap, texCoords);
+        uv = texCoords;
+        #ifdef SPECULAR_MAP_SCALE_OFFSET
+            uv = uv * specularMapScale + specularMapOffset;
+        #endif
+        vec4 specSample = texture2D(specularMap, uv);
 
-          #ifdef METALLIC_ROUGHNESS_MAP
-              roughnessOut -= roughnessRange * (specSample.y - .5);
-              metallicnessOut *= specSample.z;
+        #ifdef METALLIC_ROUGHNESS_MAP
+            roughnessOut -= roughnessRange * (specSample.y - .5);
+            metallicnessOut *= specSample.z;
 
-          #else
-              roughnessOut -= roughnessRange * (specSample.x - .5);
+        #else
+            roughnessOut -= roughnessRange * (specSample.x - .5);
 
-              #ifdef SPECULAR_MAP
-                  specNormalReflOut *= specSample.y;
-                  metallicnessOut *= specSample.z;
-              #endif
-          #endif
+        #ifdef SPECULAR_MAP
+            specNormalReflOut *= specSample.y;
+            metallicnessOut *= specSample.z;
+        #endif
     #endif
+#endif
 
     data.metallicness = metallicnessOut;
     data.normalSpecularReflectance = specNormalReflOut;
@@ -142,7 +189,11 @@ HX_GeometryData hx_geometry()
 
     vec3 emission = emissiveColor;
 #ifdef EMISSION_MAP
-    emission *= texture2D(emissionMap, texCoords).xyz;
+    uv = texCoords;
+    #ifdef EMISSION_MAP_SCALE_OFFSET
+        uv = uv * emissionMapScale + emissionMapOffset;
+    #endif
+    emission *= texture2D(emissionMap, uv).xyz;
 #endif
 
     data.emission = hx_gammaToLinear(emission);

@@ -119,9 +119,12 @@ def write_affine_matrix_prop(prop, mat):
         file.write(struct.pack("<fff", mat[0][c], mat[1][c], mat[2][c]))
 
 
-
 def write_vector_prop(prop, vec):
     file.write(struct.pack("<Lfff", prop, vec.x, vec.y, vec.z))
+
+
+def write_vector2_prop(prop, vec):
+    file.write(struct.pack("<Lff", prop, vec.x, vec.y))
 
 
 def write_quat_prop(prop, quat):

@@ -19,6 +19,16 @@ import {ShaderLibrary} from "../shader/ShaderLibrary";
  * @property {Texture2D} emissionMap A {@linkcode Texture2D} object containing color emission.
  * @property {Texture2D} specularMap A texture containing specular reflection data. The contents of the map depend on {@linkcode BasicMaterial#specularMapMode}. The roughness in the specular map is encoded as shininess; ie: lower values result in higher roughness to reflect the apparent brighness of the reflection. This is visually more intuitive.
  * @property {Texture2D} maskMap A {@linkcode Texture2D} object containing transparency data. Requires a matching blendState.
+ * @property {Float2} colorMapScale A {@linkcode Float2} with which the uv coordinates are scaled.
+ * @property {Float2} colorMapOffset A {@linkcode Float2} with which the uv coordinates are offset.
+ * @property {Float2} normalMapScale A {@linkcode Float2} with which the uv coordinates are scaled.
+ * @property {Float2} normalMapOffset A {@linkcode Float2} with which the uv coordinates are offset.
+ * @property {Float2} specularMapScale A {@linkcode Float2} with which the uv coordinates are scaled.
+ * @property {Float2} specularMapOffset A {@linkcode Float2} with which the uv coordinates are offset.
+ * @property {Float2} emissionMapScale A {@linkcode Float2} with which the uv coordinates are scaled.
+ * @property {Float2} emissionMapOffset A {@linkcode Float2} with which the uv coordinates are offset.
+ * @property {Float2} maskMapScale A {@linkcode Float2} with which the uv coordinates are scaled.
+ * @property {Float2} maskMapOffset A {@linkcode Float2} with which the uv coordinates are offset.
  * @property {number} specularMapMode Defines the contents of the specular map. One of the following:
  * <ul>
  *     <li>{@linkcode BasicMaterial#SPECULAR_MAP_ROUGHNESS_ONLY}</li>
@@ -66,13 +76,26 @@ function BasicMaterial(options)
 
     this._color = options.color || new Color(1, 1, 1, 1);
     this._emissiveColor = options.emissiveColor || new Color(0, 0, 0, 1);
-    this._colorMap = options.colorMap || null;
-    this._doubleSided = !!options.doubleSided;
-    this._normalMap = options.normalMap || null;
-    this._specularMap = options.specularMap || null;
-    this._maskMap = options.maskMap || null;
-    this._specularMapMode = options.specularMapMode || BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY;
-    this._metallicness = options.metallicness === undefined? 0.0 : options.metallicness;
+	this._doubleSided = !!options.doubleSided;
+	this._specularMapMode = options.specularMapMode || BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY;
+
+	this._colorMap = options.colorMap || null;
+	this._normalMap = options.normalMap || null;
+	this._specularMap = options.specularMap || null;
+	this._maskMap = options.maskMap || null;
+	this._occlusionMap = options.occlusionMap || null;
+	this._colorMapScale = null;
+	this._colorMapOffset = null;
+	this._normalMapScale = null;
+	this._normalMapOffset = null;
+	this._specularMapScale = null;
+	this._specularMapOffset = null;
+	this._maskMapScale = null;
+	this._maskMapOffset = null;
+	this._emissionMapScale = null;
+	this._emissionMapOffset = null;
+
+	this._metallicness = options.metallicness === undefined? 0.0 : options.metallicness;
     this._alpha = options.alpha === undefined? 1.0 : options.alpha;
     this._roughness = options.roughness === undefined ? 0.5 : options.roughness;
     this._roughnessRange = options.roughnessRange === undefined? .5 : options.roughnessRange;
@@ -351,6 +374,136 @@ BasicMaterial.prototype = Object.create(Material.prototype,
                 }
             },
 
+        colorMapScale:
+            {
+                get: function()
+                {
+                    return this._colorMapScale;
+                },
+
+                set: function(value)
+                {
+					this._handleTexProp("colorMap", "Scale", value);
+                }
+            },
+
+        colorMapOffset:
+            {
+                get: function()
+                {
+                    return this._colorMapOffset;
+                },
+
+                set: function(value)
+                {
+                    this._handleTexProp("colorMap", "Offset", value);
+                }
+            },
+
+		normalMapScale:
+            {
+                get: function()
+                {
+                    return this._normalMapScale;
+                },
+
+                set: function(value)
+                {
+					this._handleTexProp("normalMap", "Scale", value);
+                }
+            },
+
+        normalMapOffset:
+            {
+                get: function()
+                {
+                    return this._normalMapOffset;
+                },
+
+                set: function(value)
+                {
+                    this._handleTexProp("normalMap", "Offset", value);
+                }
+            },
+
+		specularMapScale:
+            {
+                get: function()
+                {
+                    return this._specularMapScale;
+                },
+
+                set: function(value)
+                {
+					this._handleTexProp("specularMap", "Scale", value);
+                }
+            },
+
+		specularMapOffset:
+            {
+                get: function()
+                {
+                    return this._specularMapOffset;
+                },
+
+                set: function(value)
+                {
+                    this._handleTexProp("specularMap", "Offset", value);
+                }
+            },
+
+		maskMapScale:
+            {
+                get: function()
+                {
+                    return this._maskMapScale;
+                },
+
+                set: function(value)
+                {
+					this._handleTexProp("maskMap", "Scale", value);
+                }
+            },
+
+		maskMapOffset:
+            {
+                get: function()
+                {
+                    return this._maskMapOffset;
+                },
+
+                set: function(value)
+                {
+                    this._handleTexProp("maskMap", "Offset", value);
+                }
+            },
+
+		emissionMapScale:
+            {
+                get: function()
+                {
+                    return this._emissionMapScale;
+                },
+
+                set: function(value)
+                {
+					this._handleTexProp("emissionMap", "Scale", value);
+                }
+            },
+
+		emissionMapOffset:
+            {
+                get: function()
+                {
+                    return this._emissionMapOffset;
+                },
+
+                set: function(value)
+                {
+                    this._handleTexProp("emissionMap", "Offset", value);
+                }
+            },
+
         alphaThreshold:
             {
                 get: function() { return this._alphaThreshold; },
@@ -410,7 +563,37 @@ BasicMaterial.prototype._generateDefines = function()
     if (this._doubleSided)
         defines.DOUBLE_SIDED = 1;
 
+    if (this._colorMapOffset || this._colorMapScale)
+        defines.COLOR_MAP_SCALE_OFFSET = 1;
+
+    if (this._normalMapOffset || this._normalMapScale)
+        defines.NORMAL_MAP_SCALE_OFFSET = 1;
+
+    if (this._specularMapOffset || this._specularMapScale)
+        defines.SPECULAR_MAP_SCALE_OFFSET = 1;
+
+    if (this._maskMapOffset || this._maskMapScale)
+        defines.MASK_MAP_SCALE_OFFSET = 1;
+
+    if (this._emissionMapOffset || this._emissionMapScale)
+        defines.EMISSION_MAP_SCALE_OFFSET = 1;
+
     return defines;
 };
+
+
+BasicMaterial.prototype._handleTexProp = function(texName, propName, value)
+{
+    var unifName = texName + propName;
+    propName = "_" + unifName;
+
+	if (!!this[propName] !== !!value)
+		this._invalidate();
+
+	this[propName] = value;
+
+	if (value)
+		this.setUniform(unifName, value);
+}
 
 export { BasicMaterial };

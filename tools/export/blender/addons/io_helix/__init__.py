@@ -26,6 +26,15 @@ class ExportHelix(Operator, ExportHelper):
         maxlen=255,  # Max internal buffer length, longer would be clamped.
     )
 
+    export_mode = bpy.props.EnumProperty(
+        name="Export mode",
+        description="Defines the way lights are applied in Helix",
+        items=(("ALL", "All", "All scenes are exported."),
+               ("SELECTED_SCENE", "Selected Scene", "Only the selected scene is exported.")
+               ),
+        default="SELECTED_SCENE"
+    )
+
     lighting_mode = bpy.props.EnumProperty(
         name="Lighting mode",
         description="Defines the way lights are applied in Helix",
@@ -42,12 +51,7 @@ class ExportHelix(Operator, ExportHelper):
     )
 
     def execute(self, context):
-        lighting_mode_index = 0
-        if self.lighting_mode == "FIXED":
-            lighting_mode_index = 1
-        elif self.lighting_mode == "DYNAMIC":
-            lighting_mode_index = 2
-
+        export_options.export_mode = self.export_mode
         export_options.export_shadows = self.export_shadows
         export_options.lighting_mode = self.lighting_mode
         export_options.file_path = self.filepath
@@ -55,6 +59,9 @@ class ExportHelix(Operator, ExportHelper):
 
     def draw(self, context):
         layout = self.layout
+
+        row = layout.row()
+        row.prop(self, "export_mode")
 
         row = layout.row()
         row.label(text="LIGHTING:")

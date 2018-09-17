@@ -1,3 +1,4 @@
+export_mode = ""
 export_shadows = False
-lighting_mode = 0
+lighting_mode = ""
 file_path = ""

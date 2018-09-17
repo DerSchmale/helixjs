@@ -15,7 +15,10 @@ def write_header():
     data.write_string_prop(PropertyType.VERSION, HX_VERSION)
     data.write_string_prop(PropertyType.GENERATOR, "Blender")
     data.write_uint8_prop(PropertyType.PAD_ARRAYS, 1)
-    data.write_uint8_prop(PropertyType.DEFAULT_SCENE_INDEX, list(bpy.data.scenes).index(bpy.context.scene))
+
+    if export_options.export_mode == "ALL":
+        data.write_uint8_prop(PropertyType.DEFAULT_SCENE_INDEX, list(bpy.data.scenes).index(bpy.context.scene))
+
     if export_options.lighting_mode == "OFF":
         data.write_uint8_prop(PropertyType.LIGHTING_MODE, 0)
     elif export_options.lighting_mode == "FIXED":
@@ -27,15 +30,22 @@ def write_header():
     data.end_header()
 
 
+def write_scene(scene):
+    scene_index = scene_exporter.write(scene)
+    for obj in scene.objects:
+        # root objects:
+        if obj.parent is None:
+            child_index = object_exporter.write(obj, scene)
+            if child_index is not None:
+                object_map.link(scene_index, child_index)
+
+
 def write_scene_graphs():
-    for scene in bpy.data.scenes:
-        scene_index = scene_exporter.write(scene)
-        for obj in scene.objects:
-            # root objects:
-            if obj.parent is None:
-                child_index = object_exporter.write(obj, scene)
-                if child_index is not None:
-                    object_map.link(scene_index, child_index)
+    if export_options.export_mode == "ALL":
+        for scene in bpy.data.scenes:
+            write_scene(scene)
+    elif export_options.export_mode == "SELECTED_SCENE":
+        write_scene(bpy.context.scene)
 
 
 def write_links():

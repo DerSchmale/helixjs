@@ -69,6 +69,8 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.webgl2 = true;
+    options.maxDirLights = 1;
+    options.maxPointSpotLights = 1;
     options.numShadowCascades = 3;
     options.hdr = true;
     options.defaultLightingModel = HX.LightingModel.GGX_FULL;

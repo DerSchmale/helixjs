@@ -205,7 +205,6 @@ BasicMaterial.prototype = Object.create(Material.prototype,
 
             set: function (value)
             {
-				console.log(this.name, value);
                 if (!!this._colorMap !== !!value) {
                     this._invalidate();
                 }

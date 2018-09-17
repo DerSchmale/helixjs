@@ -92,9 +92,9 @@ FPSController.prototype._updateLook = function()
 {
 	var axisX = this._input.getValue("lookX");
 	var axisY = this._input.getValue("lookY");
-	this.yaw += axisX;
+	this.yaw -= axisX;
 	var extr = Math.PI * .5 - 0.001;
-	this.pitch = HX.MathX.clamp(this.pitch + axisY, -extr, extr);
+	this.pitch = HX.MathX.clamp(this.pitch - axisY, -extr, extr);
 	this.entity.rotation.fromPitchYawRoll(this.pitch, this.yaw, 0.0);
 };
 

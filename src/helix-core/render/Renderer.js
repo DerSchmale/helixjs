@@ -23,6 +23,8 @@ import {Matrix4x4} from "../math/Matrix4x4";
 import {MathX} from "../math/MathX";
 import {TextureCube} from "../texture/TextureCube";
 import {UniformBuffer} from "../core/UniformBuffer";
+import {BasicMaterial} from "../material/BasicMaterial";
+import {LightingModel} from "./LightingModel";
 
 /**
  * @classdesc
@@ -95,9 +97,9 @@ function Renderer(renderTarget)
 		// if we want to test the layout of the uniform buffer as defined in the shader:
 		/*var material = new BasicMaterial({ lightingModel: LightingModel.GGX });
 		var pass = material.getPass(MaterialPass.BASE_PASS);
-		this._lightingUniformBuffer = pass.createUniformBufferFromShader("hx_lights");
-		this._lightingCellsUniformBuffer = pass.createUniformBufferFromShader("hx_lightingCells");
-		console.log(this._lightingCellsUniformBuffer);*/
+		this._lightingUniformBuffer = pass.shader.createUniformBuffer("hx_lights");
+		this._lightingCellsUniformBuffer = pass.shader.createUniformBuffer("hx_lightingCells");
+		console.log(this._lightingUniformBuffer);*/
     }
 }
 
@@ -505,7 +507,7 @@ Renderer.prototype =
             target.setUint32(offset + 4, 0, true);
         }
 
-		target.setUint32(offset + 12, light.intensity, true);
+		target.setFloat32(offset + 12, light.intensity, true);
     },
 
     /**

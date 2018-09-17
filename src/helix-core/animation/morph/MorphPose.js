@@ -17,6 +17,7 @@ function MorphPose()
     this._stateInvalid = true;
     this._knownTargets = [];
     this.onChange = new Signal();
+	this._sortMorphs = this._sortMorphs.bind(this);
 }
 
 MorphPose.prototype =
@@ -69,9 +70,7 @@ MorphPose.prototype =
         var w = this._weights;
 
         // sort by weights
-		this._knownTargets.sort(function(a, b) {
-            return w[b.name] - w[a.name];
-        });
+		this._knownTargets.sort(this._sortMorphs);
 
         this._stateInvalid = false;
         this.onChange.dispatch();
@@ -89,7 +88,17 @@ MorphPose.prototype =
         }
 
         return clone;
+    },
+
+	/**
+     * @ignore
+	 */
+	_sortMorphs: function(a, b)
+    {
+        return this._weights[b.name] - this._weights[a.name];
     }
 };
+
+
 
 export  { MorphPose };

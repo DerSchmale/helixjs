@@ -90,7 +90,7 @@ HMAT.prototype._gatherShaderFiles = function(data)
     }
     var lighting = data.lightingModel;
 
-    if (lighting && lighting !== "unlit" && files.indexOf(lighting) < 0) files.push(this._correctURL(lighting));
+    if (lighting && !(lighting in HMAT._PROPERTY_MAP[data.lightingModel]) && files.indexOf(lighting) < 0) files.push(this._correctURL(lighting));
 
     return files;
 };
@@ -139,8 +139,8 @@ HMAT.prototype._processMaterial = function(data, material)
         material.init();
     }
 
-    if (data.lightingModel === "unlit")
-		material.lightingModel = LightingModel.Unlit;
+    if (data.lightingModel in HMAT._PROPERTY_MAP)
+		material.lightingModel = HMAT._PROPERTY_MAP[data.lightingModel];
 	else if (data.lightingModel)
         material.lightingModel = this._shaderLibrary.get(this._correctURL(data.lightingModel));
 
@@ -153,6 +153,9 @@ HMAT.prototype._processMaterial = function(data, material)
 
     if (data.hasOwnProperty("writeDepth"))
         material.writeDepth = data.writeDepth;
+
+    if (data.hasOwnProperty("writeColor"))
+        material.writeColor = data.writeColor;
 
     if (data.hasOwnProperty("blend")) {
         var blendState = new BlendState();
@@ -264,9 +267,10 @@ HMAT._initPropertyMap = function() {
         oneMinusSourceColor: BlendFactor.ONE_MINUS_SOURCE_COLOR,
         sourceAlpha: BlendFactor.SOURCE_ALPHA,
         oneMinusSourceAlpha: BlendFactor.ONE_MINUS_SOURCE_ALPHA,
+		destinationColor: BlendFactor.DESTINATION_COLOR,
+		oneMinusDestinationColor: BlendFactor.ONE_MINUS_DESTINATION_COLOR,
         destinationAlpha: BlendFactor.DST_ALPHA,
         oneMinusDestinationAlpha: BlendFactor.ONE_MINUS_DESTINATION_ALPHA,
-        destinationColor: BlendFactor.DESTINATION_COLOR,
         sourceAlphaSaturate: BlendFactor.SOURCE_ALPHA_SATURATE,
         add: BlendOperation.ADD,
         subtract: BlendOperation.SUBTRACT,
@@ -281,7 +285,13 @@ HMAT._initPropertyMap = function() {
         less: Comparison.LESS,
         lessEqual: Comparison.LESS_EQUAL,
         never: Comparison.NEVER,
-        notEqual: Comparison.NOT_EQUAL
+        notEqual: Comparison.NOT_EQUAL,
+
+        // lighting models:
+        unlit: LightingModel.Unlit,
+        ggx: LightingModel.GGX,
+        ggx_full: LightingModel.GGX_FULL,
+        blinn: LightingModel.BlinnPhong
     };
 };
 

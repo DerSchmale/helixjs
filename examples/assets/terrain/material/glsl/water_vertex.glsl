@@ -11,7 +11,6 @@ varying_out vec2 uv2;
 varying_out vec4 proj;
 varying_out vec3 viewPos;
 
-
 uniform float normalScale1;
 uniform float normalScale2;
 uniform vec2 normalOffset1;

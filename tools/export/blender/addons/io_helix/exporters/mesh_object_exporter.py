@@ -1,3 +1,4 @@
+import struct
 from . import entity_exporter
 from . import mesh_exporter
 from . import material_exporter
@@ -39,7 +40,13 @@ def write(object, visible):
 
     if mesh.shape_keys:
         morph_id = data.start_object(ObjectType.MORPH_ANIMATION)
-        # TODO: Assign pose weights
+        for i, block in enumerate(mesh.shape_keys.key_blocks):
+            if i > 0:
+                data.start_property(PropertyType.MORPH_WEIGHT)
+                data.write(block.name.encode("utf-8"))
+                # end of string and float32
+                data.write(struct.pack("<Bf", 0, block.value))
+
         data.end_object()
         object_map.link(entity_id, morph_id)
 

@@ -575,6 +575,9 @@ HX.prototype._readProperties = function(data, target)
 			case PropertyTypes.NORMAL_DATA:
 				target.setNormalData(parseMorphTargetData(data, numElements, this));
 				break;
+			case PropertyTypes.MORPH_WEIGHT:
+				target.setWeight(data.getString(), data.getFloat32());
+				break;
 			case PropertyTypes.POSITION:
 				parseVector3(data, target.position);
 				break;

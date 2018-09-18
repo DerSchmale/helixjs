@@ -4,7 +4,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width">
-	<title>Documentation Namespace: HeightMap</title>
+	<title>Documentation Class: OrthographicCamera</title>
 
 	<!--[if lt IE 9]>
 	<script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
@@ -79,14 +79,16 @@
 		<div id="main">
 			
 
-	<h1 class="page-title">Namespace: HeightMap</h1>
+	<h1 class="page-title">Class: OrthographicCamera</h1>
 <section>
 
 <header>
     
         <h2>
-        HeightMap
+        OrthographicCamera
         </h2>
+        
+            <div class="class-description"><p>OrthographicCamera is a Camera used for rendering with orthographic projection.</p></div>
         
     
 </header>
@@ -96,11 +98,78 @@
     <div class="container-overview">
     
         
-            <div class="description"><p>HeightMap contains some utilities for height maps.</p></div>
+<hr>
+<dt>
+    <h4 class="name" id="OrthographicCamera"><span class="type-signature"></span>new OrthographicCamera()</h4>
+    
+    
+</dt>
+<dd>
+
+    
+
+    
+
+    
+
+    
+    
+
+    
+<dl class="details">
+    
+
+    <h5 class="subsection-title">Properties:</h5>
+
+    <dl>
+
+<table class="props table table-striped">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
         
 
         
-<dl class="details">
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>height</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>The height of the projection. Width is calculated based on aspect ratio.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+</dl>
+
     
 
 	
@@ -146,9 +215,34 @@
 </dl>
 
 
-        
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dd>
+
     
     </div>
+
+    
+        <h3 class="subsection-title">Extends</h3>
+
+        
+
+
+    <ul>
+        <li><a href="Camera.html">Camera</a></li>
+    </ul>
+
 
     
 
@@ -169,7 +263,81 @@
             
 <hr>
 <dt>
-    <h4 class="name" id=".from8BitTexture"><span class="type-signature">&lt;static> </span>from8BitTexture(texture [, generateMipmaps] [, target])</h4>
+    <h4 class="name" id="clone"><span class="type-signature"></span>clone()</h4>
+    
+    
+</dt>
+<dd>
+
+    
+
+    
+
+    
+
+    
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt>
+    <h4 class="name" id="getRay"><span class="type-signature"></span>getRay(x, y)</h4>
     
     
 </dt>
@@ -177,8 +345,7 @@
 
     
     <div class="description">
-        <p>Smooths out an 8-bit per channel texture to serve as a height map. Otherwise, the limited 8 bit precision would
-result in a stair-case effect.</p>
+        <p>Returns a ray in world space at the given coordinates.</p>
     </div>
     
 
@@ -201,8 +368,6 @@ result in a stair-case effect.</p>
         <th>Type</th>
 
         
-        <th>Argument</th>
-        
 
         
 
@@ -215,7 +380,7 @@ result in a stair-case effect.</p>
 
         <tr>
             
-                <td class="name"><code>texture</code></td>
+                <td class="name"><code>x</code></td>
             
 
             <td class="type">
@@ -223,25 +388,17 @@ result in a stair-case effect.</p>
             </td>
 
             
-                <td class="attributes">
-                
-
-                
-
-                
-                </td>
-            
 
             
 
-            <td class="description last"><p>The source 8-bit per channel texture.</p></td>
+            <td class="description last"><p>The x-coordinate in NDC [-1, 1] range.</p></td>
         </tr>
 
     
 
         <tr>
             
-                <td class="name"><code>generateMipmaps</code></td>
+                <td class="name"><code>y</code></td>
             
 
             <td class="type">
@@ -249,48 +406,10 @@ result in a stair-case effect.</p>
             </td>
 
             
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
 
             
 
-            <td class="description last"><p>Whether or not to generate a mip chain.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>target</code></td>
-            
-
-            <td class="type">
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"><p>An optional target texture.</p></td>
+            <td class="description last"><p>The y-coordinate in NDC [-1, 1] range.</p></td>
         </tr>
 
     
@@ -307,6 +426,15 @@ result in a stair-case effect.</p>
 
 	
 
+	
+	<dt class="inherited-from method-doc-label method-doc-details-label">Inherited From:</dt>
+	<dd class="inherited-from">
+		<ul class="dummy">
+			<li>
+				<a href="Camera.html#getRay">Camera#getRay</a>
+			</li>
+		</ul>
+	</dd>
 	
 
     
@@ -404,7 +532,7 @@ result in a stair-case effect.</p>
 <span class="jsdoc-message">
 	Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.5</a>
 	
-		on September 18th 2018, 4:20:12 pm
+		on September 18th 2018, 4:20:13 pm
 	
 	using the <a href="https://github.com/docstrap/docstrap">DocStrap template</a>.
 </span>

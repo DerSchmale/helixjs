@@ -4,7 +4,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width">
-	<title>Documentation Namespace: HeightMap</title>
+	<title>Documentation Class: HXData</title>
 
 	<!--[if lt IE 9]>
 	<script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
@@ -79,13 +79,13 @@
 		<div id="main">
 			
 
-	<h1 class="page-title">Namespace: HeightMap</h1>
+	<h1 class="page-title">Class: HXData</h1>
 <section>
 
 <header>
     
         <h2>
-        HeightMap
+        HXData
         </h2>
         
     
@@ -96,80 +96,9 @@
     <div class="container-overview">
     
         
-            <div class="description"><p>HeightMap contains some utilities for height maps.</p></div>
-        
-
-        
-<dl class="details">
-    
-
-	
-
-	
-
-	
-
-    
-
-    
-
-    
-
-    
-
-	
-
-	
-	<dt class="tag-author method-doc-label method-doc-details-label">Author:</dt>
-	<dd class="tag-author">
-		<ul>
-			<li>derschmale &lt;http://www.derschmale.com></li>
-			</ul>
-	</dd>
-	
-
-	
-
-	
-
-	
-
-
-
-	
-
-	
-
-	
-
-	
-</dl>
-
-
-        
-    
-    </div>
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-        <h3 class="subsection-title">Methods</h3>
-
-        <dl>
-            
 <hr>
 <dt>
-    <h4 class="name" id=".from8BitTexture"><span class="type-signature">&lt;static> </span>from8BitTexture(texture [, generateMipmaps] [, target])</h4>
+    <h4 class="name" id="HXData"><span class="type-signature"></span>new HXData()</h4>
     
     
 </dt>
@@ -177,8 +106,7 @@
 
     
     <div class="description">
-        <p>Smooths out an 8-bit per channel texture to serve as a height map. Otherwise, the limited 8 bit precision would
-result in a stair-case effect.</p>
+        <p>The data provided by the HX loader</p>
     </div>
     
 
@@ -188,10 +116,16 @@ result in a stair-case effect.</p>
 
     
     
-        <h5>Parameters:</h5>
-        
 
-<table class="params table table-striped">
+    
+<dl class="details">
+    
+
+    <h5 class="subsection-title">Properties:</h5>
+
+    <dl>
+
+<table class="props table table-striped">
     <thead>
     <tr>
         
@@ -200,8 +134,6 @@ result in a stair-case effect.</p>
 
         <th>Type</th>
 
-        
-        <th>Argument</th>
         
 
         
@@ -215,7 +147,7 @@ result in a stair-case effect.</p>
 
         <tr>
             
-                <td class="name"><code>texture</code></td>
+                <td class="name"><code>defaultScene</code></td>
             
 
             <td class="type">
@@ -223,25 +155,17 @@ result in a stair-case effect.</p>
             </td>
 
             
-                <td class="attributes">
-                
-
-                
-
-                
-                </td>
-            
 
             
 
-            <td class="description last"><p>The source 8-bit per channel texture.</p></td>
+            <td class="description last"><p>The default scene (if provided)</p></td>
         </tr>
 
     
 
         <tr>
             
-                <td class="name"><code>generateMipmaps</code></td>
+                <td class="name"><code>defaultCamera</code></td>
             
 
             <td class="type">
@@ -249,27 +173,17 @@ result in a stair-case effect.</p>
             </td>
 
             
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
 
             
 
-            <td class="description last"><p>Whether or not to generate a mip chain.</p></td>
+            <td class="description last"><p>The default camera (if provided)</p></td>
         </tr>
 
     
 
         <tr>
             
-                <td class="name"><code>target</code></td>
+                <td class="name"><code>scenes</code></td>
             
 
             <td class="type">
@@ -277,30 +191,71 @@ result in a stair-case effect.</p>
             </td>
 
             
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
 
-                
+            
 
-                
-                </td>
+            <td class="description last"><p>A map containing all scenes by name</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>meshes</code></td>
+            
+
+            <td class="type">
+            
+            </td>
+
             
 
             
 
-            <td class="description last"><p>An optional target texture.</p></td>
+            <td class="description last"><p>A map containing all meshes by name</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>materials</code></td>
+            
+
+            <td class="type">
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>A map containing all materials by name</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>entities</code></td>
+            
+
+            <td class="type">
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>A map containing all entities by name</p></td>
         </tr>
 
     
     </tbody>
 </table>
+</dl>
 
-    
-
-    
-<dl class="details">
     
 
 	
@@ -354,7 +309,21 @@ result in a stair-case effect.</p>
     
 </dd>
 
-        </dl>
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
     
 
     

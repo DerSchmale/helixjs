@@ -1,3 +1,5 @@
+# @author derschmale <http://www.derschmale.com>
+
 import math
 from mathutils import Color
 

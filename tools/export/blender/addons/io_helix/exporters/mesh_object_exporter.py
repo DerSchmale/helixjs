@@ -1,3 +1,5 @@
+# @author derschmale <http://www.derschmale.com>
+
 from . import entity_exporter
 from . import mesh_exporter
 from . import material_exporter

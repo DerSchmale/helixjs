@@ -15,6 +15,8 @@ import {MathX} from "../math/MathX";
  * @constructor
  *
  * @see {Input}
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Mouse()
 {

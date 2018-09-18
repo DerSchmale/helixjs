@@ -34,6 +34,8 @@ function Potential()
  * Raycaster sends a ray through the scene and finds the closest intersector.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Raycaster()
 {

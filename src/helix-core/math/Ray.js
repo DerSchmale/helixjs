@@ -4,6 +4,8 @@ import {Float4} from "./Float4";
  * Ray class bundles an origin point and a direction vector for ray-intersection tests.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Ray()
 {

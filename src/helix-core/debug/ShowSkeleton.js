@@ -8,6 +8,15 @@ import {Comparison} from "../Helix";
 import {MeshInstance} from "../mesh/MeshInstance";
 import {SpherePrimitive} from "../mesh/primitives/SpherePrimitive";
 
+/**
+ * @classdesc
+ * ShowSkeleton is a component that visualizes the skeleton associated with an Entity.
+ *
+ * @constructor
+ * @extends Component
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function ShowSkeleton()
 {
 	Component.call(this);
@@ -15,6 +24,9 @@ function ShowSkeleton()
 
 Component.create(ShowSkeleton);
 
+/**
+ * @inheritDoc
+ */
 ShowSkeleton.prototype.onAdded = function()
 {
 	var skeleton = this.entity.skeleton;

@@ -2,6 +2,8 @@
  * Implementation details: every button or axis has an integer index from an enum.
  *
  * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function InputPlugin()
 {

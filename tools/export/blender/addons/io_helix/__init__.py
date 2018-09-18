@@ -1,3 +1,5 @@
+# @author derschmale <http://www.derschmale.com>
+
 bl_info = {
     "name": "Helix exporter",
     "description": "Exports to the Helix file format",

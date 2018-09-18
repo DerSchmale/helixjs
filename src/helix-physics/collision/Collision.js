@@ -10,6 +10,8 @@ import * as HX from "helix";
  * @propety contactPoints An Array of {@linkcode Contact} objects, describing the contacts in detail.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 export function Collision()
 {

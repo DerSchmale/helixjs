@@ -1,3 +1,5 @@
+# @author derschmale <http://www.derschmale.com>
+
 from .. import data
 from ..constants import ObjectType, PropertyType
 

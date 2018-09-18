@@ -3,6 +3,8 @@
  * Are placed in here to accelerate collection.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function FlatPartitioning()
 {

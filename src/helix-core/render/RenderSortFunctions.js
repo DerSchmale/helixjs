@@ -1,3 +1,4 @@
+// @author derschmale <http://www.derschmale.com>
 export var RenderSortFunctions = {
     sortOpaques: function(a, b)
     {

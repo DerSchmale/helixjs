@@ -1,3 +1,5 @@
+# @author derschmale <http://www.derschmale.com>
+
 HX_VERSION = "0.1.0"
 
 import bpy, struct

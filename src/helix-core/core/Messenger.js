@@ -5,6 +5,8 @@ import {Signal} from "./Signal";
  * Messenger is a system that allows subscribing to named Signals.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Messenger()
 {

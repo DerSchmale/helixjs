@@ -14,12 +14,17 @@ var nameCounter = 0;
  * and materials to be shared regardless of the combination of both.
  *
  * @property {boolean} castShadows Defines whether or not this MeshInstance should cast shadows.
- * @property mesh The {@linkcode Mesh} providing the geometry for this instance.
- * @property material The {@linkcode Material} to use to render the given Mesh.
+ * @property {Mesh} mesh The {@linkcode Mesh} providing the geometry for this instance.
+ * @property {Material} material The {@linkcode Material} to use to render the given Mesh.
+ * @property {Skeleton} skeleton The {@linkcode Skeleton} that deforms the vertex positions.
+ * @property skeletonMatrices The skeleton matrices of the current skeleton pose.
+ * @property {MorphPose} The {@linkcode MorphPose} defining the weights for each morph target.
  *
  * @param mesh The {@linkcode Mesh} providing the geometry for this instance.
  * @param material The {@linkcode Material} to use to render the given Mesh.
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function MeshInstance(mesh, material)
 {

@@ -1,3 +1,8 @@
+/**
+ * @ignore
+ * @constructor
+ * @author derschmale <http://www.derschmale.com>
+ */
 export function CachedProgram()
 {
 	this.program = null;

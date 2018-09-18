@@ -12,6 +12,8 @@ import {AsyncTaskQueue} from "../utils/AsyncTaskQueue";
  * FixedLightsSystem is System that automatically assigns all lights in a scene to all materials in the scene.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function FixedLightsSystem()
 {

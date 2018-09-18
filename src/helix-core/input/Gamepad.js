@@ -30,6 +30,8 @@ import {Quaternion} from "../math/Quaternion";
  * @see {@link https://w3c.github.io/gamepad/#remapping}
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Gamepad(device)
 {

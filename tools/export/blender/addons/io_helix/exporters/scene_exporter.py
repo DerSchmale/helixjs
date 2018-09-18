@@ -1,3 +1,5 @@
+# @author derschmale <http://www.derschmale.com>
+
 from mathutils import Color
 from .. import data, object_map
 from ..constants import ObjectType, PropertyType

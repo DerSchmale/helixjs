@@ -16,6 +16,8 @@ import {Signal} from "../core/Signal";
  * a triggered event, while walking is continuous and would be polled using {@linkcode Input#getValue}.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Input()
 {

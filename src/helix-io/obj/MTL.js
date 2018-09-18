@@ -3,6 +3,8 @@ import * as HX from "helix";
 /**
  * MTL is an importer for .mtl files accompanying .obj files. Rarely needed by itself.
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function MTL()
 {

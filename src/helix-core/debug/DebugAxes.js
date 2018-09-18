@@ -5,6 +5,14 @@ import {SceneNode} from "../scene/SceneNode";
 import {Entity} from "../entity/Entity";
 import {MeshInstance} from "../mesh/MeshInstance";
 
+/**
+ * @classdesc
+ * DebugAxes is an Entity to display the 3 world axes (1 meter in length) for scale and orientation.
+ * @constructor
+ * @extends Entity
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function DebugAxes()
 {
     Entity.call(this);

@@ -16,6 +16,8 @@ import {InputPlugin} from "./InputPlugin";
  * {@see KeyboardEvent#key}
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Keyboard()
 {

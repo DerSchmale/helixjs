@@ -1,3 +1,5 @@
+# @author derschmale <http://www.derschmale.com>
+
 from enum import IntEnum
 
 class DataType(IntEnum):

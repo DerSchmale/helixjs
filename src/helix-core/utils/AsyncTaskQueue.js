@@ -6,6 +6,8 @@ import {Signal} from "../core/Signal";
  * @classdesc
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function AsyncTaskQueue()
 {

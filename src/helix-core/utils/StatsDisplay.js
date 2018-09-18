@@ -1,3 +1,7 @@
+import {FPSCounter} from "./FPSCounter";
+import {frameTime, onPreFrame} from "../Helix";
+import {_glStats} from "../core/GL";
+
 /**
  * @classdesc
  * StatsDisplay is a simple display for render statistics.
@@ -7,10 +11,6 @@
  *
  * @author derschmale <http://www.derschmale.com>
  */
-import {FPSCounter} from "./FPSCounter";
-import {frameTime, onPreFrame} from "../Helix";
-import {_glStats} from "../core/GL";
-
 function StatsDisplay(container)
 {
     this._fpsCounter = new FPSCounter(30);

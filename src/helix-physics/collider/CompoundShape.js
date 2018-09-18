@@ -7,6 +7,15 @@ function SubShape(shape, offset, orientation)
 	this.orientation = orientation;
 }
 
+
+/**
+ * @classdesc
+ * Compound shape allows combining multiple shapes into a single shape.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function CompoundShape()
 {
 	this._shapes = [];

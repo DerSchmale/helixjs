@@ -60,6 +60,8 @@ function readQuat(dataView, offset)
  * @constructor
  *
  * @see {@link https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#introduction}
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function GLTF()
 {

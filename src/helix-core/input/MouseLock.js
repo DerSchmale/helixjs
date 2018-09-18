@@ -12,6 +12,8 @@ import {MathX} from "../math/MathX";
  * @property sensitivityScroll The scroll wheel sensitivity
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function MouseLock()
 {

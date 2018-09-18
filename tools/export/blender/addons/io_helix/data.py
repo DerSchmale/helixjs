@@ -1,3 +1,5 @@
+# @author derschmale <http://www.derschmale.com>
+
 import struct
 from . import object_map
 

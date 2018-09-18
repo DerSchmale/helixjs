@@ -3,6 +3,8 @@
  * @enum
  *
  * @see AudioEmitter
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 export var AudioPanningModel = {
     /**

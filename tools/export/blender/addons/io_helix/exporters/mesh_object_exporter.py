@@ -1,3 +1,5 @@
+# @author derschmale <http://www.derschmale.com>
+
 import struct
 from . import entity_exporter
 from . import mesh_exporter

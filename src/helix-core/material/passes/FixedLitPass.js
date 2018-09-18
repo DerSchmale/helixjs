@@ -23,6 +23,8 @@ import {SpotLight} from "../../light/SpotLight";
  * @param lightingModel
  * @param lights
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function FixedLitPass(geometryVertex, geometryFragment, lightingModel, lights)
 {

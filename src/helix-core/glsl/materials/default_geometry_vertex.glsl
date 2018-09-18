@@ -16,6 +16,7 @@ vertex_attribute vec3 hx_morphPosition3;
     #endif
 
 uniform float hx_morphWeights[4];
+uniform float hx_morphModes[4];
 #else
 vertex_attribute vec3 hx_morphPosition4;
 vertex_attribute vec3 hx_morphPosition5;
@@ -23,6 +24,7 @@ vertex_attribute vec3 hx_morphPosition6;
 vertex_attribute vec3 hx_morphPosition7;
 
 uniform float hx_morphWeights[8];
+uniform float hx_morphModes[8];
 #endif
 
 #endif

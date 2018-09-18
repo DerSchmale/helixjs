@@ -63,7 +63,7 @@ MorphAnimation.prototype.setWeight = function(name, value)
  */
 MorphAnimation.prototype.onAdded = function()
 {
-    this._assignMorphPose(this._morphPose);
+	this.entity.morphPose = this._morphPose;
 };
 
 /**
@@ -71,7 +71,7 @@ MorphAnimation.prototype.onAdded = function()
  */
 MorphAnimation.prototype.onRemoved = function()
 {
-    this._assignMorphPose(null);
+	this.entity.morphPose = null;
 };
 
 /**
@@ -82,17 +82,6 @@ MorphAnimation.prototype.onUpdate = function(dt)
     this._morphPose.update();
 };
 
-/**
- * @ignore
- */
-
-MorphAnimation.prototype._assignMorphPose = function(pose)
-{
-	var meshInstances = this.entity.getComponentsByType(MeshInstance);
-	for (var i = 0, len = meshInstances.length; i < len; ++i) {
-		meshInstances[i].morphPose = pose;
-    }
-};
 
 MorphAnimation.prototype.clone = function()
 {

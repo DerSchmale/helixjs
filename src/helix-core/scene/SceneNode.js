@@ -21,6 +21,9 @@ var nameCounter = 0;
  * @property {boolean} visible Defines whether or not this and any children attached to this node should be rendered or not.
  * @property {boolean} raycast Defines whether or not this and any children attached to this node should be tested when raycasting.
  * @property {Matrix4x4} worldMatrix The matrix transforming from the node's local space to world space.
+ * @property {MorphPose} morphPose The {@linkcode MorphPose} assigning weights to morph targets. If assigned, all MeshInstances
+ * in the hierarchy must have the correct morph targets. Otherwise, assign the morph pose to the MeshInstance.
+ * @property {Skeleton} skeleton The {@linkcode Skeleton} defining the rigging for any MeshInstance children in the hierarchy.
  *
  * @see {@linkcode Scene}
  *
@@ -47,6 +50,7 @@ function SceneNode()
     this._isOnRoot = false;
 	this._skeleton = null;
 	this._skeletonPose = null;
+	this._morphPose = null;
 	this._skeletonRoot = null;
 
     // used to determine sorting index for the render loop
@@ -131,6 +135,25 @@ SceneNode.prototype = Object.create(Transform.prototype, {
 		{
 			return this._skeletonPose;
 		}
+	},
+
+	morphPose: {
+    	get: function()
+		{
+			return this._morphPose;
+		},
+
+		set: function(value)
+		{
+			this._assignMorphPose(value);
+
+			for (var i = 0, len = this._children.length; i < len; ++i) {
+				var child = this._children[i];
+
+				if (!child.morphPose)
+					child.morphPose = value;
+			}
+		}
 	}
 });
 
@@ -167,6 +190,9 @@ SceneNode.prototype._updateChildAdded = function(child)
 
 	if (this._skeleton)
 		child._bindSkeleton(this._skeleton, this._skeletonPose, this._skeletonRoot);
+
+	if (this._morphPose && !child._morphPose)
+		child.morphPose = this._morphPose;
 };
 
 /**
@@ -234,9 +260,11 @@ SceneNode.prototype.detach = function(child)
     child._updateAncestorsVisible(true);
     child._setScene(null);
 
-    if (child.skeleton === this._skeleton) {
+    if (child.skeleton === this._skeleton)
 		child.skeleton = null;
-	}
+
+	if (child.morphPose === this._morphPose)
+		child.morphPose = null;
 
     this._children.splice(index, 1);
 };
@@ -437,6 +465,14 @@ SceneNode.prototype._bindSkeleton = function(skeleton, pose, root)
 
 	for (var i = 0, len = this._children.length; i < len; ++i)
 	    this._children[i]._bindSkeleton(skeleton, pose, root);
+};
+
+/**
+ * @ignore
+ */
+SceneNode.prototype._assignMorphPose = function(value)
+{
+	this._morphPose = value;
 };
 
 

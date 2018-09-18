@@ -392,4 +392,20 @@ Entity.prototype._updateChildAdded = function(child)
 	this.invalidateBounds();
 };
 
+
+/**
+ * @ignore
+ */
+Entity.prototype._assignMorphPose = function(value)
+{
+	SceneNode.prototype._assignMorphPose(value);
+
+	for (var i = 0, len = this._components.length; i < len; ++i) {
+		var comp = this._components[i];
+		if (comp instanceof MeshInstance) {
+			comp.morphPose = value;
+		}
+	}
+};
+
 export { Entity };

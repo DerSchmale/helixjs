@@ -37,4 +37,10 @@ def write(object, visible):
         object_map.link(entity_id, mesh_instance_id)
         object_map.link(mesh_instance_id, material_id)
 
+    if mesh.shape_keys:
+        morph_id = data.start_object(ObjectType.MORPH_ANIMATION)
+        # TODO: Assign pose weights
+        data.end_object()
+        object_map.link(entity_id, morph_id)
+
     return entity_id

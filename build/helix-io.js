@@ -379,13 +379,13 @@
 
             var positionData = new Float32Array(positionAcc.count * 3);
             this._readVertexData(positionData, 0, positionAcc, 3, 3, true);
+    		morphTarget.setPositionData(positionData);
 
             if (normalAcc) {
                 var normalData = new Float32Array(normalAcc.count * 3);
                 this._readVertexData(normalData, 0, normalAcc, 3, 3, true);
+    			morphTarget.setNormalData(normalData);
             }
-
-            morphTarget.init(positionData, normalData);
 
     		mesh.addMorphTarget(morphTarget);
         }

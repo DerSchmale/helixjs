@@ -57,23 +57,26 @@ MorphTarget.prototype =
         return this._normalBuffer;
     },
 
-    /**
-     * Initializes the current MorphTarget object.
-     * @param {Array} positions An Array of 3 floats per vertex (x, y, z), containing the displacement vectors. The size must match the vertex count of the target Mesh.
-     * @param {Array} normals An Array of 3 floats per vertex (x, y, z), containing the normal offset vectors. The size must match the vertex count of the target Mesh.
-     *
+	/**
+	 * Initializes the current MorphTarget's position data
      */
-    init: function(positions, normals)
+    setPositionData: function(positions)
     {
-        this._numVertices = positions.length / 3;
+		this._numVertices = positions.length / 3;
 
-        this._positionBuffer = new VertexBuffer();
-        this._positionBuffer.uploadData(new Float32Array(positions));
+		this._positionBuffer = new VertexBuffer();
+		this._positionBuffer.uploadData(new Float32Array(positions));
+    },
 
-        if (normals) {
-            this._normalBuffer = new VertexBuffer();
-            this._normalBuffer.uploadData(new Float32Array(normals));
-        }
+	/**
+	 * Initializes the current MorphTarget's normal data
+	 */
+    setNormalData: function(normals)
+    {
+		if (normals) {
+			this._normalBuffer = new VertexBuffer();
+			this._normalBuffer.uploadData(new Float32Array(normals));
+		}
     }
 };
 

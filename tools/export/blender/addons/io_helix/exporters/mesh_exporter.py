@@ -16,6 +16,7 @@ class SubMesh:
         self.index_data = []
         self.hash_index_map = {}
         self.index_count = 0
+        self.morph_positions = {}
 
     def get_vertex_hash(self, pos, normal, uvs, bind_data, color):
         vertex_hash = "/" + str(pos) + "/" + str(normal) + "/"
@@ -32,15 +33,23 @@ class SubMesh:
 
         return vertex_hash
 
+    def add_morph_vertex(self, name, vertex):
+        if not name in self.morph_positions:
+            self.morph_positions[name] = []
+
+        self.morph_positions[name].extend(list(vertex.co))
+
     def add_vertex(self, pos, normal, uvs, bind_data, color):
         assert len(uvs) == self.num_uvs
         assert (color is not None) == self.has_vertex_color
 
         vertex_hash = self.get_vertex_hash(pos, normal, uvs, bind_data, color)
 
+        is_new = False
         if vertex_hash in self.hash_index_map:
             index = self.hash_index_map[vertex_hash]
         else:
+            is_new = True
             index = self.index_count
             self.hash_index_map[vertex_hash] = index
             self.index_count += 1
@@ -58,7 +67,7 @@ class SubMesh:
                 self.skinning_data.extend([j[1] for j in bind_data])
 
         self.index_data.append(index)
-
+        return is_new
 
 def write_submesh(sub_mesh, src_mesh):
     sub_mesh_index = data.start_object(ObjectType.MESH)
@@ -106,6 +115,16 @@ def write_submesh(sub_mesh, src_mesh):
         data.write_float32_array_prop(PropertyType.VERTEX_STREAM_DATA, sub_mesh.skinning_data)
 
     data.end_object()
+
+    for m in sub_mesh.morph_positions:
+        morph_id = data.start_object(ObjectType.MORPH_TARGET)
+        data.write_string_prop(PropertyType.NAME, m)
+        data.write_uint32_prop(PropertyType.NUM_ELEMENTS, num_vertices * 3)
+        data.write_float32_array_prop(PropertyType.POSITION_DATA, sub_mesh.morph_positions[m])
+        # TODO: Normal data?
+        data.end_object()
+        object_map.link(sub_mesh_index, morph_id)
+
 
 
 def get_submesh(src, material_index, list, has_skinned_data):
@@ -192,9 +211,13 @@ def write(mesh):
 
     sub_meshes = []
 
+    vertex_list = mesh.vertices
+    if mesh.shape_keys:
+        vertex_list = mesh.shape_keys.key_blocks[0].data
+
     def add_vertex(loop_index):
         vi = mesh.loops[loop_index].vertex_index
-        v = mesh.vertices[vi].co
+        v = vertex_list[vi].co
         n = mesh.vertices[vi].normal
         color = None
         uvs = []
@@ -212,7 +235,11 @@ def write(mesh):
         if skinned_data:
             bind_data = skinned_data[vi]
 
-        sub_mesh.add_vertex(v, n, uvs, bind_data, color)
+        is_new = sub_mesh.add_vertex(v, n, uvs, bind_data, color)
+        if is_new and mesh.shape_keys:
+            for b, block in enumerate(mesh.shape_keys.key_blocks):
+                if b > 0:
+                    sub_mesh.add_morph_vertex(block.name, block.data[vi])
 
     for p in mesh.polygons:
         sub_mesh = get_submesh(mesh, p.material_index, sub_meshes, bool(skinned_data))

@@ -16,6 +16,7 @@ var nameCounter = 0;
  * @property {boolean} castShadows Defines whether or not this MeshInstance should cast shadows.
  * @property mesh The {@linkcode Mesh} providing the geometry for this instance.
  * @property material The {@linkcode Material} to use to render the given Mesh.
+ * @property morphPose The {@linkcode MorphPose} assigning weights to morph targets.
  *
  * @param mesh The {@linkcode Mesh} providing the geometry for this instance.
  * @param material The {@linkcode Material} to use to render the given Mesh.

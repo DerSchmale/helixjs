@@ -47,6 +47,8 @@ class ObjectType(IntEnum):
     KEY_FRAME = 22
     SKYBOX = 23
     ENTITY_PROXY = 24
+    MORPH_TARGET = 25
+    MORPH_ANIMATION = 26
 
 
 class PropertyType(IntEnum):
@@ -57,6 +59,10 @@ class PropertyType(IntEnum):
     CAST_SHADOWS = 3
     COLOR = 4
     COLOR_ALPHA = 5
+    DATA_TYPE = 6
+    VALUE_TYPE = 7
+    VALUE = 8
+    NUM_ELEMENTS = 9
 
     # header (meta) properties
     VERSION = 10
@@ -137,3 +143,8 @@ class PropertyType(IntEnum):
     MASK_MAP_OFFSET = 127
     EMISSION_MAP_SCALE = 128
     EMISSION_MAP_OFFSET = 129
+
+    # morph target/pose/animation properties
+    POSITION_DATA = 140
+    NORMAL_DATA = 141
+    MORPH_WEIGHT = 142

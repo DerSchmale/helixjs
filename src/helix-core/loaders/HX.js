@@ -42,6 +42,8 @@ import {OrthographicCamera} from "../camera/OrthographicCamera";
 import {EntityProxy} from "../entity/EntityProxy";
 import {Camera} from "../camera/Camera";
 import {Float2} from "../math/Float2";
+import {MorphTarget} from "../animation/morph/MorphTarget";
+import {MorphAnimation} from "../animation/morph/MorphAnimation";
 
 /**
  * The data provided by the HX loader
@@ -121,7 +123,9 @@ var ObjectTypes = {
 	SKELETON_POSE: 21,	// properties contain position, rotation, scale per joint
 	KEY_FRAME: 22,
 	SKYBOX: 23,
-	ENTITY_PROXY: 24
+	ENTITY_PROXY: 24,
+	MORPH_TARGET: 25,
+	MORPH_ANIMATION: 26
 };
 
 var ObjectTypeMap = {
@@ -143,7 +147,9 @@ var ObjectTypeMap = {
 	19: AnimationClip,
 	20: SkeletonAnimation,
 	23: Skybox,
-	24: EntityProxy
+	24: EntityProxy,
+	25: MorphTarget,
+	26: MorphAnimation
 };
 
 // most ommitted properties take on their default value in Helix.
@@ -158,6 +164,7 @@ var PropertyTypes = {
 	DATA_TYPE: 6,						// 1 uint8: see dataTypeLookUp
 	VALUE_TYPE: 7,						// 1 uint8: 0: scalar, 1: Float3, 2: Float4, 3: Quaternion
 	VALUE: 8,							// type depends on DATA_TYPE
+	NUM_ELEMENTS: 9,					// generally indicated to know the size of arrays
 
 	// header (meta) props
 	VERSION: 10,						// string formatted as "#.#.#"
@@ -239,7 +246,11 @@ var PropertyTypes = {
 	MASK_MAP_SCALE: 126,				// 2 float32 (u, v)
 	MASK_MAP_OFFSET: 127,				// 2 float32 (u, v)
 	EMISSION_MAP_SCALE: 128,			// 2 float32 (u, v)
-	EMISSION_MAP_OFFSET: 129			// 2 float32 (u, v)
+	EMISSION_MAP_OFFSET: 129,			// 2 float32 (u, v)
+
+	POSITION_DATA: 140,					// a flat list of float32 triplets (x, y, z), length must match number of vertices of target mesh
+	NORMAL_DATA: 141,					// a flat list of float32 triplets (x, y, z), length must match number of vertices of target mesh
+	MORPH_WEIGHT: 142					// a 0-ended string (name of the target) followed by a float32 weight
 };
 
 /**
@@ -519,6 +530,7 @@ HX.prototype._parseBasicMaterial = function(data)
 HX.prototype._readProperties = function(data, target)
 {
 	var type;
+	var numElements;
 	do {
 		type = data.getUint32();
 
@@ -552,6 +564,16 @@ HX.prototype._readProperties = function(data, target)
 				break;
 			case PropertyTypes.VERTEX_STREAM_DATA:
 				parseVertexStreamData(data, target, this);
+				break;
+			case PropertyTypes.NUM_ELEMENTS:
+				// store this locally, just used for an upcoming array
+				numElements = data.getUint32();
+				break;
+			case PropertyTypes.POSITION_DATA:
+				target.setPositionData(parseMorphTargetData(data, numElements, this));
+				break;
+			case PropertyTypes.NORMAL_DATA:
+				target.setNormalData(parseMorphTargetData(data, numElements, this));
 				break;
 			case PropertyTypes.POSITION:
 				parseVector3(data, target.position);
@@ -831,6 +853,14 @@ function parseVertexAttribute(data, target)
 	target.addVertexAttribute(name, numComponents, streamIndex, name === "hx_normal" || name === "hx_tangent");
 }
 
+function parseMorphTargetData(data, numElements, parser)
+{
+	if (parser._padArrays)
+		data.skipAlign(4);
+
+	return data.getFloat32Array(numElements);
+}
+
 function parseVertexStreamData(data, target, parser)
 {
 	var dataLen = target._numVertices * target.getVertexStride(0);
@@ -882,6 +912,8 @@ HX.prototype._parseLinkList = function()
             linkToSceneNode(parent, child, meta, this._target);
 		else if (parent instanceof MeshInstance)
 		    linkToMeshInstance(parent, child);
+		else if (parent instanceof Mesh)
+		    linkToMesh(parent, child);
 		else if (parent instanceof Material)
 			linkToMaterial(parent, child, meta);
 		else if (parent instanceof LightProbe)
@@ -981,6 +1013,13 @@ function linkToMeshInstance(meshInstance, child)
     else if (child instanceof Mesh)
         meshInstance.mesh = child;
 }
+
+function linkToMesh(mesh, child)
+{
+	if (child instanceof MorphTarget)
+		mesh.addMorphTarget(child);
+}
+
 function linkToSkyBox(probe, child)
 {
     if (child instanceof Texture2D)

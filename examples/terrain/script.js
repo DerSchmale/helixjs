@@ -83,7 +83,7 @@ function initCamera(camera)
 {
     camera.position.x = 1397 * 4;
     camera.position.y = -1676 * 4;
-    camera.position.z = 221;
+    camera.position.z = 225;
 
     camera.nearDistance = 0.05;
     camera.farDistance = 8000.0;

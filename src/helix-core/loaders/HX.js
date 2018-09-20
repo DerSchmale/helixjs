@@ -56,6 +56,8 @@ import {MorphAnimation} from "../animation/morph/MorphAnimation";
  * @property entities A map containing all entities by name
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function HXData()
 {

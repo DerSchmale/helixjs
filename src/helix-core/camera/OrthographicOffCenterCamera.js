@@ -1,5 +1,4 @@
 import {Camera} from "./Camera";
-import {PerspectiveCamera} from "./PerspectiveCamera";
 
 /**
  * @classdesc

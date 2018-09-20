@@ -1,3 +1,5 @@
+# @author derschmale <http://www.derschmale.com>
+
 import os
 
 from .. import data, export_options, object_map

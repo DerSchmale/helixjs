@@ -6,6 +6,8 @@ import * as HX from "helix";
  * BufferGeometryJSON loads three.js' JSON BufferGeometry format.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function THREEBufferGeometry()
 {

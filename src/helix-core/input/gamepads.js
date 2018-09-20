@@ -2,6 +2,11 @@ import {Signal} from "../core/Signal";
 import {Gamepad} from "./Gamepad";
 import {META} from "../Helix";
 
+/*
+ * @author derschmale <http://www.derschmale.com>
+ */
+
+
 var gamepads = [];
 var usedGamepadCount = 0;
 

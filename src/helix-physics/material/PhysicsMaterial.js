@@ -1,10 +1,13 @@
 import * as CANNON from "cannon";
 
 /**
+ * @classdesc
  * PhysicsMaterial represents the physical "material" a RigidBody is made of, defining friction and restitution ("bounciness").
  * @param friction Defines how hard it is to move an object resting on this material.
  * @param restitution Defines how much an object that hits the material bounces.
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function PhysicsMaterial(friction, restitution)
 {

@@ -1,3 +1,5 @@
+// @author derschmale <http://www.derschmale.com>
+
 import {capabilities, META} from "../Helix";
 import {VRDisplay} from "./VRDisplay";
 

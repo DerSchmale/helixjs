@@ -11,6 +11,8 @@ import {onPreFrame} from "../Helix";
  * @property sensitivityPinch The sensitivity for two-finger pinching
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Touch()
 {

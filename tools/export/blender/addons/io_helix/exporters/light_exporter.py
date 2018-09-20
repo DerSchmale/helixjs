@@ -1,3 +1,5 @@
+# @author derschmale <http://www.derschmale.com>
+
 import mathutils
 import struct
 import math

@@ -10,6 +10,11 @@ var purgeIndex = 0;
 var FRAMES_BEFORE_PURGE = 2000; // at 60fps this is a little over 2 minutes until a program is considered "unused"
 var orderCounter = 0;
 
+/**
+ * ProgramCache provides a global cache for shader programs. It is purged periodically by the engine.
+ * @ignore
+ * @author derschmale <http://www.derschmale.com>
+ */
 export var ProgramCache =
 {
 	purge: function(frameMark)

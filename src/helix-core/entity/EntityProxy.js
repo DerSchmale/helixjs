@@ -9,8 +9,11 @@ import {BoundingAABB} from "../scene/BoundingAABB";
  * with the exception of their final transforms.
  *
  * @constructor
+ * @extends Entity
  *
  * @property node The SceneNode or Entity to be wrapped by the proxy.
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function EntityProxy()
 {

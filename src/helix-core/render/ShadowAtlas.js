@@ -6,6 +6,12 @@ import {GL} from "../core/GL";
 import {META, TextureFilter} from "../Helix";
 import {RectMesh} from "../mesh/RectMesh";
 
+/**
+ * @classdesc
+ * ShadowAtlas contains and manages the shadow map and its subdivision between different lights.
+ * @constructor
+ * @author derschmale <http://www.derschmale.com>
+ */
 export function ShadowAtlas()
 {
     this._texture = new Texture2D();

@@ -1,12 +1,15 @@
 import {BoundingAABB} from "./BoundingAABB";
 
 /**
+ * @classdesc
  * SpatialPartitioning forms a base class or template for spatial partitioning. Scene components such as MeshInstance,
  * PointLightComponent, etc. Are placed in here to accelerate collection.
  *
  * Octrees etc can be made with this.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function SpatialPartitioning()
 {

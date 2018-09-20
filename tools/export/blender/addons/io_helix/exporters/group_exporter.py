@@ -1,3 +1,5 @@
+# @author derschmale <http://www.derschmale.com>
+
 from ..constants import ObjectType, PropertyType
 from . import object_exporter
 from .. import data, object_map

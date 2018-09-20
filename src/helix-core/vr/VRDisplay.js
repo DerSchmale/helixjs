@@ -18,6 +18,8 @@ import {Transform} from "../math/Transform";
  * has disconnected. This only applies if controllers have hand information (otherwise, use the standard gamepad queries).
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function VRDisplay(display)
 {

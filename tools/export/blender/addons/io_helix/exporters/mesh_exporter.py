@@ -1,3 +1,5 @@
+# @author derschmale <http://www.derschmale.com>
+
 import bpy
 import struct
 from .. import data, object_map

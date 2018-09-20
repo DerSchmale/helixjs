@@ -1,3 +1,5 @@
+# @author derschmale <http://www.derschmale.com>
+
 from . import mesh_object_exporter
 from . import light_exporter
 from . import camera_exporter

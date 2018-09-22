@@ -1,0 +1,36 @@
+{
+    "version": "0.1",
+
+    "geometry": {
+        "vertexShader": "glsl/earth_vertex.glsl",
+        "fragmentShader": "glsl/earth_fragment.glsl"
+    },
+
+    "uniforms": {
+        "normalSpecularReflectance": 0.027,
+        "minRoughness": 0.3,
+        "maxRoughness": 0.8,
+        "cloudColorDay": [ 0.8, 0.78, 0.75 ],
+        "cloudColorNight": [ 0.0, 0.0, 0.05 ],
+        "cloudRoughness": 0.8,
+        "lightDir": [ 0.0, 0.0, 1.0 ],
+        "lightColor": [ 0.0, 0.0, 1.0 ],
+
+        "rcpThicknessOverScaleDepth": 1.0,
+        "expThicknessOverScaleDepth": 1.0,
+        "earthRadius": 1.0,
+        "atmosphereRadius": 1.0,
+        "rcpAtmosThickness": 1.0,
+        "rayleighFactor": 0.005,
+        "mieFactor": 0.1,
+        "waveLenFactors": [ 5.6020, 9.4733, 19.6438 ],
+        "waveLenFactorsKr4PiKm4Pi": [ 0.18855835184, 0.310178802936, 0.629694417296 ]
+    },
+    "textures": {
+        "colorMap": "../textures/earth/albedo.jpg",
+        "normalMap": "../textures/earth/normals.png",
+        "specularMap": "../textures/earth/specular.jpg",
+        "cloudMap": "../textures/earth/clouds.png",
+        "emissionMap": "../textures/earth/emission.jpg"
+    }
+}

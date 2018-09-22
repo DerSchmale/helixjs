@@ -28,9 +28,9 @@
     },
     "textures": {
         "colorMap": "../textures/earth/albedo_large.jpg",
-        "normalMap": "../textures/earth/normals.png",
+        "normalMap": "../textures/earth/normals_large.png",
         "specularMap": "../textures/earth/specular.jpg",
-        "cloudMap": "../textures/earth/clouds.png",
+        "cloudMap": "../textures/earth/clouds_large.png",
         "emissionMap": "../textures/earth/emission_large.jpg"
     }
 }

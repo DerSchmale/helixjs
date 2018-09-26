@@ -124,6 +124,26 @@ DataStream.prototype =
 		},
 
 		/**
+		 * Reads a half float.
+		 */
+		getFloat16: function()
+		{
+			var uint16 = this.getUint16();
+			var signBit = uint16 >> 15;
+			var expBits = (uint16 >> 10) & 0x1f;	// mask 5 bits
+			var fracBits = uint16 & 0x3ff;	 		// mask 10 bits
+
+			if (expBits === 0x1F)
+				return 	fracBits? 	Number.NaN :
+						signBit? 	Number.NEGATIVE_INFINITY :
+									Number.POSITIVE_INFINITY;
+			else if (expBits)
+				return Math.pow(2, expBits - 15) * (1 + fracBits / 0x400);
+			else
+				return 6.103515625e-5 * (fracBits / 0x400);
+		},
+
+		/**
 		 * Reads a single float.
 		 */
 		getFloat32: function()
@@ -239,6 +259,21 @@ DataStream.prototype =
 		},
 
 		/**
+		 * Reads an array of half floats.
+		 *
+		 * @param len The amount of elements to read.
+		 */
+		getFloat16Array: function(len)
+		{
+			var arr = new Float32Array(len);
+
+			for (var i = 0; i < len; ++i)
+				arr[i] = this.getFloat16();
+
+			return arr;
+		},
+
+		/**
 		 * Reads an array of double floats.
 		 *
 		 * @param len The amount of elements to read.
@@ -291,7 +326,7 @@ DataStream.prototype =
 				return arr;
 			}
 
-			var arr = new Float64Array(len);
+			var arr = new arrayType(len);
 
 			for (var i = 0; i < len; ++i)
 				arr[i] = readFunc();

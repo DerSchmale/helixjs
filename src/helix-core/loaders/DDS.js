@@ -5,7 +5,7 @@
 import {Texture2D} from "../texture/Texture2D";
 import {Importer} from "./Importer";
 import {DataStream} from "../core/DataStream";
-import {capabilities} from "../Helix";
+import {capabilities, DataType, TextureFormat} from "../Helix";
 
 var DDS_CONSTANTS = {
 	MAGIC: 0x20534444
@@ -35,7 +35,12 @@ var DDS_PIXEL_FORMAT_FLAGS = {
  * @classdesc
  *
  * DDS is an importer for dxt compressed textures in Microsoft's DDS format. Yields a {@linkcode Texture2D} object.
- * Currently, only DXT1 and DXT5 encoding is supported.
+ * Currently supported formats are:
+ * - DXT1 (only if capabilities.EXT_COMPRESSED_TEXTURE_S3TC exists)
+ * - DXT3 (only if capabilities.EXT_COMPRESSED_TEXTURE_S3TC exists)
+ * - DXT5 (only if capabilities.EXT_COMPRESSED_TEXTURE_S3TC exists)
+ * - Float16 RGBA
+ * - Float32 RGBA
  *
  * @constructor
  *
@@ -49,15 +54,6 @@ function DDS()
 }
 
 DDS.prototype = Object.create(Importer.prototype);
-
-Object.defineProperties(DDS, {
-	isSupported: {
-		get: function()
-		{
-			return !!capabilities.EXT_COMPRESSED_TEXTURE_S3TC;
-		}
-	}
-});
 
 DDS.prototype.parse = function(data, target)
 {
@@ -74,6 +70,9 @@ DDS.prototype.parse = function(data, target)
 DDS.prototype._parseHeader = function()
 {
 	var data = this._stream.getUint32Array(30);
+
+	this._internalFormat = null;
+	this._dataType = null;
 
 	// magic + struct of DWORDs shown here: https://docs.microsoft.com/en-gb/windows/desktop/direct3ddds/dds-header
 	if (data[0] !== DDS_CONSTANTS.MAGIC)
@@ -113,14 +112,25 @@ DDS.prototype._parseInternalFormat = function(fourCC)
 			this._blockSize = 8;
 			this._internalFormat = capabilities.EXT_COMPRESSED_TEXTURE_S3TC.COMPRESSED_RGBA_S3TC_DXT1_EXT;
 			break;
-
+		case "DXT3":
+			this._blockSize = 16;
+			this._internalFormat = capabilities.EXT_COMPRESSED_TEXTURE_S3TC.COMPRESSED_RGBA_S3TC_DXT3_EXT;
+			break;
 		case "DXT5":
 			this._blockSize = 16;
 			this._internalFormat = capabilities.EXT_COMPRESSED_TEXTURE_S3TC.COMPRESSED_RGBA_S3TC_DXT5_EXT;
 			break;
+	}
 
-		default:
-			throw new Error("Unknown encoding method");
+	switch(fourCC) {
+		case 113:
+			this._internalFormat = TextureFormat.RGBA;
+			this._dataType = DataType.HALF_FLOAT;
+			break;
+		case 116:
+			this._internalFormat = TextureFormat.RGBA;
+			this._dataType = DataType.FLOAT;
+			break;
 	}
 };
 
@@ -132,14 +142,42 @@ DDS.prototype._parseData = function()
 
 
 	for (var i = 0; i < this._mipLevels; ++i) {
-		var dataLength = Math.max(1, ((w + 3) >> 2)) * Math.max(1, ((h + 3) >> 2)) * this._blockSize;
-		var data = this._stream.getUint8Array(dataLength);
-		this._target.uploadCompressedData(data, w, h, 0, generateMipmaps, this._internalFormat, i);
+		var data, dataLength;
+
+		if (this._dataType) {
+			dataLength = w * h * 4;
+			switch (this._dataType) {
+				case DataType.FLOAT:
+					data = this._stream.getFloat32Array(dataLength);
+					break;
+				case DataType.HALF_FLOAT:
+					data = this._stream.getFloat16Array(dataLength);
+					break;
+			}
+
+			this._target.uploadData(data, w, h, generateMipmaps, this._internalFormat, this._dataType, i);
+		}
+		else {
+			dataLength = Math.max(1, ((w + 3) >> 2)) * Math.max(1, ((h + 3) >> 2)) * this._blockSize;
+			data = this._stream.getUint8Array(dataLength);
+			this._target.uploadCompressedData(data, w, h, 0, generateMipmaps, this._internalFormat, i);
+		}
 		w >>= 1;
 		h >>= 1;
 		if (w === 0) w = 1;
 		if (h === 0) h = 1;
 	}
 };
+
+function swapABGR(data)
+{
+	for (var i = 0, len = data.length; i < len; i += 4) {
+		var tmp = data[i];
+		data[i] = data[i + 3];
+		data[i + 3] = data[i + 2];
+		data[i + 2] = data[i + 1];
+		data[i + 1] = tmp;
+	}
+}
 
 export {DDS};

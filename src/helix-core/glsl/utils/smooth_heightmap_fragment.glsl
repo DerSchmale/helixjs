@@ -34,5 +34,4 @@ void main()
     }
 
     hx_FragColor = hx_floatToRGBA8(total / totalWeight);
-//    hx_FragColor = hx_floatToRGBA8(refHeight);
 }

@@ -114,7 +114,6 @@ Entity.prototype.addComponent = function(component)
 /**
  * @ignore
  */
-
 Entity.prototype._invalidateWorldMatrix = function()
 {
 	this._SceneNode_invalidateWorldMatrix();
@@ -325,7 +324,6 @@ Entity.prototype._createBoundingVolume = function()
 
 /**
  * @ignore
- * proxyMatrix is only available when wrapped in an EntityProxy
  */
 Entity.prototype.acceptVisitor = function(visitor)
 {

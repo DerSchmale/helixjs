@@ -77,7 +77,6 @@ var GL = {
     {
         indexType = indexType || gl.UNSIGNED_SHORT;
         ++_glStats.numDrawCalls;
-        _glStats.numTriangles += numIndices / 3;
         gl.drawElements(elementType, numIndices, indexType, offset * 2);
     },
 

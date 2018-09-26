@@ -90,7 +90,7 @@ HMAT.prototype._gatherShaderFiles = function(data)
     }
     var lighting = data.lightingModel;
 
-    if (lighting && !(lighting in HMAT._PROPERTY_MAP[data.lightingModel]) && files.indexOf(lighting) < 0) files.push(this._correctURL(lighting));
+    if (lighting && !(lighting in HMAT._PROPERTY_MAP) && files.indexOf(lighting) < 0) files.push(this._correctURL(lighting));
 
     return files;
 };

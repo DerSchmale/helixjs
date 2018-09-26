@@ -4,6 +4,7 @@ import {CustomCopyShader} from "../render/UtilShaders";
 import {ShaderLibrary} from "../shader/ShaderLibrary";
 import {GL} from "../core/GL";
 import {RectMesh} from "../mesh/RectMesh";
+import {TextureFilter} from "../Helix";
 
 /**
  * HeightMap contains some utilities for height maps.
@@ -43,8 +44,8 @@ export var HeightMap =
         GL.clear();
         toRGBA8.execute(RectMesh.DEFAULT, texture);
 
-        if (generateMipmaps)
-            target.generateMipmap();
+        var originalFilter = target.filter;
+		target.filter = TextureFilter.NEAREST_NOMIP;
 
         var smooth = new CustomCopyShader(ShaderLibrary.get("smooth_heightmap_fragment.glsl"));
         var textureLocation = gl.getUniformLocation(smooth.program, "reference");
@@ -64,6 +65,9 @@ export var HeightMap =
         gl.uniform2f(offsetLocation, 0.0, 1.0 / texture.height);
         smooth.execute(RectMesh.DEFAULT, tex2);
 
+		target.filter = originalFilter;
+
+		// TODO: This should be a custom mip generation
         if (generateMipmaps)
             target.generateMipmap();
 

@@ -64,6 +64,8 @@
      * @constructor
      *
      * @see {@link https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#introduction}
+     *
+     * @author derschmale <http://www.derschmale.com>
      */
     function GLTF()
     {
@@ -1010,6 +1012,8 @@
      * @classdesc
      *
      * @constructor
+     *
+     * @author derschmale <http://www.derschmale.com>
      */
     function AsyncTaskQueue()
     {
@@ -1118,6 +1122,8 @@
     /**
      * MTL is an importer for .mtl files accompanying .obj files. Rarely needed by itself.
      * @constructor
+     *
+     * @author derschmale <http://www.derschmale.com>
      */
     function MTL()
     {
@@ -1582,6 +1588,8 @@
      * BufferGeometryJSON loads three.js' JSON BufferGeometry format.
      *
      * @constructor
+     *
+     * @author derschmale <http://www.derschmale.com>
      */
     function THREEBufferGeometry()
     {

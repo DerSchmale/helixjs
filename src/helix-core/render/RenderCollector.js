@@ -6,6 +6,7 @@ import {META} from "../Helix";
 import {RenderItem} from "./RenderItem";
 import {RenderPath} from "./RenderPath";
 import {RenderSortFunctions} from "./RenderSortFunctions";
+import {_glStats} from "../core/GL";
 
 /**
  * @ignore
@@ -119,6 +120,8 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance)
 
     var bucket = (material.blendState || material.needsBackbuffer)? transparentList : opaqueLists[path];
     bucket.push(renderItem);
+
+	_glStats.numTriangles += meshInstance.mesh.numIndices / 3;
 };
 
 RenderCollector.prototype.visitAmbientLight = function(light)

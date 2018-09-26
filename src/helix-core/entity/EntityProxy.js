@@ -49,8 +49,8 @@ EntityProxy.prototype.acceptVisitor = function(visitor)
 };
 
 /**
- * @ignore
  * Traverse the wrapped children's hierarchy and "acceptVisitor" for all of the entities.
+ * @ignore
  */
 EntityProxy.prototype._traverse = function(node, visitor)
 {

@@ -11,6 +11,15 @@
 		this.orientation = orientation;
 	}
 
+
+	/**
+	 * @classdesc
+	 * Compound shape allows combining multiple shapes into a single shape.
+	 *
+	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
 	function CompoundShape()
 	{
 		this._shapes = [];
@@ -177,6 +186,8 @@
 	 * @propety contactPoints An Array of {@linkcode Contact} objects, describing the contacts in detail.
 	 *
 	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
 	 */
 	function Collision()
 	{
@@ -880,13 +891,17 @@
 	};
 
 	/**
-	 *
-	 * @param {Array|Texture2D} heightData An Array containing numbers, or a Texture2D containing texture data (this can be slow because of the data that needs to be read back).
+	 * HeightfieldCollider is a {@linkcode Collider} that works with heightfield data.
+	 * @param {Array|Texture2D} heightData An Array containing numbers, or a Texture2D containing texture data (this can be
+	 * slow because of the data that needs to be read back).
 	 * @param {number} worldSize The size of the height map width in world coordinates
 	 * @param {number} minHeight The minimum height in the heightmap (only used if heightData is a texture)
 	 * @param {number} maxHeight The maximum height in the heightmap (only used if heightData is a texture)
-	 * @param {boolean} rgbaEnc Indicates the data in the texture are [0 - 1] numbers encoded over the RGBA channels (only used if heightData is a texture)
+	 * @param {boolean} rgbaEnc Indicates the data in the texture are [0 - 1] numbers encoded over the RGBA channels (only
+	 * used if heightData is a texture)
 	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
 	 */
 	function HeightfieldCollider(heightData, worldSize, minHeight, maxHeight, rgbaEnc)
 	{
@@ -1002,10 +1017,13 @@
 	};
 
 	/**
+	 * @classdesc
 	 * PhysicsMaterial represents the physical "material" a RigidBody is made of, defining friction and restitution ("bounciness").
 	 * @param friction Defines how hard it is to move an object resting on this material.
 	 * @param restitution Defines how much an object that hits the material bounces.
 	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
 	 */
 	function PhysicsMaterial(friction, restitution)
 	{

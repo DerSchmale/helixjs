@@ -44,6 +44,8 @@ import {Camera} from "../camera/Camera";
 import {Float2} from "../math/Float2";
 import {MorphTarget} from "../animation/morph/MorphTarget";
 import {MorphAnimation} from "../animation/morph/MorphAnimation";
+import {FileUtils} from "./FileUtils";
+import {DDS} from "./DDS";
 
 /**
  * The data provided by the HX loader
@@ -733,7 +735,7 @@ HX.prototype._readProperties = function(data, target)
 
 HX.prototype._handleURL = function(url, target)
 {
-	var ext = url.toLowerCase().substr(url.lastIndexOf(".") + 1);
+	var ext = FileUtils.extractExtension(url);
 	var dependencyType;
 
 	switch (ext) {
@@ -741,6 +743,9 @@ HX.prototype._handleURL = function(url, target)
 		case "jpeg":
 		case "png":
 			dependencyType = JPG;
+			break;
+		case "dds":
+			dependencyType = DDS;
 			break;
 		default:
 			// fallbacks for missing extensions

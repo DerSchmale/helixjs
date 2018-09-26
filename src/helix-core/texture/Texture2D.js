@@ -183,8 +183,9 @@ Texture2D.prototype =
      * @param {boolean} generateMips Whether or not a mip chain should be generated.
      * @param {TextureFormat} format The texture's format.
      * @param {DataType} dataType The texture's data format.
+     * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
      */
-    uploadData: function(data, width, height, generateMips, format, dataType)
+    uploadData: function(data, width, height, generateMips, format, dataType, mipLevel)
     {
         var gl = GL.gl;
 
@@ -200,10 +201,8 @@ Texture2D.prototype =
 
         this.bind();
 
-        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
-
         var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
-        gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, width, height, 0, format, dataType, data);
+        gl.texImage2D(gl.TEXTURE_2D, mipLevel || 0, internalFormat, width, height, 0, format, dataType, data);
 
         if (generateMips)
             gl.generateMipmap(gl.TEXTURE_2D);
@@ -221,10 +220,9 @@ Texture2D.prototype =
      * @param generateMips Whether or not a mip chain should be generated.
      * @param {TextureFormat} format The texture's format.
      * @param {DataType} dataType The texture's data format.
-     *
-     * TODO: Just use image.naturalWidth / image.naturalHeight ?
+     * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
      */
-    uploadImage: function(image, width, height, generateMips, format, dataType)
+    uploadImage: function(image, width, height, generateMips, format, dataType, mipLevel)
     {
         var gl = GL.gl;
 
@@ -249,11 +247,8 @@ Texture2D.prototype =
 
         this.bind();
 
-        if (image)
-            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
-
 		var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
-        gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, format, dataType, image);
+        gl.texImage2D(gl.TEXTURE_2D, mipLevel || 0, internalFormat, format, dataType, image);
 
         if (generateMips)
             gl.generateMipmap(gl.TEXTURE_2D);
@@ -262,6 +257,33 @@ Texture2D.prototype =
 
         gl.bindTexture(gl.TEXTURE_2D, null);
     },
+
+	/**
+     * Uploads compressed data.
+     *
+     * @param {*} data An typed array containing the initial data.
+	 * @param {number} width The width of the texture.
+	 * @param {number} height The height of the texture.
+	 * @param {number} border The border of the compressed texture.
+	 * @param {boolean} generateMips Whether or not a mip chain should be generated.
+	 * @param {*} internalFormat The texture's internal compression format.
+     * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
+	 */
+	uploadCompressedData: function(data, width, height, border, generateMips, internalFormat, mipLevel)
+    {
+		var gl = GL.gl;
+
+		this.bind();
+
+		gl.compressedTexImage2D(gl.TEXTURE_2D, mipLevel || 0, internalFormat, width, height, border, data);
+
+		if (generateMips)
+			gl.generateMipmap(gl.TEXTURE_2D);
+
+		this._isReady = true;
+
+		gl.bindTexture(gl.TEXTURE_2D, null);
+	},
 
     /**
      * Defines whether data has been uploaded to the texture or not.

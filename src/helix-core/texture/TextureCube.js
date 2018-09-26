@@ -171,8 +171,6 @@ TextureCube.prototype =
         this.bind();
 
         var gl = GL.gl;
-        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
-
 		var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
         gl.texImage2D(CubeFace.POSITIVE_X, 0, internalFormat, size, size, 0, format, dataType, data[0]);
         gl.texImage2D(CubeFace.NEGATIVE_X, 0, internalFormat, size, size, 0, format, dataType, data[1]);
@@ -233,8 +231,6 @@ TextureCube.prototype =
             this._size = images[0].naturalWidth;
 
         this.bind();
-
-        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
 
 		var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
         gl.texImage2D(CubeFace.POSITIVE_X, mipLevel, internalFormat, format, dataType, images[0]);

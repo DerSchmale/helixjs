@@ -89,7 +89,7 @@ TorusPrimitive.prototype._generate = function(target, definition)
             }
 
             if (uvs)
-                uvs.push(ratioU, 1.0 - ratioV);
+                uvs.push(ratioU, ratioV);
         }
     }
 

@@ -4,6 +4,11 @@
  */
 export var FileUtils =
 {
+	extractExtension: function(filename)
+    {
+        return filename.toLowerCase().substr(filename.lastIndexOf(".") + 1);
+    },
+
     extractPathAndFilename: function(filename)
     {
         var index = filename.lastIndexOf("/");

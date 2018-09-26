@@ -9,6 +9,6 @@ void main()
     vec3 dir = normalize(direction);
     vec2 uv;
     uv.x = atan( dir.z, dir.x ) * RECIPROCAL_PI2 + 0.5;
-	uv.y = dir.y * 0.5 + 0.5;
+	uv.y = 0.5 - dir.y * 0.5;
     hx_FragColor = texture2D(source, uv);
 }

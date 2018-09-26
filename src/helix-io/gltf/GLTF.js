@@ -562,7 +562,7 @@ GLTF.prototype._readUVData = function(target, offset, accessor, stride)
 
     for (var i = 0; i < len; ++i) {
         target[p] = src.getFloat32(o, true);
-        target[p + 1] = 1.0 - src.getFloat32(o + 4, true);
+        target[p + 1] = src.getFloat32(o + 4, true);
 
         o += 8;
         p += stride;

@@ -83,7 +83,7 @@ CylinderPrimitive.prototype._generate = function(target, definition)
                     break;
             }
 
-            if (uvs) uvs.push(1.0 - ci*rcpNumSegmentsW, hi*rcpNumSegmentsH);
+            if (uvs) uvs.push(1.0 - ci*rcpNumSegmentsW, 1.0 - hi*rcpNumSegmentsH);
         }
     }
 
@@ -127,8 +127,8 @@ CylinderPrimitive.prototype._generate = function(target, definition)
                 }
 
                 if (uvs) {
-                    uvs.push(v, 1.0 - u);
-                    uvs.push(1.0 - v,  1.0 - u);
+                    uvs.push(v, u);
+                    uvs.push(1.0 - v,  u);
                 }
                 break;
 
@@ -142,8 +142,8 @@ CylinderPrimitive.prototype._generate = function(target, definition)
                 }
 
                 if (uvs) {
-                    uvs.push(u, v);
-                    uvs.push(1.0 - u, v);
+                    uvs.push(u, 1.0 - v);
+                    uvs.push(1.0 - u, 1.0 - v);
                 }
                 break;
             default:
@@ -156,8 +156,8 @@ CylinderPrimitive.prototype._generate = function(target, definition)
                 }
 
                 if (uvs) {
-                    uvs.push(u, v);
                     uvs.push(u, 1.0 - v);
+                    uvs.push(u, v);
                 }
                 break;
         }

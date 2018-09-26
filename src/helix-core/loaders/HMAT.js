@@ -11,6 +11,8 @@ import {Color} from "../core/Color";
 import {Float2} from "../math/Float2";
 import {Float4} from "../math/Float4";
 import {LightingModel} from "../render/LightingModel";
+import {DDS} from "./DDS";
+import {FileUtils} from "./FileUtils";
 
 /**
  * @classdesc
@@ -232,7 +234,8 @@ HMAT.prototype._loadTextures = function(data, material)
     this._textureLibrary.fileMap = this.fileMap;
 
     for (var i = 0; i < files.length; ++i) {
-        this._textureLibrary.queueAsset(files[i], files[i], AssetLibrary.Type.ASSET, JPG);
+        var importer = getImporter(files[i]);
+        this._textureLibrary.queueAsset(files[i], files[i], AssetLibrary.Type.ASSET, importer);
     }
 
     this._textureLibrary.onComplete.bind(function()
@@ -252,6 +255,17 @@ HMAT.prototype._loadTextures = function(data, material)
     this._textureLibrary.load();
 };
 
+function getImporter(filename)
+{
+    var ext = FileUtils.extractExtension(filename);
+
+    switch (ext) {
+        case "dds":
+            return DDS;
+        default:
+            return JPG;
+	}
+}
 
 HMAT._PROPERTY_MAP = null;
 

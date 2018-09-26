@@ -59,7 +59,8 @@ class SubMesh:
             self.vertex_data.extend(list(normal))
 
             for uv in uvs:
-                self.vertex_data.extend(list(uv))
+                self.vertex_data.append(uv[0])
+                self.vertex_data.append(1.0 - uv[1])
 
             if color:
                 self.vertex_data.extend(list(color))
@@ -70,6 +71,7 @@ class SubMesh:
 
         self.index_data.append(index)
         return is_new
+
 
 def write_submesh(sub_mesh, src_mesh):
     sub_mesh_index = data.start_object(ObjectType.MESH)

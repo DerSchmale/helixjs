@@ -116,7 +116,7 @@ OBJ.prototype._parseLine = function(line)
             this._vertices.push(parseFloat(tokens[1]), parseFloat(tokens[3]), parseFloat(tokens[2]));
             break;
         case "vt":
-            this._uvs.push(parseFloat(tokens[1]), parseFloat(tokens[2]));
+            this._uvs.push(parseFloat(tokens[1]), 1.0 - parseFloat(tokens[2]));
             break;
         case "vn":
             this._normals.push(parseFloat(tokens[1]), parseFloat(tokens[3]), parseFloat(tokens[2]));

@@ -10,7 +10,7 @@ var time = 0;
 
 // 1 = 10m
 var worldSize = 20000;
-var waterLevel = -15;
+var waterLevel = 200;
 var minHeight = -100;
 var maxHeight = 1000;
 var fog;
@@ -82,7 +82,7 @@ window.onload = function ()
 function initCamera(camera)
 {
     camera.position.x = 1397 * 4;
-    camera.position.y = -1676 * 4;
+    camera.position.y = 1676 * 4;
     camera.position.z = 225;
 
     camera.nearDistance = 0.05;
@@ -92,7 +92,6 @@ function initCamera(camera)
     controller.walkAcceleration = 2000.0;
     controller.runAcceleration = 20000.0;
     controller.jumpForce = 5.0;
-    controller.yaw = Math.PI;
     camera.addComponent(controller);
 
 	var rigidBody = new HX_PHYS.RigidBody(
@@ -150,7 +149,7 @@ function initScene(scene, camera, assetLibrary)
     waterMaterial = assetLibrary.get("water-material");
 
     var terrain = new HX.Entity();
-	terrain.addComponent(new HX.Terrain(16000, minHeight, maxHeight, 4, terrainMaterial, 32));
+	terrain.addComponent(new HX.Terrain(16000, minHeight, maxHeight, 4, terrainMaterial, 64));
 
     var rigidBody = new HX_PHYS.RigidBody(
 		new HX_PHYS.HeightfieldCollider(heightMap, worldSize, minHeight, maxHeight, true),

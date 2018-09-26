@@ -81,7 +81,7 @@ ConePrimitive.prototype._generate = function(target, definition)
                     break;
             }
 
-            if (uvs) uvs.push(1.0 - ci*rcpNumSegmentsW, hi*rcpNumSegmentsH);
+            if (uvs) uvs.push(1.0 - ci*rcpNumSegmentsW, 1.0 - hi*rcpNumSegmentsH);
         }
     }
 
@@ -121,18 +121,18 @@ ConePrimitive.prototype._generate = function(target, definition)
             case ConePrimitive.ALIGN_X:
                 positions.push(-halfH, cy, cx);
                 if (normals) normals.push(-1, 0, 0);
-                if (uvs) uvs.push(v, 1.0 - u);
+                if (uvs) uvs.push(v, u);
                 break;
 
             case ConePrimitive.ALIGN_Z:
                 positions.push(cx, -cy, -halfH);
                 if (normals) normals.push(0, 0, -1);
-                if (uvs) uvs.push(u, v);
+                if (uvs) uvs.push(u, 1.0 - v);
                 break;
             default:
                 positions.push(cx, -halfH, cy);
                 if (normals) normals.push(0, -1, 0);
-                if (uvs) uvs.push(u, v);
+                if (uvs) uvs.push(u, 1.0 - v);
                 break;
         }
     }

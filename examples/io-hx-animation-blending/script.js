@@ -24,8 +24,8 @@ window.onload = function ()
 function initScene(scene, assetLibrary)
 {
     var hx = assetLibrary.get("scenes");
-    project.scene = hx.defaultScene;
-    project.camera = hx.defaultCamera;
+	project.scene = hx.defaultScene;
+	project.camera = hx.defaultCamera;
 
 	var armature = project.scene.findNodeByName("Armature");
 	armature.addComponent(new ChickenController());

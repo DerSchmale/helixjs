@@ -1,9 +1,9 @@
-import {ArrayUtils} from './utils/ArrayUtils';
-import {FrameTicker} from './utils/FrameTicker';
-import {_clearGLStats, GL} from './core/GL';
-import {HardShadowFilter} from './light/filters/HardShadowFilter';
-import {LightingModel} from './render/LightingModel';
-import {Signal} from './core/Signal';
+import {ArrayUtils} from "./utils/ArrayUtils";
+import {FrameTicker} from "./utils/FrameTicker";
+import {_clearGLStats, GL} from "./core/GL";
+import {HardShadowFilter} from "./light/filters/HardShadowFilter";
+import {LightingModel} from "./render/LightingModel";
+import {Signal} from "./core/Signal";
 import {GLSLIncludes} from "./shader/GLSLIncludes";
 import {CopyChannelsShader} from "./render/UtilShaders";
 import {RectMesh} from "./mesh/RectMesh";
@@ -126,6 +126,7 @@ export var capabilities =
         EXT_ELEMENT_INDEX_UINT: null,
         EXT_COLOR_BUFFER_FLOAT: null,
         EXT_COLOR_BUFFER_HALF_FLOAT: null,
+		EXT_COMPRESSED_TEXTURE_S3TC: null,
 
         DEFAULT_TEXTURE_MAX_ANISOTROPY: 0,
         HDR_FORMAT: 0,
@@ -578,7 +579,7 @@ export function init(canvas, options)
     var gl;
 
     if (options.webgl2)
-        gl = canvas.getContext('webgl2', webglFlags);
+        gl = canvas.getContext("webgl2", webglFlags);
 
     if (gl) {
         capabilities.WEBGL_2 = true;
@@ -592,7 +593,7 @@ export function init(canvas, options)
     else {
         // so the user can query it's not supported
         META.OPTIONS.webgl2 = false;
-        gl = canvas.getContext('webgl', webglFlags) || canvas.getContext('experimental-webgl', webglFlags);
+        gl = canvas.getContext("webgl", webglFlags) || canvas.getContext("experimental-webgl", webglFlags);
     }
 
     if (!gl) throw new Error("WebGL not supported");
@@ -606,7 +607,7 @@ export function init(canvas, options)
     {
 
         var ext = glExtensions.indexOf(name) >= 0 ? gl.getExtension(name) : null;
-        if (!ext) console.warn(name + ' extension not supported!');
+        if (!ext) console.warn(name + " extension not supported!");
         return ext;
     }
 
@@ -619,21 +620,22 @@ export function init(canvas, options)
     defines += "#define HX_NUM_SHADOW_CASCADES " + META.OPTIONS.numShadowCascades + "\n";
     defines += "#define HX_MAX_SKELETON_JOINTS " + META.OPTIONS.maxSkeletonJoints + "\n";
 
-    capabilities.EXT_DRAW_BUFFERS = capabilities.WEBGL_2? true : _getExtension('WEBGL_draw_buffers');
+    capabilities.EXT_DRAW_BUFFERS = capabilities.WEBGL_2? true : _getExtension("WEBGL_draw_buffers");
     // can assume this exists
-    capabilities.EXT_FLOAT_TEXTURES = capabilities.WEBGL_2? true : _getExtension('OES_texture_float');
-    capabilities.EXT_FLOAT_TEXTURES_LINEAR = _getExtension('OES_texture_float_linear');
-    capabilities.EXT_HALF_FLOAT_TEXTURES = capabilities.WEBGL_2? true : _getExtension('OES_texture_half_float');
-    capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR = _getExtension('OES_texture_half_float_linear');
+    capabilities.EXT_FLOAT_TEXTURES = capabilities.WEBGL_2? true : _getExtension("OES_texture_float");
+    capabilities.EXT_FLOAT_TEXTURES_LINEAR = _getExtension("OES_texture_float_linear");
+    capabilities.EXT_HALF_FLOAT_TEXTURES = capabilities.WEBGL_2? true : _getExtension("OES_texture_half_float");
+    capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR = _getExtension("OES_texture_half_float_linear");
 
     // try webgl 2 extension first (will return null if no webgl 2 context is present anyway)
-    capabilities.EXT_COLOR_BUFFER_FLOAT = _getExtension("EXT_color_buffer_float") || _getExtension('WEBGL_color_buffer_float');
-    capabilities.EXT_COLOR_BUFFER_HALF_FLOAT = _getExtension('EXT_color_buffer_half_float') || capabilities.EXT_COLOR_BUFFER_FLOAT;
-    capabilities.EXT_DEPTH_TEXTURE = _getExtension('WEBGL_depth_texture');
-    capabilities.EXT_STANDARD_DERIVATIVES = _getExtension('OES_standard_derivatives');
-    capabilities.EXT_SHADER_TEXTURE_LOD = _getExtension('EXT_shader_texture_lod');
-    capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC = _getExtension('EXT_texture_filter_anisotropic');
-    capabilities.EXT_ELEMENT_INDEX_UINT = _getExtension('OES_element_index_uint');
+    capabilities.EXT_COLOR_BUFFER_FLOAT = _getExtension("EXT_color_buffer_float") || _getExtension("WEBGL_color_buffer_float");
+    capabilities.EXT_COLOR_BUFFER_HALF_FLOAT = _getExtension("EXT_color_buffer_half_float") || capabilities.EXT_COLOR_BUFFER_FLOAT;
+    capabilities.EXT_DEPTH_TEXTURE = _getExtension("WEBGL_depth_texture");
+    capabilities.EXT_STANDARD_DERIVATIVES = _getExtension("OES_standard_derivatives");
+    capabilities.EXT_SHADER_TEXTURE_LOD = _getExtension("EXT_shader_texture_lod");
+    capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC = _getExtension("EXT_texture_filter_anisotropic");
+    capabilities.EXT_ELEMENT_INDEX_UINT = _getExtension("OES_element_index_uint");
+    capabilities.EXT_COMPRESSED_TEXTURE_S3TC = _getExtension("WEBKIT_WEBGL_compressed_texture_s3tc") || _getExtension("WEBGL_compressed_texture_s3tc");
     capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY = capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC ? gl.getParameter(capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 0;
 
     if (capabilities.EXT_FLOAT_TEXTURES)
@@ -673,8 +675,8 @@ export function init(canvas, options)
     if (capabilities.EXT_SHADER_TEXTURE_LOD)
         defines += "#define HX_TEXTURE_LOD\n";
 
-    //EXT_SRGB = _getExtension('EXT_sRGB');
-    //if (!EXT_SRGB) console.warn('EXT_sRGB extension not supported!');
+    //EXT_SRGB = _getExtension("EXT_sRGB");
+    //if (!EXT_SRGB) console.warn("EXT_sRGB extension not supported!");
 
     capabilities.HDR_FORMAT = options.hdr ? DataType.HALF_FLOAT : gl.UNSIGNED_BYTE;
 

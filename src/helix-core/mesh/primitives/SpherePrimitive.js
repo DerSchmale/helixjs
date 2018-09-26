@@ -70,7 +70,7 @@ SpherePrimitive.prototype._generate = function(target, definition)
                 normals.push(normalX * flipSign, normalZ * flipSign, normalY * flipSign);
 
             if (uvs)
-                uvs.push(ratioU, ratioV);
+                uvs.push(ratioU, 1.0 - ratioV);
         }
     }
 

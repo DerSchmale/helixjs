@@ -89,7 +89,7 @@ PlanePrimitive.prototype._generate = function(target, definition)
                 normals.push(normalX, normalY, normalZ);
 
             if (uvs)
-                uvs.push(uvU, uvV);
+                uvs.push(uvU, 1.0 - uvV);
 
             // add vertex with same position, but with inverted normal & tangent
             if (doubleSided) {
@@ -99,7 +99,7 @@ PlanePrimitive.prototype._generate = function(target, definition)
                     normals.push(-normalX, -normalY, -normalZ);
 
                 if (uvs)
-                    uvs.push(1.0 - uvU, uvV);
+                    uvs.push(1.0 - uvU, 1.0 - uvV);
             }
 
             if (xi !== numSegmentsW && yi !== numSegmentsH) {

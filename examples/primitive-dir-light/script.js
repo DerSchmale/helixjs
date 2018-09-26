@@ -11,7 +11,8 @@ window.onload = function ()
 
 project.queueAssets = function(assetLibrary)
 {
-    assetLibrary.queueAsset("albedo", "textures/marble_tiles/marbletiles_diffuse_white.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("albedo", "textures/brick_wall/diffuse.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("normals", "textures/brick_wall/normals.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
 };
 
 project.onInit = function()
@@ -42,6 +43,7 @@ function initScene(scene, assetLibrary)
 
     var material = new HX.BasicMaterial();
     material.colorMap = assetLibrary.get("albedo");
+    material.normalMap = assetLibrary.get("normals");
     material.lightingModel = HX.LightingModel.GGX;
 
     var primitive = new HX.SpherePrimitive(

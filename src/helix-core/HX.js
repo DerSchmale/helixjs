@@ -141,6 +141,7 @@ export {Importer} from "./loaders/Importer";
 export {JPG_EQUIRECTANGULAR, PNG_EQUIRECTANGULAR} from "./loaders/JPG_EQUIRECTANGULAR";
 export {JPG_HEIGHTMAP, PNG_HEIGHTMAP} from "./loaders/JPG_HEIGHTMAP";
 export {JPG, PNG} from "./loaders/JPG_PNG";
+export {DDS} from "./loaders/DDS";
 
 export {AmbientLight} from "./light/AmbientLight";
 export {DirectionalLight} from "./light/DirectionalLight";

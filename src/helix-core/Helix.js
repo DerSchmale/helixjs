@@ -355,6 +355,8 @@ export var TextureFormat = {
                 return GL.gl.RGB32F;
             if (format === TextureFormat.RG)
                 return GL.gl.RG32F;
+			if (format === TextureFormat.RED)
+				return GL.gl.R32F;
         }
 
         if (dataType === DataType.HALF_FLOAT) {
@@ -364,6 +366,8 @@ export var TextureFormat = {
                 return GL.gl.RGB16F;
 			if (format === TextureFormat.RG)
 				return GL.gl.RG16F;
+			if (format === TextureFormat.RED)
+				return GL.gl.R16F;
         }
 
         return format;
@@ -872,7 +876,8 @@ function _initGLProperties()
 
     TextureFormat.RGBA = gl.RGBA;
     TextureFormat.RGB = gl.RGB;
-    TextureFormat.RG = gl.RG;   // only assigned if available (WebGL 2)
+    TextureFormat.RG = gl.RG;   	// only assigned if available (WebGL 2)
+    TextureFormat.RED = gl.RED;   	// only assigned if available (WebGL 2)
 }
 
 function _tryFBO(dataType)

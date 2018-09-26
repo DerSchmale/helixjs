@@ -73,13 +73,13 @@ vec3 getSnowNormal()
 // but it'd be pretty heavy
 HX_GeometryData hx_geometry()
 {
-    float height = hx_RGBA8ToFloat(texture2D(heightMap, uv));
+    float height = texture2D(heightMap, uv).x;
     float stepSize = max(max(fwidth(uv.x), fwidth(uv.y)), 1.0 / heightMapSize);
     vec3 tangentX = vec3(stepSize * worldSize, 0.0, 0.0);
     vec3 tangentY = vec3(0.0, stepSize * worldSize, 0.0);
 
-    tangentX.z = (hx_RGBA8ToFloat(texture2D(heightMap, uv + vec2(stepSize, 0.0))) - height) * hx_elevationScale;
-    tangentY.z = (hx_RGBA8ToFloat(texture2D(heightMap, uv + vec2(0.0, stepSize))) - height) * hx_elevationScale;
+    tangentX.z = (texture2D(heightMap, uv + vec2(stepSize, 0.0)).x - height) * hx_elevationScale;
+    tangentY.z = (texture2D(heightMap, uv + vec2(0.0, stepSize)).x - height) * hx_elevationScale;
 
     tangentX = normalize(tangentX);
     tangentY = normalize(tangentY);

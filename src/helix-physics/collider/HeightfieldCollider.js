@@ -60,7 +60,10 @@ HeightfieldCollider.prototype._convertHeightMap = function (map, scale, rgbaEnc)
 	var w = map.width;
 	var h = map.height;
 	var tex = new HX.Texture2D();
-	tex.initEmpty(w, h, HX.TextureFormat.RGBA, map.dataType);
+	var dataType = map.dataType;
+	if (dataType === HX.DataType.HALF_FLOAT)
+		dataType = HX.DataType.FLOAT;
+	tex.initEmpty(w, h, HX.TextureFormat.RGBA, dataType);
 	var fbo = new HX.FrameBuffer(tex);
 	fbo.init();
 	HX.GL.setRenderTarget(fbo);
@@ -70,14 +73,14 @@ HeightfieldCollider.prototype._convertHeightMap = function (map, scale, rgbaEnc)
 	var len = w * h * 4;
 
 	var data;
-	if (map.dataType === HX.DataType.FLOAT)
+	if (dataType === HX.DataType.FLOAT)
 		data = new Float32Array(len);
-	else if (map.dataType === HX.DataType.UNSIGNED_BYTE)
+	else if (dataType === HX.DataType.UNSIGNED_BYTE)
 		data = new Uint8Array(len);
 	else
 		throw new Error("Invalid dataType!");
 
-	HX.GL.gl.readPixels(0, 0, w, h, HX.TextureFormat.RGBA, map.dataType, data);
+	HX.GL.gl.readPixels(0, 0, w, h, HX.TextureFormat.RGBA, dataType, data);
 
 	var arr = [];
 

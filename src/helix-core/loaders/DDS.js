@@ -57,9 +57,6 @@ DDS.prototype = Object.create(Importer.prototype);
 
 DDS.prototype.parse = function(data, target)
 {
-	if (!DDS.isSupported)
-		throw new Error("DDS is not supported");
-
 	this._stream = new DataStream(data);
 	this._target = target;
 	this._parseHeader();
@@ -71,7 +68,7 @@ DDS.prototype._parseHeader = function()
 {
 	var data = this._stream.getUint32Array(30);
 
-	this._internalFormat = null;
+	this._format = null;
 	this._dataType = null;
 
 	// magic + struct of DWORDs shown here: https://docs.microsoft.com/en-gb/windows/desktop/direct3ddds/dds-header
@@ -110,27 +107,52 @@ DDS.prototype._parseInternalFormat = function(fourCC)
 	switch (str) {
 		case "DXT1":
 			this._blockSize = 8;
-			this._internalFormat = capabilities.EXT_COMPRESSED_TEXTURE_S3TC.COMPRESSED_RGBA_S3TC_DXT1_EXT;
+			this._format = capabilities.EXT_COMPRESSED_TEXTURE_S3TC.COMPRESSED_RGBA_S3TC_DXT1_EXT;
 			break;
 		case "DXT3":
 			this._blockSize = 16;
-			this._internalFormat = capabilities.EXT_COMPRESSED_TEXTURE_S3TC.COMPRESSED_RGBA_S3TC_DXT3_EXT;
+			this._format = capabilities.EXT_COMPRESSED_TEXTURE_S3TC.COMPRESSED_RGBA_S3TC_DXT3_EXT;
 			break;
 		case "DXT5":
 			this._blockSize = 16;
-			this._internalFormat = capabilities.EXT_COMPRESSED_TEXTURE_S3TC.COMPRESSED_RGBA_S3TC_DXT5_EXT;
+			this._format = capabilities.EXT_COMPRESSED_TEXTURE_S3TC.COMPRESSED_RGBA_S3TC_DXT5_EXT;
 			break;
 	}
 
 	switch(fourCC) {
-		case 113:
-			this._internalFormat = TextureFormat.RGBA;
+		case 111:
+			this._blockSize = 1;
+			this._format = TextureFormat.RED || TextureFormat.RGBA;
 			this._dataType = DataType.HALF_FLOAT;
 			break;
-		case 116:
-			this._internalFormat = TextureFormat.RGBA;
+		case 112:
+			this._blockSize = 2;
+			this._format = TextureFormat.RG || TextureFormat.RGBA;
+			this._dataType = DataType.HALF_FLOAT;
+			break;
+		case 113:
+			this._blockSize = 4;
+			this._format = TextureFormat.RGBA;
+			this._dataType = DataType.HALF_FLOAT;
+			break;
+		case 114:
+			this._blockSize = 1;
+			this._format = TextureFormat.RED || TextureFormat.RGBA;
 			this._dataType = DataType.FLOAT;
 			break;
+		case 112:
+			this._blockSize = 2;
+			this._format = TextureFormat.RG || TextureFormat.RGBA;
+			this._dataType = DataType.FLOAT;
+			break;
+		case 116:
+			this._blockSize = 4;
+			this._format = TextureFormat.RGBA;
+			this._dataType = DataType.FLOAT;
+			break;
+		default:
+			console.log(fourCC);
+			throw new Error("Unsupported format!");
 	}
 };
 
@@ -142,30 +164,71 @@ DDS.prototype._parseData = function()
 
 
 	for (var i = 0; i < this._mipLevels; ++i) {
-		var data, dataLength;
-
-		if (this._dataType) {
-			dataLength = w * h * 4;
-			switch (this._dataType) {
-				case DataType.FLOAT:
-					data = this._stream.getFloat32Array(dataLength);
-					break;
-				case DataType.HALF_FLOAT:
-					data = this._stream.getFloat16Array(dataLength);
-					break;
-			}
-
-			this._target.uploadData(data, w, h, generateMipmaps, this._internalFormat, this._dataType, i);
-		}
+		if (this._dataType)
+			this._parseUncompressedMipData(w, h, i, generateMipmaps);
 		else {
-			dataLength = Math.max(1, ((w + 3) >> 2)) * Math.max(1, ((h + 3) >> 2)) * this._blockSize;
-			data = this._stream.getUint8Array(dataLength);
-			this._target.uploadCompressedData(data, w, h, 0, generateMipmaps, this._internalFormat, i);
+			var dataLength = Math.max(1, ((w + 3) >> 2)) * Math.max(1, ((h + 3) >> 2)) * this._blockSize;
+			var data = this._stream.getUint8Array(dataLength);
+			this._target.uploadCompressedData(data, w, h, 0, generateMipmaps, this._format, i);
 		}
 		w >>= 1;
 		h >>= 1;
 		if (w === 0) w = 1;
 		if (h === 0) h = 1;
+	}
+};
+
+DDS.prototype._parseUncompressedMipData = function(width, height, level, generateMipmaps)
+{
+	var data;
+	var dataLength = width * height * this._blockSize;
+
+	if (this._blockSize < 4 && !capabilities.WEBGL_2)
+		data = this._parseUnsupportedFormat(dataLength);
+	else
+		data = this._parseStraightDataBlock(dataLength);
+
+	// half_float is replaced by float if it's not supported
+	this._target.uploadData(data, width, height, generateMipmaps, this._format, this._dataType || TextureFormat.FLOAT, level);
+};
+
+DDS.prototype._parseUnsupportedFormat = function(dataLength)
+{
+	dataLength = dataLength / this._blockSize * 4;
+	var data = new Float32Array(dataLength);
+
+	var readFunc;
+
+	switch (this._dataType) {
+		case DataType.FLOAT:
+			readFunc = this._stream.getFloat32.bind(this._stream);
+			break;
+		case DataType.HALF_FLOAT:
+			readFunc = this._stream.getFloat16.bind(this._stream);
+			break;
+	}
+
+	var j = 0;
+	for (var i = 0; i < dataLength; ++i) {
+		var b = i % 4;
+		if (b < this._blockSize)
+			data[j++] = readFunc();
+		else if (b < 3)
+			data[j++] = 0.0;
+		else
+			data[j++] = 1.0;
+	}
+
+	return data;
+};
+
+DDS.prototype._parseStraightDataBlock = function(dataLength)
+{
+	switch (this._dataType) {
+		case DataType.FLOAT:
+			return this._stream.getFloat32Array(dataLength);
+		case DataType.HALF_FLOAT:
+			return this._stream.getFloat16Array(dataLength);
 	}
 };
 

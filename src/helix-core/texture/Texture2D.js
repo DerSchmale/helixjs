@@ -192,11 +192,12 @@ Texture2D.prototype =
         if (capabilities.EXT_HALF_FLOAT_TEXTURES && dataType === DataType.HALF_FLOAT)
             data = TextureUtils.encodeToFloat16Array(data);
 
-        this._width = width;
-        this._height = height;
-
-        this._format = format = format || TextureFormat.RGBA;
-        this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
+        if (!mipLevel) {
+			this._width = width;
+			this._height = height;
+			this._format = format = format || TextureFormat.RGBA;
+			this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
+		}
         generateMips = generateMips === undefined? false: generateMips;
 
         this.bind();
@@ -226,11 +227,13 @@ Texture2D.prototype =
     {
         var gl = GL.gl;
 
-        this._width = width;
-        this._height = height;
+		if (!mipLevel) {
+			this._width = width;
+			this._height = height;
+			this._format = format = format || TextureFormat.RGBA;
+			this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
+		}
 
-        this._format = format = format || TextureFormat.RGBA;
-        this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
         generateMips = generateMips === undefined? true: generateMips;
 
         if (!(MathX.isPowerOfTwo(width) && MathX.isPowerOfTwo(height))) {
@@ -272,6 +275,13 @@ Texture2D.prototype =
 	uploadCompressedData: function(data, width, height, border, generateMips, internalFormat, mipLevel)
     {
 		var gl = GL.gl;
+
+		if (!mipLevel) {
+			this._width = width;
+			this._height = height;
+			this._format = format || TextureFormat.RGBA;
+			this._dataType = DataType.UNSIGNED_BYTE;
+		}
 
 		this.bind();
 

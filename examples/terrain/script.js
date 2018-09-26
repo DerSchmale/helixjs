@@ -10,9 +10,9 @@ var time = 0;
 
 // 1 = 10m
 var worldSize = 20000;
-var waterLevel = 200;
-var minHeight = -100;
-var maxHeight = 1000;
+var waterLevel = 367;
+var minHeight = 0;
+var maxHeight = 3000;
 var fog;
 
 function CenterAtComponent(camera)
@@ -37,7 +37,7 @@ project.queueAssets = function(assetLibrary)
 {
     assetLibrary.queueAsset("skybox-specular", "skyboxes/daylight-mips/skybox_specular.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
     assetLibrary.queueAsset("skybox-irradiance", "skyboxes/daylight-mips/skybox_irradiance.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
-    assetLibrary.queueAsset("heightMap", "terrain/textures/heightMap.png", HX.AssetLibrary.Type.ASSET, HX.JPG_HEIGHTMAP);
+    assetLibrary.queueAsset("heightMap", "terrain/textures/heightmap.dds", HX.AssetLibrary.Type.ASSET, HX.DDS);
     assetLibrary.queueAsset("terrainMap", "terrain/textures/terrainMap.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
     assetLibrary.queueAsset("terrain-material", "terrain/material/terrainMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
     assetLibrary.queueAsset("water-material", "terrain/material/waterMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
@@ -68,7 +68,7 @@ project.onUpdate = function(dt)
 window.onload = function ()
 {
     var options = new HX.InitOptions();
-    options.webgl2 = true;
+    // options.webgl2 = true;
     options.maxDirLights = 1;
     options.maxPointSpotLights = 1;
     options.numShadowCascades = 3;
@@ -81,9 +81,9 @@ window.onload = function ()
 
 function initCamera(camera)
 {
-    camera.position.x = 1397 * 4;
-    camera.position.y = 1676 * 4;
-    camera.position.z = 225;
+    camera.position.x = 4187;
+    camera.position.y = 2000;
+    camera.position.z = 410;
 
     camera.nearDistance = 0.05;
     camera.farDistance = 8000.0;
@@ -149,21 +149,21 @@ function initScene(scene, camera, assetLibrary)
     waterMaterial = assetLibrary.get("water-material");
 
     var terrain = new HX.Entity();
-	terrain.addComponent(new HX.Terrain(16000, minHeight, maxHeight, 4, terrainMaterial, 64));
+	terrain.addComponent(new HX.Terrain(16000, minHeight, maxHeight, 4, terrainMaterial, 32));
 
     var rigidBody = new HX_PHYS.RigidBody(
-		new HX_PHYS.HeightfieldCollider(heightMap, worldSize, minHeight, maxHeight, true),
+		new HX_PHYS.HeightfieldCollider(heightMap, worldSize, minHeight, maxHeight),
         0,
         new HX_PHYS.PhysicsMaterial(0.12, 0.0)
     );
 	terrain.addComponent(rigidBody);
 
 	// this is definitely overkill:
-	var plane = new HX.PlanePrimitive({width: 4000, height: 4000, numSegmentsW: 20, numSegmentsH: 20});
+	var plane = new HX.PlanePrimitive({width: 8000, height: 8000, numSegmentsW: 40, numSegmentsH: 40});
 	var water = new HX.Entity();
     water.position.z = waterLevel;
     waterMaterial.renderOrder = 50; // make sure water renders last, since most of it will be under the terrain
-	water.addComponent(new HX.MeshInstance(plane, waterMaterial, 16));
+	water.addComponent(new HX.MeshInstance(plane, waterMaterial));
 	water.addComponent(new CenterAtComponent(camera));
 
     scene.attach(terrain);

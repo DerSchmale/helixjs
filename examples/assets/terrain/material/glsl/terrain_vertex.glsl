@@ -23,7 +23,7 @@ void hx_geometry()
     worldPos.xy = floor(worldPos.xy / hx_cellSize) * hx_cellSize;
     uv = worldPos.xy / worldSize + .5;
 
-    float offsetZ = hx_RGBA8ToFloat(texture2D(heightMap, uv));
+    float offsetZ = texture2D(heightMap, uv).x;
     worldPos.z += offsetZ * hx_elevationScale + hx_elevationOffset;
 // TODO: We could figure out clip map level based on hx_cellSize and texture size as an improvement if LOD is supported!
 

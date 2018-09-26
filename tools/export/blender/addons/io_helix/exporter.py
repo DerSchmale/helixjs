@@ -39,7 +39,8 @@ def write_scene(scene):
         if obj.parent is None:
             child_index = object_exporter.write(obj, scene)
             if child_index is not None:
-                object_map.link(scene_index, child_index)
+                link_meta = int(obj == scene.camera)
+                object_map.link(scene_index, child_index, link_meta)
 
 
 def write_scene_graphs():

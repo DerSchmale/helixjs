@@ -28,7 +28,7 @@ def write(material):
     roughness = math.pow(2.0 / (material.specular_hardness + 2.0), .25)
     data.write_float32_prop(PropertyType.ROUGHNESS, roughness)
 
-    if material.use_transparency:
+    if material.use_transparency and material.game_settings.alpha_blend != "OPAQUE":
         if material.game_settings.alpha_blend == "ADD":
             data.write_uint8_prop(PropertyType.BLEND_STATE, 1)
         elif material.game_settings.alpha_blend == "CLIP":

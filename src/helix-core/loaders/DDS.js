@@ -169,15 +169,4 @@ DDS.prototype._parseData = function()
 	}
 };
 
-function swapABGR(data)
-{
-	for (var i = 0, len = data.length; i < len; i += 4) {
-		var tmp = data[i];
-		data[i] = data[i + 3];
-		data[i + 3] = data[i + 2];
-		data[i + 2] = data[i + 1];
-		data[i + 1] = tmp;
-	}
-}
-
 export {DDS};

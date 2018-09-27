@@ -39,8 +39,10 @@ var DDS_PIXEL_FORMAT_FLAGS = {
  * - DXT1 (only if capabilities.EXT_COMPRESSED_TEXTURE_S3TC exists)
  * - DXT3 (only if capabilities.EXT_COMPRESSED_TEXTURE_S3TC exists)
  * - DXT5 (only if capabilities.EXT_COMPRESSED_TEXTURE_S3TC exists)
- * - Float16 RGBA
- * - Float32 RGBA
+ * - Float16 RGBA, RG, RED
+ * - Float32 RGBA, RG, RED
+ *
+ * For any uncompressed "unsigned byte" type formats, you should stick to JPG/PNG.
  *
  * @constructor
  *

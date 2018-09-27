@@ -73,6 +73,7 @@ window.onload = function ()
     options.maxPointSpotLights = 1;
     options.numShadowCascades = 3;
     options.hdr = true;
+    options.debug = true;
     options.defaultLightingModel = HX.LightingModel.GGX_FULL;
     options.shadowFilter = new HX.VarianceShadowFilter();
     options.shadowFilter.softness = .002;
@@ -114,7 +115,8 @@ function initScene(scene, camera, assetLibrary)
 {
     var dirLight = new HX.DirectionalLight();
     dirLight.intensity = 3;
-    dirLight.castShadows = true;
+    if (!HX.Platform.isMobile)
+        dirLight.castShadows = true;
     dirLight.depthBias = .01;
 
     var sun = new HX.Entity(dirLight);
@@ -132,6 +134,7 @@ function initScene(scene, camera, assetLibrary)
     var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, skyboxSpecularTexture);
     scene.attach(new HX.Entity(lightProbe));
 
+    var lights = [ lightProbe, dirLight ];
     var heightMap = assetLibrary.get("heightMap");
     var terrainMap = assetLibrary.get("terrainMap");
 
@@ -145,8 +148,10 @@ function initScene(scene, camera, assetLibrary)
     terrainMaterial.setTexture("terrainMap", terrainMap);
     terrainMaterial.setUniform("heightMapSize", heightMap.width);
     terrainMaterial.setUniform("worldSize", worldSize);
+	terrainMaterial.fixedLights = lights;
 
     waterMaterial = assetLibrary.get("water-material");
+	waterMaterial.fixedLights = lights;
 
     var terrain = new HX.Entity();
 	terrain.addComponent(new HX.Terrain(camera.farDistance * 2.5, minHeight, maxHeight, 3, terrainMaterial, 16));
@@ -166,6 +171,6 @@ function initScene(scene, camera, assetLibrary)
 	water.addComponent(new HX.MeshInstance(plane, waterMaterial));
 	water.addComponent(new CenterAtComponent(camera));
 
-    scene.attach(terrain);
+	scene.attach(terrain);
     scene.attach(water);
 }

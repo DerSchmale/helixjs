@@ -23,22 +23,16 @@ void hx_geometry()
     worldPos.xy = floor(worldPos.xy / hx_cellSize) * hx_cellSize;
     uv = worldPos.xy / worldSize + .5;
 
-#ifdef HX_TEXTURE_LOD
+#ifdef HX_GLSL_300_ES
     float uvSegmentSize = hx_cellSize / worldSize * heightMapSize;
     float mipLevel = log2(uvSegmentSize);
-
-    #ifdef HX_GLSL_300_ES
-        float offsetZ = textureLod(heightMap, uv, mipLevel).x;
-    #else
-        float offsetZ = texture2DLodEXT(heightMap, uv, mipLevel).x;
-    #endif
+    float offsetZ = textureLod(heightMap, uv, mipLevel).x;
+    // the shader LOD extension doesn't work in the vertex shader, so only WebGL 2 can support this
 #else
     float offsetZ = texture2D(heightMap, uv).x;
 #endif
 
-
     worldPos.z += offsetZ * hx_elevationScale + hx_elevationOffset;
-    // TODO: We could figure out clip map level based on hx_cellSize and texture size as an improvement if LOD is supported!
 
     viewPosition = (hx_viewMatrix * worldPos).xyz;
     gl_Position = hx_viewProjectionMatrix * worldPos;

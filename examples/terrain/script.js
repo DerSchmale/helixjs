@@ -68,7 +68,7 @@ project.onUpdate = function(dt)
 window.onload = function ()
 {
     var options = new HX.InitOptions();
-    // options.webgl2 = true;
+    options.webgl2 = true;
     options.maxDirLights = 1;
     options.maxPointSpotLights = 1;
     options.numShadowCascades = 3;
@@ -85,7 +85,7 @@ function initCamera(camera)
     camera.position.y = 2000;
     camera.position.z = 410;
 
-    camera.nearDistance = 0.05;
+    camera.nearDistance = 0.1;
     camera.farDistance = 8000.0;
 
     var controller = new FPSController();
@@ -143,13 +143,13 @@ function initScene(scene, camera, assetLibrary)
     terrainMaterial = assetLibrary.get("terrain-material");
     terrainMaterial.setTexture("heightMap", heightMap);
     terrainMaterial.setTexture("terrainMap", terrainMap);
-    terrainMaterial.setUniform("heightMapSize", 2048);
+    terrainMaterial.setUniform("heightMapSize", heightMap.width);
     terrainMaterial.setUniform("worldSize", worldSize);
 
     waterMaterial = assetLibrary.get("water-material");
 
     var terrain = new HX.Entity();
-	terrain.addComponent(new HX.Terrain(16000, minHeight, maxHeight, 4, terrainMaterial, 32));
+	terrain.addComponent(new HX.Terrain(camera.farDistance * 2.5, minHeight, maxHeight, 3, terrainMaterial, 16));
 
     var rigidBody = new HX_PHYS.RigidBody(
 		new HX_PHYS.HeightfieldCollider(heightMap, worldSize, minHeight, maxHeight),

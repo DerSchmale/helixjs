@@ -676,7 +676,7 @@ export function init(canvas, options)
     if (!capabilities.EXT_DEPTH_TEXTURE)
         defines += "#define HX_NO_DEPTH_TEXTURES\n";
 
-    if (capabilities.EXT_SHADER_TEXTURE_LOD)
+    if (capabilities.EXT_SHADER_TEXTURE_LOD || capabilities.WEBGL_2)
         defines += "#define HX_TEXTURE_LOD\n";
 
     //EXT_SRGB = _getExtension("EXT_sRGB");

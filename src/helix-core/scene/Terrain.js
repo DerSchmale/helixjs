@@ -1,6 +1,5 @@
 import {BoundingVolume} from "../scene/BoundingVolume";
 import {Float4} from "../math/Float4";
-import {RenderCollector} from "../render/RenderCollector";
 import {Mesh} from "../mesh/Mesh";
 import {Entity} from "../entity/Entity";
 import {SceneNode} from "./SceneNode";
@@ -313,25 +312,17 @@ Terrain.prototype._subDivide = function(x, y, subX, subY, level, size)
         this._subDivide(x + size * subX, y + size * subY, subX, subY, level + 1, size);
 };
 
-Terrain.prototype.onUpdate = function()
-{
-    if (this._camera) {
-        var cameraPos = this._camera.position;
-        var containerPos = this._container.position;
-        var entityPosition = this.entity.position;
-        containerPos.x = Math.round(cameraPos.x / this._snapSize) * this._snapSize - entityPosition.x;
-        containerPos.y = Math.round(cameraPos.y / this._snapSize) * this._snapSize - entityPosition.y;
-	}
-}
-
 /**
  * @ignore
  */
-Terrain.prototype.acceptVisitor = function(visitor)
+Terrain.prototype.acceptVisitor = function(visitor, isMainCollector)
 {
-    // typechecking isn't nice, but it does what we want
-    if (visitor instanceof RenderCollector) {
-		this._camera = visitor._camera;
+    if (isMainCollector) {
+		var cameraPos = visitor._camera.position;
+		var containerPos = this._container.position;
+		var entityPosition = this.entity.position;
+		containerPos.x = Math.round(cameraPos.x / this._snapSize) * this._snapSize - entityPosition.x;
+		containerPos.y = Math.round(cameraPos.y / this._snapSize) * this._snapSize - entityPosition.y;
     }
 };
 

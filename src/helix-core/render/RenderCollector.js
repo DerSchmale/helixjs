@@ -52,7 +52,7 @@ RenderCollector.prototype.collect = function(camera, scene)
     this._frustumPlanes = camera.frustum.planes;
     this._reset();
 
-    scene.acceptVisitor(this);
+    scene.acceptVisitor(this, true);
 
     for (var i = 0; i < RenderPath.NUM_PATHS; ++i)
         this._opaques[i].sort(RenderSortFunctions.sortOpaques);
@@ -84,7 +84,7 @@ RenderCollector.prototype.visitEffect = function(effect)
     this.effects.push(effect);
 };
 
-RenderCollector.prototype.visitMeshInstance = function (meshInstance)
+RenderCollector.prototype.visitMeshInstance = function (meshInstance, entity)
 {
 	if (!meshInstance.enabled) return;
 
@@ -95,7 +95,8 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance)
 	var center = worldBounds._center;
 	var dist = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
 
-	if (dist < meshInstance.lodRangeStart || dist >= meshInstance.lodRangeEnd)
+	meshInstance._lodVisible = dist >= meshInstance.lodRangeStart && dist < meshInstance.lodRangeEnd;
+	if (!meshInstance._lodVisible)
 	    return;
 
     var skeleton = meshInstance.skeleton;

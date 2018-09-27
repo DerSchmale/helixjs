@@ -21,6 +21,11 @@
         "color": [ 0.01, 0.07, 0.16 ]
     },
 
+    "blend": {
+        "source": "sourceAlpha",
+        "destination": "oneMinusSourceAlpha"
+    },
+
     "textures": {
         "waveMap": "../textures/wavemap.png"
     }

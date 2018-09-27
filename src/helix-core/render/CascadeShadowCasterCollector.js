@@ -66,7 +66,7 @@ CascadeShadowCasterCollector.prototype.setCullPlanes = function(cullPlanes, numP
 
 CascadeShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
 {
-    if (!meshInstance.castShadows || !meshInstance.enabled) return;
+    if (!meshInstance.castShadows || !meshInstance.enabled || !meshInstance._lodVisible) return;
 
     var skeleton = meshInstance.skeleton;
 	var skeletonMatrices = meshInstance.skeletonMatrices;

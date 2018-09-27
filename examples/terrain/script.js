@@ -12,7 +12,6 @@ var worldSize = 20000;
 var waterLevel = 367;
 var minHeight = 0;
 var maxHeight = 3000;
-var fog;
 
 function CenterAtComponent(camera)
 {
@@ -69,9 +68,6 @@ window.onload = function ()
     var options = new HX.InitOptions();
     if (!HX.Platform.isMobile)
         options.webgl2 = true;
-    options.maxDirLights = 1;
-    options.maxPointSpotLights = 1;
-    options.numShadowCascades = 3;
     options.hdr = true;
     options.debug = true;
     options.defaultLightingModel = HX.LightingModel.GGX_FULL;
@@ -85,7 +81,6 @@ function initCamera(camera)
     camera.position.x = 4187;
     camera.position.y = 2000;
     camera.position.z = 410;
-
     camera.nearDistance = 0.1;
     camera.farDistance = 8000.0;
 
@@ -93,7 +88,6 @@ function initCamera(camera)
     controller.walkAcceleration = 2000.0;
     controller.runAcceleration = 20000.0;
     controller.jumpForce = 5.0;
-    camera.addComponent(controller);
 
 	var rigidBody = new HX_PHYS.RigidBody(
 	    new HX_PHYS.CapsuleCollider(1.0, 2, new HX.Float4(0, 0, -.9)),
@@ -105,22 +99,24 @@ function initCamera(camera)
 	rigidBody.mass = 70;
 	// important so the player capsule does not rotate along with the "head"
 	rigidBody.ignoreRotation = true;
-	camera.addComponent(rigidBody);
 
-    fog = new HX.Fog(0.0004, new HX.Color(0x1155ff), 0.0005, 100);
-    camera.addComponent(fog);
+	var fog = new HX.Fog(0.001, new HX.Color(0x1155ff), 0.005, 0);
+
+	var toneMap = new HX.FilmicToneMapping();
+	// toneMap.exposure = .5;
+	camera.addComponents([controller, rigidBody, fog, toneMap]);
 }
 
 function initScene(scene, camera, assetLibrary)
 {
     var dirLight = new HX.DirectionalLight();
-    dirLight.intensity = 3;
+    dirLight.intensity = 15;
+    dirLight.color = 0xfff5e8;
     if (!HX.Platform.isMobile)
         dirLight.castShadows = true;
-    dirLight.depthBias = .01;
 
     var sun = new HX.Entity(dirLight);
-	sun.lookAt(new HX.Float4(-0.3, -1.0, -.3, 0.0));
+	sun.lookAt(new HX.Float4(-0.3, -1.0, -0.3, 0.0));
     scene.attach(sun);
 
     // TODO: Add procedural skybox
@@ -157,7 +153,7 @@ function initScene(scene, camera, assetLibrary)
 	waterMaterial.fixedLights = lights;
 
     var terrain = new HX.Entity();
-	terrain.addComponent(new HX.Terrain(camera.farDistance * 2.5, minHeight, maxHeight, 3, terrainMaterial, 16));
+	terrain.addComponent(new HX.Terrain(camera.farDistance * 2.5, minHeight, maxHeight, 4, terrainMaterial, 64));
 
     var rigidBody = new HX_PHYS.RigidBody(
 		new HX_PHYS.HeightfieldCollider(heightMap, worldSize, minHeight, maxHeight),

@@ -6,7 +6,6 @@ uniform sampler2D terrainMap;
 uniform sampler2D sandTexture;
 uniform sampler2D grassTexture;
 uniform sampler2D rockTexture;
-uniform sampler2D detailTexture;
 uniform sampler2D rockNormals;
 uniform sampler2D grassDetailNormals;
 uniform sampler2D terrainNormals;
@@ -17,12 +16,11 @@ uniform mat4 hx_viewMatrix;
 varying_in vec3 viewPosition;
 varying_in vec2 uv;
 
-uniform float terrainNormalsDistance;
-uniform float terrainNormalsFade;
-
 uniform float terrainNormalsScale;
-uniform float detailScale;
+uniform float detailFadeNear;
+uniform float detailFadeFar;
 uniform float grassScale;
+uniform float grassScaleClose;
 uniform float sandScale;
 uniform float rockScale;
 uniform float heightMapSize;
@@ -38,19 +36,21 @@ vec3 getSandNormal()
     return texture2D(sandNormals, uv * sandScale).xyz;
 }
 
-vec3 getGrassColor(vec4 detail)
+vec3 getGrassColor(float detail)
 {
-    return texture2D(grassTexture, uv * grassScale).xyz * detail.x;
+    vec3 colorClose = texture2D(grassTexture, uv * grassScaleClose).xyz;
+    vec3 colorFar = texture2D(grassTexture, uv * grassScale).xyz;
+    return mix(colorClose, colorFar, detail);
 }
 
 vec3 getGrassNormal()
 {
-    return texture2D(grassDetailNormals, uv * detailScale).xyz;
+    return texture2D(grassDetailNormals, uv * grassScaleClose).xyz;
 }
 
-vec3 getRockColor(vec4 detail)
+vec3 getRockColor(float detail)
 {
-    return texture2D(rockTexture, uv * rockScale).xyz * detail.y;
+    return texture2D(rockTexture, uv * rockScale).xyz;
 }
 
 vec3 getRockNormal()
@@ -58,7 +58,7 @@ vec3 getRockNormal()
     return texture2D(rockNormals, uv * rockScale).xyz;
 }
 
-vec3 getSnowColor(vec4 detail)
+vec3 getSnowColor(float detail)
 {
     return vec3(1.0, 1.0, 1.0);
 }
@@ -73,6 +73,7 @@ vec3 getSnowNormal()
 // but it'd be pretty heavy
 HX_GeometryData hx_geometry()
 {
+    float detailFactor = smoothstep(detailFadeNear, detailFadeFar, viewPosition.y);
     float height = texture2D(heightMap, uv).x;
     float stepSize = max(max(fwidth(uv.x), fwidth(uv.y)), 1.0 / heightMapSize);
     vec3 tangentX = vec3(stepSize * worldSize, 0.0, 0.0);
@@ -84,9 +85,9 @@ HX_GeometryData hx_geometry()
     tangentX = normalize(tangentX);
     tangentY = normalize(tangentY);
 
-    float grassRoughness = .85;
+    float grassRoughness = .8;
     float rockRoughness = .7;
-    float snowRoughness = .2;
+    float snowRoughness = .5;
 
     vec3 normal = cross(tangentX, tangentY);
     mat3 TBN = mat3(tangentX, tangentY, normal);
@@ -94,14 +95,14 @@ HX_GeometryData hx_geometry()
     HX_GeometryData data;
     vec4 terrain = texture2D(terrainMap, uv);
     vec3 terrainNormal = texture2D(terrainNormals, uv * terrainNormalsScale).xyz;
-    vec4 detail = texture2D(detailTexture, uv * detailScale);
+    terrainNormal.z *= 2.0;
     vec3 sand = getSandColor();
     vec3 sandNormal = getSandNormal();
-    vec3 grass = getGrassColor(detail);
+    vec3 grass = getGrassColor(detailFactor);
     vec3 grassNormal = getGrassNormal();
-    vec3 rock = getRockColor(detail);
+    vec3 rock = getRockColor(detailFactor);
     vec3 rockNormal = getRockNormal();
-    vec3 snow = getSnowColor(detail);
+    vec3 snow = getSnowColor(detailFactor);
     vec3 snowNormal = getSnowNormal();
     vec3 color = mix(grass, snow, terrain.z);
     float rockAlpha = clamp((terrain.y - rock.x) / .5, 0.0, 1.0);
@@ -115,12 +116,9 @@ HX_GeometryData hx_geometry()
     vec3 localNorm = mix(grassNormal, snowNormal, terrain.z);
     localNorm = mix(localNorm, rockNormal, terrain.y);
     localNorm = mix(localNorm, sandNormal, terrain.x);
+    normal = mix(localNorm, terrainNormal, detailFactor);
+    normal = mat3(hx_viewMatrix) * TBN * normalize(normal * 2.0 - 1.0);
 
-    float fadeFactor = 1.0 - clamp((-viewPosition.z - terrainNormalsDistance) / terrainNormalsFade, 0.0, 1.0);
-    localNorm = localNorm  - .5;
-    localNorm.xy = localNorm.xy * fadeFactor + terrainNormal.xy - .5;
-
-    normal = mat3(hx_viewMatrix) * TBN * normalize(localNorm);
     data.color = vec4(color, 1.0);
 //    data.color = vec4(normal * .5 + .5, 1.0);
     data.normal = normal;

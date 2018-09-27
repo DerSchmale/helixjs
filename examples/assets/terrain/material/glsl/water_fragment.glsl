@@ -36,11 +36,11 @@ HX_GeometryData hx_geometry()
 
     vec3 refractDir = refract(viewDir, normal, 1.0 / indexOfRefraction);
 // cannot clamp, as this would make any deep region have the same offset, which looks weird
-    vec2 offset = refractDir.xz / max(proj.w, 1.0) * min(dist, 3.0);
+    vec2 offset = refractDir.xz / max(proj.w, 1.0) * min(dist, 1.0);
 
     screenCoord += offset;
 
-    float alpha = hx_linearStep(0.0, 1.0, dist);
+    float alpha = hx_linearStep(0.0, 3.0, dist);
 
     // mirror wrapping looks best
     if (screenCoord.x > 1.0) screenCoord.x -= (screenCoord.x - 1.0) * 2.0;

@@ -325,13 +325,13 @@ Entity.prototype._createBoundingVolume = function()
 /**
  * @ignore
  */
-Entity.prototype.acceptVisitor = function(visitor)
+Entity.prototype.acceptVisitor = function(visitor, isMainCollector)
 {
 	var components = this._components;
 	for (var i = 0, len = components.length; i < len; ++i) {
 		var component = components[i];
 		if (component.acceptVisitor && component.enabled) {
-			component.acceptVisitor(visitor);
+			component.acceptVisitor(visitor, isMainCollector);
 		}
 	}
 };

@@ -64,7 +64,7 @@ OmniShadowCasterCollector.prototype.collect = function(cameras, scene)
 
 OmniShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
 {
-	if (!meshInstance.castShadows || !meshInstance.enabled) return;
+	if (!meshInstance.castShadows || !meshInstance.enabled || meshInstance._lodVisible) return;
 
 	var entity = meshInstance.entity;
 	var worldBounds = this.getProxiedBounds(entity);

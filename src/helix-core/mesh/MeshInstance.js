@@ -40,6 +40,7 @@ function MeshInstance(mesh, material)
 	this.castShadows = true;
 	this.lodRangeStart = Number.NEGATIVE_INFINITY;
 	this.lodRangeEnd = Number.POSITIVE_INFINITY;
+	this._lodVisible = true;
 	this.skeletonPose = null;
 	this.bindShapeMatrix = null;
 	this.bindShapeMatrixInverse = null;

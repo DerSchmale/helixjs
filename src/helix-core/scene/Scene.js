@@ -103,12 +103,12 @@ Scene.prototype = {
     /**
      * @ignore
      */
-    acceptVisitor: function(visitor)
+    acceptVisitor: function(visitor, isMainCollector)
     {
         visitor.visitScene(this);
 
         // assume root node will always qualify
-        this._partitioning.acceptVisitor(visitor);
+        this._partitioning.acceptVisitor(visitor, isMainCollector);
     },
 
 	/**

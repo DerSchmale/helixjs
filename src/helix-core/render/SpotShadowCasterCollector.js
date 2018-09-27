@@ -39,7 +39,7 @@ SpotShadowCasterCollector.prototype.collect = function(camera, scene)
 
 SpotShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
 {
-    if (!meshInstance.castShadows || !meshInstance.enabled) return;
+    if (!meshInstance.castShadows || !meshInstance.enabled || !meshInstance._lodVisible) return;
 
     var entity = meshInstance.entity;
     var worldBounds = this.getProxiedBounds(entity);

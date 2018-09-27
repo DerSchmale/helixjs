@@ -12,13 +12,13 @@ function FlatPartitioning()
 }
 
 FlatPartitioning.prototype = {
-	acceptVisitor: function(visitor)
+	acceptVisitor: function(visitor, isMainCollector)
 	{
 		var entities = this._entities;
 		for (var i = 0, len = entities.length; i < len; ++i) {
 			var entity = entities[i];
 			if (visitor.qualifies(entity))
-				entity.acceptVisitor(visitor);
+				entity.acceptVisitor(visitor, isMainCollector);
 		}
 	},
 

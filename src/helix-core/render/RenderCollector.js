@@ -92,6 +92,12 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance)
 	var worldBounds = this.getProxiedBounds(entity);
     var cameraYAxis = this._cameraYAxis;
     var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
+	var center = worldBounds._center;
+	var dist = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
+
+	if (dist < meshInstance.lodRangeStart || dist >= meshInstance.lodRangeEnd)
+	    return;
+
     var skeleton = meshInstance.skeleton;
     var skeletonMatrices = meshInstance.skeletonMatrices;
     var renderPool = this._renderItemPool;
@@ -113,8 +119,7 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance)
     renderItem.skeleton = skeleton;
     renderItem.skeletonMatrices = skeletonMatrices;
     // distance along Z axis:
-    var center = worldBounds._center;
-    renderItem.renderOrderHint = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
+    renderItem.renderOrderHint = dist;
     renderItem.worldMatrix = this.getProxiedMatrix(entity);
     renderItem.worldBounds = worldBounds;
 

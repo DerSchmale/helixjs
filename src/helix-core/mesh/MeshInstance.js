@@ -21,6 +21,10 @@ var nameCounter = 0;
  * @property {Skeleton} skeleton The {@linkcode Skeleton} that deforms the vertex positions.
  * @property {Array|Texture2D} skeletonMatrices The skeleton matrices of the current skeleton pose.
  * @property {MorphPose} morphPose The {@linkcode MorphPose} defining the weights for each morph target.
+ * @property {number} lodRangeStart The minimum distance to render this MeshInstance. Can be used with other
+ * MeshInstances to enable LOD support, or singly for pop-in or impostors.
+ * @property {number} lodRangeEnd The maximum distance to render this MeshInstance. Can be used with other
+ * MeshInstances to enable LOD support, or singly for pop-in or impostors.
  *
  * @param mesh The {@linkcode Mesh} providing the geometry for this instance.
  * @param material The {@linkcode Material} to use to render the given Mesh.
@@ -34,6 +38,8 @@ function MeshInstance(mesh, material)
 
 	this.name = "hx_meshinstance_" + (nameCounter++);
 	this.castShadows = true;
+	this.lodRangeStart = Number.NEGATIVE_INFINITY;
+	this.lodRangeEnd = Number.POSITIVE_INFINITY;
 	this.skeletonPose = null;
 	this.bindShapeMatrix = null;
 	this.bindShapeMatrixInverse = null;

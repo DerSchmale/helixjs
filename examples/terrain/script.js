@@ -73,7 +73,6 @@ window.onload = function ()
     options.maxPointSpotLights = 1;
     options.numShadowCascades = 3;
     options.hdr = true;
-    options.debug = true;
     options.defaultLightingModel = HX.LightingModel.GGX_FULL;
     options.shadowFilter = new HX.VarianceShadowFilter();
     options.shadowFilter.softness = .002;

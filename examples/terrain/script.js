@@ -138,6 +138,9 @@ function initScene(scene, camera, assetLibrary)
     var heightMap = assetLibrary.get("heightMap");
     var terrainMap = assetLibrary.get("terrainMap");
 
+	heightMap.wrapMode = HX.TextureWrapMode.CLAMP;
+	terrainMap.wrapMode = HX.TextureWrapMode.CLAMP;
+
     // in our material
     // red = beach
     // green = rock

@@ -39,15 +39,15 @@ function Terrain(terrainSize, minElevation, maxElevation, numLevels, material, d
     // we use the extra container so the Terrain.position remains constant, so we can reliably translate and use rigid body components
     this._container = new SceneNode();
     this._detail = detail || 32;
-    var gridSize = Math.ceil(this._detail * .5) * 2.0; // round off to 2
 
-    // cannot bitshift because we need floating point result
-    this._snapSize = (this._terrainSize / this._detail) / Math.pow(2, this._numLevels);
+    // will be defined when we're generating meshes
+    this._snapSize = undefined;
 
     this._material = material;
     material.setUniform("hx_elevationOffset", minElevation);
     material.setUniform("hx_elevationScale", maxElevation - minElevation);
 
+	var gridSize = Math.ceil(this._detail * .5) * 2.0; // round off to 2
     this._initMeshes(gridSize);
     this._initTree();
 }
@@ -162,6 +162,7 @@ Terrain.prototype._initMeshes = function(gridSize)
                 edge: mesh,
                 corner: mesh
             };
+            this._snapSize = meshSize / gridSize;
         }
         else {
             this._meshes[level] = {

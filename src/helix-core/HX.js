@@ -21,7 +21,7 @@ export {
     init, destroy, start, stop,
     META, capabilities,
     onPreFrame, onFrame,
-    TextureFilter, CullMode, StencilOp, Comparison, ElementType, BlendFactor, BlendOperation, ClearMask, InitOptions, TextureFormat, DataType, BufferUsage, CubeFace
+	TextureWrapMode, TextureFilter, CullMode, StencilOp, Comparison, ElementType, BlendFactor, BlendOperation, ClearMask, InitOptions, TextureFormat, DataType, BufferUsage, CubeFace
 } from "./Helix.js";
 
 export { getVRDisplays, enableVR, disableVR } from "./vr/vr.js";

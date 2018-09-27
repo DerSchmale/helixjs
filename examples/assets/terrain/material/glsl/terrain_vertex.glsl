@@ -19,8 +19,10 @@ void hx_geometry()
     // there should be an interpolation between two adjacent detail levels
 
     vec4 worldPos = hx_worldMatrix * hx_position;
-    // snap to cell size is required to not get a floating interpolated landscape
-    worldPos.xy = floor(worldPos.xy / hx_cellSize) * hx_cellSize;
+
+// snap to cell size is required to not get a floating interpolated landscape
+// but since we're snapping in the terrain already, this is not really needed
+//    worldPos.xy = floor(worldPos.xy / hx_cellSize) * hx_cellSize;
     uv = worldPos.xy / worldSize + .5;
 
 #ifdef HX_GLSL_300_ES

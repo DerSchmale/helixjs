@@ -95,7 +95,10 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance, entity)
 	var center = worldBounds._center;
 	var dist = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
 
-	meshInstance._lodVisible = dist >= meshInstance.lodRangeStart && dist < meshInstance.lodRangeEnd;
+	meshInstance._lodVisible =
+        dist >= meshInstance.lodRangeStart * meshInstance.lodRangeStart &&
+        dist < meshInstance.lodRangeEnd * meshInstance.lodRangeEnd;
+
 	if (!meshInstance._lodVisible)
 	    return;
 

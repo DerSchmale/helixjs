@@ -146,7 +146,6 @@ export {DirectionalLight} from "./light/DirectionalLight";
 export {Light} from "./light/Light";
 export {DirectLight} from "./light/DirectLight";
 export {LightProbe} from "./light/LightProbe";
-export {DynamicLightProbe} from "./light/DynamicLightProbe";
 export {PointLight} from "./light/PointLight";
 export {SpotLight} from "./light/SpotLight";
 export {FixedLightsSystem} from "./light/FixedLightsSystem";

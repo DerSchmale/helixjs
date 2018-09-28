@@ -141,7 +141,7 @@ HCM.prototype._loadMipChain = function(urls, target)
         var onLoadLast = function ()
         {
             for (var m = 0; m < numMips; ++m)
-                target.uploadImagesToMipLevel(images.slice(m * 6, m * 6 + 6), m);
+                target.uploadImages(images.slice(m * 6, m * 6 + 6), false, undefined, undefined, m);
 
             target._isReady = true;
             self._notifyComplete(target);

@@ -159,25 +159,29 @@ TextureCube.prototype =
      * @param generateMips Whether or not a mip chain should be generated.
      * @param {TextureFormat} format The texture's format.
      * @param {DataType} dataType The texture's data format.
+     * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
      */
-    uploadData: function(data, size, generateMips, format, dataType)
+    uploadData: function(data, size, generateMips, format, dataType, mipLevel)
     {
-        this._size = size;
+		if (!mipLevel) {
+			this._size = size;
+			this._format = format = format || TextureFormat.RGBA;
+			this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
+		}
 
-        this._format = format = format || TextureFormat.RGBA;
-        this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
         generateMips = generateMips === undefined? true: generateMips;
 
         this.bind();
 
         var gl = GL.gl;
+		mipLevel = mipLevel || 0;
 		var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
-        gl.texImage2D(CubeFace.POSITIVE_X, 0, internalFormat, size, size, 0, format, dataType, data[0]);
-        gl.texImage2D(CubeFace.NEGATIVE_X, 0, internalFormat, size, size, 0, format, dataType, data[1]);
-        gl.texImage2D(CubeFace.POSITIVE_Y, 0, internalFormat, size, size, 0, format, dataType, data[2]);
-        gl.texImage2D(CubeFace.NEGATIVE_Y, 0, internalFormat, size, size, 0, format, dataType, data[3]);
-        gl.texImage2D(CubeFace.POSITIVE_Z, 0, internalFormat, size, size, 0, format, dataType, data[4]);
-        gl.texImage2D(CubeFace.NEGATIVE_Z, 0, internalFormat, size, size, 0, format, dataType, data[5]);
+        gl.texImage2D(CubeFace.POSITIVE_X, 0, internalFormat, size, size, mipLevel, format, dataType, data[0]);
+        gl.texImage2D(CubeFace.NEGATIVE_X, 0, internalFormat, size, size, mipLevel, format, dataType, data[1]);
+        gl.texImage2D(CubeFace.POSITIVE_Y, 0, internalFormat, size, size, mipLevel, format, dataType, data[2]);
+        gl.texImage2D(CubeFace.NEGATIVE_Y, 0, internalFormat, size, size, mipLevel, format, dataType, data[3]);
+        gl.texImage2D(CubeFace.POSITIVE_Z, 0, internalFormat, size, size, mipLevel, format, dataType, data[4]);
+        gl.texImage2D(CubeFace.NEGATIVE_Z, 0, internalFormat, size, size, mipLevel, format, dataType, data[5]);
 
         if (generateMips)
             gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
@@ -193,55 +197,43 @@ TextureCube.prototype =
      * @param generateMips Whether or not a mip chain should be generated.
      * @param {TextureFormat} format The texture's format.
      * @param {DataType} dataType The texture's data format.
+     * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
      */
-    uploadImages: function(images, generateMips, format, dataType)
+    uploadImages: function(images, generateMips, format, dataType, mipLevel)
     {
         generateMips = generateMips === undefined? true: generateMips;
 
-        this._format = format;
-        this._dataType = dataType;
+        if (!mipLevel) {
+			this._format = format || TextureFormat.RGBA;
+			this._dataType = dataType || DataType.UNSIGNED_BYTE;
+			this._size = images[0].naturalWidth;
+		}
 
-        this.uploadImagesToMipLevel(images, 0, format, dataType);
+		format = this._format;
+		dataType = this._dataType;
 
         var gl = GL.gl;
-        if (generateMips) {
-            this.bind();
+
+		this.bind();
+
+		mipLevel = mipLevel || 0;
+
+		var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
+		gl.texImage2D(CubeFace.POSITIVE_X, mipLevel, internalFormat, format, dataType, images[0]);
+		gl.texImage2D(CubeFace.NEGATIVE_X, mipLevel, internalFormat, format, dataType, images[1]);
+		gl.texImage2D(CubeFace.POSITIVE_Y, mipLevel, internalFormat, format, dataType, images[2]);
+		gl.texImage2D(CubeFace.NEGATIVE_Y, mipLevel, internalFormat, format, dataType, images[3]);
+		gl.texImage2D(CubeFace.POSITIVE_Z, mipLevel, internalFormat, format, dataType, images[4]);
+		gl.texImage2D(CubeFace.NEGATIVE_Z, mipLevel, internalFormat, format, dataType, images[5]);
+
+        if (generateMips)
             gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
-        }
 
         this._isReady = true;
 
         gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
     },
 
-    /**
-     * Initializes a miplevel with the given Images.
-     * @param data A array of typed arrays (per {@linkcode CubeFace}) containing the initial data.
-     * @param mipLevel The mip-level to initialize.
-     * @param {TextureFormat} format The texture's format.
-     * @param {DataType} dataType The texture's data format.
-     */
-    uploadImagesToMipLevel: function(images, mipLevel, format, dataType)
-    {
-        var gl = GL.gl;
-        this._format = format = format || TextureFormat.RGBA;
-        this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
-
-        if (mipLevel === 0)
-            this._size = images[0].naturalWidth;
-
-        this.bind();
-
-		var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
-        gl.texImage2D(CubeFace.POSITIVE_X, mipLevel, internalFormat, format, dataType, images[0]);
-        gl.texImage2D(CubeFace.NEGATIVE_X, mipLevel, internalFormat, format, dataType, images[1]);
-        gl.texImage2D(CubeFace.POSITIVE_Y, mipLevel, internalFormat, format, dataType, images[2]);
-        gl.texImage2D(CubeFace.NEGATIVE_Y, mipLevel, internalFormat, format, dataType, images[3]);
-        gl.texImage2D(CubeFace.POSITIVE_Z, mipLevel, internalFormat, format, dataType, images[4]);
-        gl.texImage2D(CubeFace.NEGATIVE_Z, mipLevel, internalFormat, format, dataType, images[5]);
-
-        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
-    },
 
     /**
      * Defines whether data has been uploaded to the texture or not.

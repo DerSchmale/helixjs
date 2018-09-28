@@ -195,10 +195,14 @@ Texture2D.prototype =
         if (!mipLevel) {
 			this._width = width;
 			this._height = height;
-			this._format = format = format || TextureFormat.RGBA;
-			this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
+			this._format = format || TextureFormat.RGBA;
+			this._dataType = dataType || DataType.UNSIGNED_BYTE;
 		}
-        generateMips = generateMips === undefined? false: generateMips;
+
+		format = this._format;
+		dataType = this._dataType;
+
+		generateMips = generateMips === undefined? false: generateMips;
 
         this.bind();
 
@@ -230,11 +234,15 @@ Texture2D.prototype =
 		if (!mipLevel) {
 			this._width = width;
 			this._height = height;
-			this._format = format = format || TextureFormat.RGBA;
-			this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
+			this._format = format || TextureFormat.RGBA;
+			this._dataType = dataType || DataType.UNSIGNED_BYTE;
 		}
 
-        generateMips = generateMips === undefined? true: generateMips;
+		format = this._format;
+		dataType = this._dataType;
+
+
+		generateMips = generateMips === undefined? true: generateMips;
 
         if (!(MathX.isPowerOfTwo(width) && MathX.isPowerOfTwo(height))) {
 			generateMips = false;

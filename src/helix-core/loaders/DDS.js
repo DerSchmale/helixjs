@@ -218,7 +218,7 @@ DDS.prototype._uploadData = function(mipLevels)
 		var data = mipLevels[i];
 
 		if (this._type === TextureCube) {
-			swapCubeFaces(mipLevels[i]);
+			swapCubeFaces(data);
 			if (dataType)
 				this._target.uploadData(data, w, generateMipmaps, this._format, dataType, i);
 			else

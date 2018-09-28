@@ -7,6 +7,8 @@ project.queueAssets = function(assetLibrary)
 {
     assetLibrary.queueAsset("skybox-specular", "skyboxes/field-mips/skybox_specular.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
     assetLibrary.queueAsset("skybox-irradiance", "skyboxes/field-mips/skybox_irradiance.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
+    // assetLibrary.queueAsset("skybox-specular", "skyboxes/studio-small/specular.dds", HX.AssetLibrary.Type.ASSET, HX.DDS);
+    // assetLibrary.queueAsset("skybox-irradiance", "skyboxes/studio-small/irradiance.dds", HX.AssetLibrary.Type.ASSET, HX.DDS);
 };
 
 project.onInit = function()
@@ -50,7 +52,7 @@ function initScene(scene, assetLibrary)
 
     // convert component to entity
 	var lightEntity = new HX.Entity(light);
-	lightEntity.lookAt(new HX.Float4(0.0, -1.0, -0.3, 0.0));
+	lightEntity.lookAt(new HX.Float4(0.0, -1.0, -1.0, 0.0));
 	scene.attach(lightEntity);
 
     var skyboxSpecularTexture = assetLibrary.get("skybox-specular");

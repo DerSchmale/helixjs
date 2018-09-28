@@ -207,8 +207,10 @@ TextureCube.prototype =
 			this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
 		}
 
-		if (capabilities.EXT_HALF_FLOAT_TEXTURES && dataType === DataType.HALF_FLOAT && !(data instanceof Uint16Array))
-			data = TextureUtils.encodeToFloat16Array(data);
+		if (capabilities.EXT_HALF_FLOAT_TEXTURES && dataType === DataType.HALF_FLOAT && !(data[0] instanceof Uint16Array)) {
+			for (var i = 0; i < 6; ++i)
+				data[i] = TextureUtils.encodeToFloat16Array(data[i]);
+		}
 
         generateMips = generateMips === undefined? true: generateMips;
 

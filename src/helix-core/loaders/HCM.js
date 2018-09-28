@@ -14,13 +14,14 @@ import {MathX} from "../math/MathX";
  */
 function HCM()
 {
-    Importer.call(this, TextureCube);
+    Importer.call(this);
 }
 
 HCM.prototype = Object.create(Importer.prototype);
 
 HCM.prototype.parse = function(file, target)
 {
+    target = target || new TextureCube();
     var data = JSON.parse(file);
 
     var urls = [

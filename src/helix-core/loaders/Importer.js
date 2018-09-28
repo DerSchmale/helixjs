@@ -6,16 +6,14 @@ import {Signal} from "../core/Signal";
  * A base class for importers.
  *
  * @ignore
- * @param containerType
  * @param dataType
  * @constructor
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function Importer(containerType, dataType)
+function Importer(dataType)
 {
     this._dataType = dataType === undefined? URLLoader.DATA_TEXT : dataType;
-    this._containerType = containerType;
     this.onComplete = null;
     this.onProgress = null;
     this.onFail = null;
@@ -29,7 +27,6 @@ function Importer(containerType, dataType)
 Importer.prototype =
     {
         get dataType() { return this._dataType; },
-        createContainer: function() { return new this._containerType(); },
 
         parse: function(data, target) {},
 

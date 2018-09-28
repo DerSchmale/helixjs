@@ -16,13 +16,15 @@ import {HeightMap} from "../utils/HeightMap";
  */
 function JPG_HEIGHTMAP()
 {
-    Importer.call(this, Texture2D, Importer.TYPE_IMAGE);
+    Importer.call(this, Importer.TYPE_IMAGE);
 }
 
 JPG_HEIGHTMAP.prototype = Object.create(Importer.prototype);
 
 JPG_HEIGHTMAP.prototype.parse = function(data, target)
 {
+    target = target || new Texture2D();
+
     var texture2D = new Texture2D();
     texture2D.wrapMode = TextureWrapMode.REPEAT;
     texture2D.uploadImage(data, data.naturalWidth, data.naturalHeight, true);

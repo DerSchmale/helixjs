@@ -14,13 +14,14 @@ import {Importer} from "./Importer";
  */
 function JPG()
 {
-    Importer.call(this, Texture2D, Importer.TYPE_IMAGE);
+    Importer.call(this, Importer.TYPE_IMAGE);
 }
 
 JPG.prototype = Object.create(Importer.prototype);
 
 JPG.prototype.parse = function(data, target)
 {
+    target = target || new Texture2D();
     var generateMipmaps = this.options.generateMipmaps === undefined? true : this.options.generateMipmaps;
     target.uploadImage(data, data.naturalWidth, data.naturalHeight, generateMipmaps);
     this._notifyComplete(target);

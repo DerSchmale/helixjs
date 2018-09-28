@@ -15,7 +15,7 @@ import {META} from "../Helix";
  */
 function AudioFile()
 {
-	Importer.call(this, AudioClip, Importer.TYPE_BINARY);
+	Importer.call(this, Importer.TYPE_BINARY);
 }
 
 AudioFile.prototype = Object.create(Importer.prototype);
@@ -25,6 +25,7 @@ AudioFile.prototype = Object.create(Importer.prototype);
  */
 AudioFile.prototype.parse = function(data, target)
 {
+	target = target || new AudioClip();
 	META.AUDIO_CONTEXT.decodeAudioData(data.buffer, this._onDecoded.bind(this, target), this._onFailed.bind(this));
 };
 

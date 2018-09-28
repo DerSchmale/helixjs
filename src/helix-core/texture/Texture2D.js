@@ -279,7 +279,7 @@ Texture2D.prototype =
 		if (!mipLevel) {
 			this._width = width;
 			this._height = height;
-			this._format = format || TextureFormat.RGBA;
+			this._format = TextureFormat.RGBA;
 			this._dataType = DataType.UNSIGNED_BYTE;
 		}
 

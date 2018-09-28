@@ -70,7 +70,7 @@
     function GLTF()
     {
         // not sure if we're importing a scene?
-        HX.Importer.call(this, GLTFData);
+        HX.Importer.call(this);
 
         this._numComponentLookUp = {
             SCALAR: 1,
@@ -95,7 +95,7 @@
 
         var asset = this._gltf.asset;
 
-        this._target = target;
+        this._target = target || new GLTFData();
         // maps the animation targets to their closest scene graph objects (the targets can be the scene graph entity
         // itself, a MorphAnimation, a SkeletonJointPose)
     	this._animationTargetNodes = {};
@@ -1127,7 +1127,7 @@
      */
     function MTL()
     {
-        HX.Importer.call(this, Object, HX.URLLoader.DATA_TEXT);
+        HX.Importer.call(this, HX.URLLoader.DATA_TEXT);
         this._textures = [];
         this._texturesToLoad = [];
         this._activeMaterial = null;
@@ -1137,6 +1137,7 @@
 
     MTL.prototype.parse = function(data, target)
     {
+        target = target || {};
         var lines = data.split("\n");
         var numLines = lines.length;
 
@@ -1243,7 +1244,7 @@
      */
     function OBJ()
     {
-        HX.Importer.call(this, HX.Entity);
+        HX.Importer.call(this);
         this._objects = [];
         this._vertices = [];
         this._normals = [];
@@ -1259,7 +1260,7 @@
     OBJ.prototype.parse = function(data, target)
     {
         this._groupsAsObjects = this.options.groupsAsObjects === undefined? true : this._groupsAsObjects;
-        this._target = target;
+        this._target = target || new HX.Entity();
 
         var lines = data.split("\n");
         var numLines = lines.length;
@@ -1593,13 +1594,14 @@
      */
     function THREEBufferGeometry()
     {
-        HX.Importer.call(this, HX.Mesh);
+        HX.Importer.call(this);
     }
 
     THREEBufferGeometry.prototype = Object.create(HX.Importer.prototype);
 
     THREEBufferGeometry.prototype.parse = function(data, target)
     {
+        target = target || new HX.Mesh();
         var json = JSON.parse(data);
         if (json.type !== "BufferGeometry") throw new Error("JSON does not contain correct BufferGeometry data! (type property is not BufferGeometry)");
         HX.Mesh.createDefaultEmpty(target);

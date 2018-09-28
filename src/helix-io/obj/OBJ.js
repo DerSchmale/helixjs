@@ -16,7 +16,7 @@ import {MTL} from "./MTL";
  */
 function OBJ()
 {
-    HX.Importer.call(this, HX.Entity);
+    HX.Importer.call(this);
     this._objects = [];
     this._vertices = [];
     this._normals = [];
@@ -32,7 +32,7 @@ OBJ.prototype = Object.create(HX.Importer.prototype);
 OBJ.prototype.parse = function(data, target)
 {
     this._groupsAsObjects = this.options.groupsAsObjects === undefined? true : this._groupsAsObjects;
-    this._target = target;
+    this._target = target || new HX.Entity();
 
     var lines = data.split("\n");
     var numLines = lines.length;

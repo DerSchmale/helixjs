@@ -8,7 +8,7 @@ import * as HX from "helix";
  */
 function MTL()
 {
-    HX.Importer.call(this, Object, HX.URLLoader.DATA_TEXT);
+    HX.Importer.call(this, HX.URLLoader.DATA_TEXT);
     this._textures = [];
     this._texturesToLoad = [];
     this._activeMaterial = null;
@@ -18,6 +18,7 @@ MTL.prototype = Object.create(HX.Importer.prototype);
 
 MTL.prototype.parse = function(data, target)
 {
+    target = target || {};
     var lines = data.split("\n");
     var numLines = lines.length;
 

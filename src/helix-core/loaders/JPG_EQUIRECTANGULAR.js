@@ -17,13 +17,14 @@ import {EquirectangularTexture} from "../utils/EquirectangularTexture";
  */
 function JPG_EQUIRECTANGULAR()
 {
-    Importer.call(this, TextureCube, Importer.TYPE_IMAGE);
+    Importer.call(this, Importer.TYPE_IMAGE);
 }
 
 JPG_EQUIRECTANGULAR.prototype = Object.create(Importer.prototype);
 
 JPG_EQUIRECTANGULAR.prototype.parse = function(data, target)
 {
+	target = target || new TextureCube();
     var texture2D = new Texture2D();
     texture2D.wrapMode = TextureWrapMode.REPEAT;
     texture2D.uploadImage(data, data.naturalWidth, data.naturalHeight, true);

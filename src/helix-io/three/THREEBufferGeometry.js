@@ -11,13 +11,14 @@ import * as HX from "helix";
  */
 function THREEBufferGeometry()
 {
-    HX.Importer.call(this, HX.Mesh);
+    HX.Importer.call(this);
 }
 
 THREEBufferGeometry.prototype = Object.create(HX.Importer.prototype);
 
 THREEBufferGeometry.prototype.parse = function(data, target)
 {
+    target = target || new HX.Mesh();
     var json = JSON.parse(data);
     if (json.type !== "BufferGeometry") throw new Error("JSON does not contain correct BufferGeometry data! (type property is not BufferGeometry)");
     HX.Mesh.createDefaultEmpty(target);

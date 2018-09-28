@@ -52,18 +52,19 @@ var DDS_PIXEL_FORMAT_FLAGS = {
  */
 function DDS()
 {
-	Importer.call(this, Texture2D, Importer.TYPE_BINARY);
+	Importer.call(this, Importer.TYPE_BINARY);
 }
 
 DDS.prototype = Object.create(Importer.prototype);
 
 DDS.prototype.parse = function(data, target)
 {
+	// TODO: Also could be cube
+	this._target = target || new Texture2D();
 	this._stream = new DataStream(data);
-	this._target = target;
 	this._parseHeader();
 	this._parseData();
-	this._notifyComplete(target);
+	this._notifyComplete(this._target);
 };
 
 DDS.prototype._parseHeader = function()
@@ -110,15 +111,15 @@ DDS.prototype._parseInternalFormat = function(fourCC)
 		case "DXT1":
 			this._blockSize = 8;
 			this._format = capabilities.EXT_COMPRESSED_TEXTURE_S3TC.COMPRESSED_RGBA_S3TC_DXT1_EXT;
-			break;
+			return;
 		case "DXT3":
 			this._blockSize = 16;
 			this._format = capabilities.EXT_COMPRESSED_TEXTURE_S3TC.COMPRESSED_RGBA_S3TC_DXT3_EXT;
-			break;
+			return;
 		case "DXT5":
 			this._blockSize = 16;
 			this._format = capabilities.EXT_COMPRESSED_TEXTURE_S3TC.COMPRESSED_RGBA_S3TC_DXT5_EXT;
-			break;
+			return;
 	}
 
 	switch(fourCC) {
@@ -126,32 +127,32 @@ DDS.prototype._parseInternalFormat = function(fourCC)
 			this._blockSize = 1;
 			this._format = TextureFormat.RED || TextureFormat.RGBA;
 			this._dataType = DataType.HALF_FLOAT;
-			break;
+			return;
 		case 112:
 			this._blockSize = 2;
 			this._format = TextureFormat.RG || TextureFormat.RGBA;
 			this._dataType = DataType.HALF_FLOAT;
-			break;
+			return;
 		case 113:
 			this._blockSize = 4;
 			this._format = TextureFormat.RGBA;
 			this._dataType = DataType.HALF_FLOAT;
-			break;
+			return;
 		case 114:
 			this._blockSize = 1;
 			this._format = TextureFormat.RED || TextureFormat.RGBA;
 			this._dataType = DataType.FLOAT;
-			break;
+			return;
 		case 112:
 			this._blockSize = 2;
 			this._format = TextureFormat.RG || TextureFormat.RGBA;
 			this._dataType = DataType.FLOAT;
-			break;
+			return;
 		case 116:
 			this._blockSize = 4;
 			this._format = TextureFormat.RGBA;
 			this._dataType = DataType.FLOAT;
-			break;
+			return;
 		default:
 			console.log(fourCC);
 			throw new Error("Unsupported format!");

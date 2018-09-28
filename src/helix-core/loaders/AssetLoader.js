@@ -60,7 +60,6 @@ AssetLoader.prototype =
     load: function (file, target)
     {
         var importer = new this._importerType();
-        target = target || importer.createContainer();
         importer.onComplete = this.onComplete;
         importer.onProgress = this.onProgress;
         importer.onFail = this.onFail;

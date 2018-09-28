@@ -26,7 +26,7 @@ import {FileUtils} from "./FileUtils";
  */
 function HMAT()
 {
-    Importer.call(this, Material);
+    Importer.call(this);
     HMAT._initPropertyMap();
 }
 
@@ -34,6 +34,7 @@ HMAT.prototype = Object.create(Importer.prototype);
 
 HMAT.prototype.parse = function(data, target)
 {
+    target = target || new Material();
     data = JSON.parse(data);
 
     if (data.class) {

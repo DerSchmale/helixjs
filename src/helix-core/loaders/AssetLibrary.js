@@ -240,9 +240,10 @@ AssetLibrary.prototype =
         loader.fileMap = this.fileMap;
         loader.options = options || {};
         loader.options.crossOrigin = this.crossOrigin;
-        loader.onComplete.bind(function()
+        loader.onComplete.bind(function(asset)
         {
-            this._onAssetLoaded();
+			this._assets[id] = asset;
+			this._onAssetLoaded();
         }, this);
 
         loader.onProgress.bind(function(ratio)
@@ -250,8 +251,8 @@ AssetLibrary.prototype =
             this.onProgress.dispatch((this._numLoaded + ratio) / this._queue.length);
         }, this);
 
-        this._assets[id] = loader.load(file, target);
-		this._assets[id].name = id;
+        loader.load(file, target);
+
     },
 
     _onAssetLoaded: function()

@@ -66,7 +66,7 @@ function readQuat(dataView, offset)
 function GLTF()
 {
     // not sure if we're importing a scene?
-    HX.Importer.call(this, GLTFData);
+    HX.Importer.call(this);
 
     this._numComponentLookUp = {
         SCALAR: 1,
@@ -91,7 +91,7 @@ GLTF.prototype.parse = function(file, target)
 
     var asset = this._gltf.asset;
 
-    this._target = target;
+    this._target = target || new GLTFData();
     // maps the animation targets to their closest scene graph objects (the targets can be the scene graph entity
     // itself, a MorphAnimation, a SkeletonJointPose)
 	this._animationTargetNodes = {};

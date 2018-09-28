@@ -269,7 +269,7 @@ var PropertyTypes = {
  */
 function HX()
 {
-	Importer.call(this, HXData, URLLoader.DATA_BINARY);
+	Importer.call(this, URLLoader.DATA_BINARY);
 
 	this._objects = null;
 	this._scenes = null;
@@ -287,7 +287,7 @@ HX.VERSION = "0.1.0";
 
 HX.prototype.parse = function(data, target)
 {
-	this._target = target;
+	this._target = target || new HXData();
 	this._stream = new DataStream(data);
 
 	var hash = this._stream.getString(2);
@@ -305,7 +305,7 @@ HX.prototype.parse = function(data, target)
 	this._parseHeader();
 	this._parseObjectList();
 
-	target.defaultScene = this._scenes[this._defaultSceneIndex];
+	this._target.defaultScene = this._scenes[this._defaultSceneIndex];
 
 	this._calcMissingMeshData();
 };

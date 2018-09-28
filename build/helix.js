@@ -3595,15 +3595,15 @@
 	    }
 	};
 
-	ShaderLibrary._files['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    hx_FragColor = color;\n}';
-
-	ShaderLibrary._files['debug_bounds_vertex.glsl'] = '\nvertex_attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
-
 	ShaderLibrary._files['lighting_blinn_phong.glsl'] = '/*// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}*/\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*pow(cosAngle, 5.0);\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
 
 	ShaderLibrary._files['lighting_debug.glsl'] = 'void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	diffuseColor = vec3(0.0);\n	specularColor = vec3(0.0);\n}';
 
 	ShaderLibrary._files['lighting_ggx.glsl'] = '#ifdef HX_VISIBILITY_TERM\nfloat hx_geometryTerm(vec3 normal, vec3 dir, float k)\n{\n    float d = max(-dot(normal, dir), 0.0);\n    return d / (d * (1.0 - k) + k);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness)\n{\n	float k = roughness + 1.0;\n	k = k * k * .125;\n	return hx_geometryTerm(normal, viewDir, k) * hx_geometryTerm(normal, lightDir, k);\n}\n#endif\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n    float mappedRoughness =  geometry.roughness * geometry.roughness;\n\n	float distribution = hx_ggxDistribution(mappedRoughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef HX_VISIBILITY_TERM\n    specularColor *= hx_lightVisibility(geometry.normal, viewDir, lightDir, geometry.roughness);\n#endif\n}';
+
+	ShaderLibrary._files['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    hx_FragColor = color;\n}';
+
+	ShaderLibrary._files['debug_bounds_vertex.glsl'] = '\nvertex_attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
 
 	ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    int castShadows;\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            if (viewPos.y < light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    vec4 shadowMapCoord = shadowMatrix * vec4(viewPos, 1.0);\n    float shadow = hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n\n    // this can occur when meshInstance.castShadows = false, or using inherited bounds\n    bool isOutside = max(shadowMapCoord.x, shadowMapCoord.y) > 1.0 || min(shadowMapCoord.x, shadowMapCoord.y) < 0.0;\n    if (isOutside) shadow = 1.0;\n\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.y > light.maxShadowDistance));\n}\n#endif';
 
@@ -3717,6 +3717,12 @@
 
 	ShaderLibrary._files['vsm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nvec2 readValues(vec2 coord)\n{\n    vec4 s = texture2D(source, coord);\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    return s.xy;\n    #else\n    return vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    #endif\n}\n\nvoid main()\n{\n    vec2 total = readValues(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValues(uv + offset) + readValues(uv - offset);\n	}\n\n    total *= RCP_NUM_SAMPLES;\n\n#if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    hx_FragColor = vec4(total, 0.0, 1.0);\n#else\n	hx_FragColor.xy = hx_floatToRG8(total.x);\n	hx_FragColor.zw = hx_floatToRG8(total.y);\n#endif\n}';
 
+	ShaderLibrary._files['snippets_general.glsl'] = '#define HX_LOG_10 2.302585093\n\n#ifdef HX_GLSL_300_ES\n// replace some outdated function names\nvec4 texture2D(sampler2D s, vec2 uv) { return texture(s, uv); }\nvec4 textureCube(samplerCube s, vec3 uvw) { return texture(s, uvw); }\n\n#define vertex_attribute in\n#define varying_in in\n#define varying_out out\n\n#ifdef HX_FRAGMENT_SHADER\nout vec4 hx_FragColor;\n#endif\n\n#else\n\n#define vertex_attribute attribute\n#define varying_in varying\n#define varying_out varying\n#define hx_FragColor gl_FragColor\n\n#endif\n\nfloat saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);\n    // cannot fract first value or 1 would not be encodable\n    enc.yzw = fract(enc.yzw);\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc.y = fract(enc.y);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec2 hx_encodeNormal(vec3 normal)\n{\n    vec2 data;\n    float p = sqrt(-normal.y*8.0 + 8.0);\n    data = normal.xz / p + .5;\n    return data;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    vec3 normal;\n    data.xy = data.xy*4.0 - 2.0;\n    float f = dot(data.xy, data.xy);\n    float g = sqrt(1.0 - f * .25);\n    normal.xz = data.xy * g;\n    normal.y = -(1.0 - f * .5);\n    return normal;\n}\n\nfloat hx_log10(float val)\n{\n    return log(val) / HX_LOG_10;\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\n/*float hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}*/\n\nfloat hx_decodeLinearDepth(vec4 samp)\n{\n    return hx_RG8ToFloat(samp.zw);\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = 1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return unproj.xyz / unproj.y;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewY(float depthSample, mat4 projectionMatrix)\n{\n    // View Y maps to NDC Z!!!\n    // y = projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[1][2])\n    return projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[1][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\n// https://seblagarde.wordpress.com/2011/08/17/hello-world/\nvec3 hx_fresnelProbe(vec3 normalSpecularReflectance, vec3 lightDir, vec3 normal, float roughness)\n{\n    float cosAngle = 1.0 - max(dot(normal, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    float gloss = (1.0 - roughness) * (1.0 - roughness);\n    vec3 bound = max(vec3(gloss), normalSpecularReflectance);\n    return normalSpecularReflectance + (bound - normalSpecularReflectance) * power;\n}\n\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}\n\nvec4 hx_sampleDefaultDither(sampler2D ditherTexture, vec2 uv)\n{\n    vec4 s = texture2D(ditherTexture, uv);\n\n    #ifndef HX_FLOAT_TEXTURES\n    s = s * 2.0 - 1.0;\n    #endif\n\n    return s;\n}\n\nvec3 hx_intersectCubeMap(vec3 rayOrigin, vec3 cubeCenter, vec3 rayDir, float cubeSize)\n{\n    vec3 t = (cubeSize * sign(rayDir) - (rayOrigin - cubeCenter)) / rayDir;\n    float minT = min(min(t.x, t.y), t.z);\n    return rayOrigin + minT * rayDir;\n}\n\n// sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.\n#ifdef HX_USE_SKINNING_TEXTURE\n#define HX_RCP_MAX_SKELETON_JOINTS 1.0 / float(HX_MAX_SKELETON_JOINTS - 1)\nmat4 hx_getSkinningMatrixImpl(vec4 weights, vec4 indices, sampler2D tex)\n{\n    mat4 m = mat4(0.0);\n    for (int i = 0; i < 4; ++i) {\n        mat4 t;\n        float index = indices[i] * HX_RCP_MAX_SKELETON_JOINTS;\n        t[0] = texture2D(tex, vec2(index, 0.0));\n        t[1] = texture2D(tex, vec2(index, 0.5));\n        t[2] = texture2D(tex, vec2(index, 1.0));\n        t[3] = vec4(0.0, 0.0, 0.0, 1.0);\n        m += weights[i] * t;\n    }\n    return m;\n}\n#define hx_getSkinningMatrix(v) hx_getSkinningMatrixImpl(hx_jointWeights, hx_jointIndices, hx_skinningTexture)\n#else\n#define hx_getSkinningMatrix(v) ( hx_jointWeights.x * mat4(hx_skinningMatrices[int(hx_jointIndices.x) * 3], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.y * mat4(hx_skinningMatrices[int(hx_jointIndices.y) * 3], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.z * mat4(hx_skinningMatrices[int(hx_jointIndices.z) * 3], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.w * mat4(hx_skinningMatrices[int(hx_jointIndices.w) * 3], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) )\n#endif';
+
+	ShaderLibrary._files['snippets_geometry.glsl'] = 'struct HX_GeometryData\n{\n    vec4 color;\n    vec3 normal;\n    float metallicness;\n    float normalSpecularReflectance;\n    float roughness;\n    float occlusion;\n    vec3 emission;\n    vec4 data;  // this can be anything the lighting model requires (only works with forward rendering)\n};';
+
+	ShaderLibrary._files['snippets_tonemap.glsl'] = 'varying_in vec2 uv;\n\n#ifdef HX_ADAPTIVE\nuniform sampler2D hx_luminanceMap;\nuniform float hx_luminanceMipLevel;\n#endif\n\nuniform float hx_exposure;\nuniform float hx_key;\n\nuniform sampler2D hx_backbuffer;\n\n\nvec4 hx_getToneMapScaledColor()\n{\n    #ifdef HX_ADAPTIVE\n    #ifdef HX_GLSL_300_ES\n    float referenceLuminance = textureLod(hx_luminanceMap, uv, hx_luminanceMipLevel).x;\n    #else\n    float referenceLuminance = texture2DLodEXT(hx_luminanceMap, uv, hx_luminanceMipLevel).x;\n    #endif\n    referenceLuminance = exp(referenceLuminance) - 1.0;\n    referenceLuminance = clamp(referenceLuminance, .08, 1000.0);\n	float exposure = hx_key / referenceLuminance * hx_exposure;\n	#else\n	float exposure = hx_exposure;\n	#endif\n    return texture2D(hx_backbuffer, uv) * exposure;\n}';
+
 	ShaderLibrary._files['2d_to_cube_vertex.glsl'] = '// position to write to\nvertex_attribute vec4 hx_position;\n\n// the corner of the cube map\nvertex_attribute vec3 corner;\n\nvarying_out vec3 direction;\n\nvoid main()\n{\n    direction = corner;\n    gl_Position = hx_position;\n}\n';
 
 	ShaderLibrary._files['equirectangular_to_cube_fragment.glsl'] = '#define RECIPROCAL_PI2 0.15915494\n\nvarying_in vec3 direction;\n\nuniform sampler2D source;\n\nvoid main()\n{\n    vec3 dir = normalize(direction);\n    vec2 uv;\n    uv.x = atan( dir.z, dir.x ) * RECIPROCAL_PI2 + 0.5;\n	uv.y = 0.5 - dir.y * 0.5;\n    hx_FragColor = texture2D(source, uv);\n}\n';
@@ -3724,12 +3730,6 @@
 	ShaderLibrary._files['greyscale_to_rgba8.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\n\nvoid main()\n{\n    hx_FragColor = hx_floatToRGBA8(texture2D(source, uv).x);\n}\n';
 
 	ShaderLibrary._files['smooth_heightmap_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D reference;    // the source (8 bit) texture\nuniform sampler2D source;\n\nuniform vec2 stepSize;\n\nvoid main()\n{\n    float gauss[4];\n    gauss[0] = 0.201788613113303;\n    gauss[1] = 0.17755834971394;\n    gauss[2] = 0.120969095455128;\n    gauss[3] = 0.063811162332456;\n    float refHeight = texture2D(reference, uv).x;\n    float total = hx_RGBA8ToFloat(texture2D(source, uv)) * gauss[0];\n    float totalWeight = gauss[0];\n    float currentWeightL = 1.0;\n    float currentWeightR = 1.0;\n    vec2 offset = vec2(0.0);\n\n\n    for (int i = 0; i < 3; ++i) {\n        offset += stepSize;\n        float refLeft = texture2D(reference, uv - offset).x;\n        float refRight = texture2D(reference, uv + offset).x;\n        float heightLeft = hx_RGBA8ToFloat(texture2D(source, uv - offset));\n        float heightRight = hx_RGBA8ToFloat(texture2D(source, uv + offset));\n        // smooth out over N pixels that have the same reference height in the source image\n        currentWeightL = max(currentWeightL - abs(refLeft - refHeight) * 5.0, 0.0);\n        currentWeightR = max(currentWeightR - abs(refRight - refHeight) * 5.0, 0.0);\n        totalWeight += (currentWeightL + currentWeightR) * gauss[i + 1];\n        total += (heightLeft * currentWeightL + heightRight * currentWeightR) *  gauss[i + 1];\n    }\n\n    hx_FragColor = hx_floatToRGBA8(total / totalWeight);\n}\n';
-
-	ShaderLibrary._files['snippets_general.glsl'] = '#define HX_LOG_10 2.302585093\n\n#ifdef HX_GLSL_300_ES\n// replace some outdated function names\nvec4 texture2D(sampler2D s, vec2 uv) { return texture(s, uv); }\nvec4 textureCube(samplerCube s, vec3 uvw) { return texture(s, uvw); }\n\n#define vertex_attribute in\n#define varying_in in\n#define varying_out out\n\n#ifdef HX_FRAGMENT_SHADER\nout vec4 hx_FragColor;\n#endif\n\n#else\n\n#define vertex_attribute attribute\n#define varying_in varying\n#define varying_out varying\n#define hx_FragColor gl_FragColor\n\n#endif\n\nfloat saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);\n    // cannot fract first value or 1 would not be encodable\n    enc.yzw = fract(enc.yzw);\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc.y = fract(enc.y);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec2 hx_encodeNormal(vec3 normal)\n{\n    vec2 data;\n    float p = sqrt(-normal.y*8.0 + 8.0);\n    data = normal.xz / p + .5;\n    return data;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    vec3 normal;\n    data.xy = data.xy*4.0 - 2.0;\n    float f = dot(data.xy, data.xy);\n    float g = sqrt(1.0 - f * .25);\n    normal.xz = data.xy * g;\n    normal.y = -(1.0 - f * .5);\n    return normal;\n}\n\nfloat hx_log10(float val)\n{\n    return log(val) / HX_LOG_10;\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\n/*float hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}*/\n\nfloat hx_decodeLinearDepth(vec4 samp)\n{\n    return hx_RG8ToFloat(samp.zw);\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = 1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return unproj.xyz / unproj.y;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewY(float depthSample, mat4 projectionMatrix)\n{\n    // View Y maps to NDC Z!!!\n    // y = projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[1][2])\n    return projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[1][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\n// https://seblagarde.wordpress.com/2011/08/17/hello-world/\nvec3 hx_fresnelProbe(vec3 normalSpecularReflectance, vec3 lightDir, vec3 normal, float roughness)\n{\n    float cosAngle = 1.0 - max(dot(normal, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    float gloss = (1.0 - roughness) * (1.0 - roughness);\n    vec3 bound = max(vec3(gloss), normalSpecularReflectance);\n    return normalSpecularReflectance + (bound - normalSpecularReflectance) * power;\n}\n\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}\n\nvec4 hx_sampleDefaultDither(sampler2D ditherTexture, vec2 uv)\n{\n    vec4 s = texture2D(ditherTexture, uv);\n\n    #ifndef HX_FLOAT_TEXTURES\n    s = s * 2.0 - 1.0;\n    #endif\n\n    return s;\n}\n\nvec3 hx_intersectCubeMap(vec3 rayOrigin, vec3 cubeCenter, vec3 rayDir, float cubeSize)\n{\n    vec3 t = (cubeSize * sign(rayDir) - (rayOrigin - cubeCenter)) / rayDir;\n    float minT = min(min(t.x, t.y), t.z);\n    return rayOrigin + minT * rayDir;\n}\n\n// sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.\n#ifdef HX_USE_SKINNING_TEXTURE\n#define HX_RCP_MAX_SKELETON_JOINTS 1.0 / float(HX_MAX_SKELETON_JOINTS - 1)\nmat4 hx_getSkinningMatrixImpl(vec4 weights, vec4 indices, sampler2D tex)\n{\n    mat4 m = mat4(0.0);\n    for (int i = 0; i < 4; ++i) {\n        mat4 t;\n        float index = indices[i] * HX_RCP_MAX_SKELETON_JOINTS;\n        t[0] = texture2D(tex, vec2(index, 0.0));\n        t[1] = texture2D(tex, vec2(index, 0.5));\n        t[2] = texture2D(tex, vec2(index, 1.0));\n        t[3] = vec4(0.0, 0.0, 0.0, 1.0);\n        m += weights[i] * t;\n    }\n    return m;\n}\n#define hx_getSkinningMatrix(v) hx_getSkinningMatrixImpl(hx_jointWeights, hx_jointIndices, hx_skinningTexture)\n#else\n#define hx_getSkinningMatrix(v) ( hx_jointWeights.x * mat4(hx_skinningMatrices[int(hx_jointIndices.x) * 3], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.y * mat4(hx_skinningMatrices[int(hx_jointIndices.y) * 3], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.z * mat4(hx_skinningMatrices[int(hx_jointIndices.z) * 3], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.w * mat4(hx_skinningMatrices[int(hx_jointIndices.w) * 3], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) )\n#endif';
-
-	ShaderLibrary._files['snippets_geometry.glsl'] = 'struct HX_GeometryData\n{\n    vec4 color;\n    vec3 normal;\n    float metallicness;\n    float normalSpecularReflectance;\n    float roughness;\n    float occlusion;\n    vec3 emission;\n    vec4 data;  // this can be anything the lighting model requires (only works with forward rendering)\n};';
-
-	ShaderLibrary._files['snippets_tonemap.glsl'] = 'varying_in vec2 uv;\n\n#ifdef HX_ADAPTIVE\nuniform sampler2D hx_luminanceMap;\nuniform float hx_luminanceMipLevel;\n#endif\n\nuniform float hx_exposure;\nuniform float hx_key;\n\nuniform sampler2D hx_backbuffer;\n\n\nvec4 hx_getToneMapScaledColor()\n{\n    #ifdef HX_ADAPTIVE\n    #ifdef HX_GLSL_300_ES\n    float referenceLuminance = textureLod(hx_luminanceMap, uv, hx_luminanceMipLevel).x;\n    #else\n    float referenceLuminance = texture2DLodEXT(hx_luminanceMap, uv, hx_luminanceMipLevel).x;\n    #endif\n    referenceLuminance = exp(referenceLuminance) - 1.0;\n    referenceLuminance = clamp(referenceLuminance, .08, 1000.0);\n	float exposure = hx_key / referenceLuminance * hx_exposure;\n	#else\n	float exposure = hx_exposure;\n	#endif\n    return texture2D(hx_backbuffer, uv) * exposure;\n}';
 
 	ShaderLibrary._files['ao_blur_fragment.glsl'] = 'varying_in vec2 uv1;\nvarying_in vec2 uv2;\nvarying_in vec2 uv3;\nvarying_in vec2 uv4;\n\nuniform sampler2D source;\n\nvoid main()\n{\n    vec4 total = texture2D(source, uv1) + texture2D(source, uv2) + texture2D(source, uv3) + texture2D(source, uv4);\n	hx_FragColor = total * .25;\n}';
 
@@ -27216,9 +27216,216 @@
 	};
 
 	/**
+	 * HeightMap contains some utilities for height maps.
+	 *
+	 * @namespace
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	var HeightMap =
+	{
+	    /**
+	     * Smooths out an 8-bit per channel texture to serve as a height map. Otherwise, the limited 8 bit precision would
+	     * result in a stair-case effect.
+	     *
+	     * @param texture The source 8-bit per channel texture.
+	     * @param [generateMipmaps] Whether or not to generate a mip chain.
+	     * @param [target] An optional target texture.
+	     */
+	    from8BitTexture: function(texture, generateMipmaps, target)
+	    {
+	        var gl = GL.gl;
+	        generateMipmaps = generateMipmaps || true;
+	        var tex1 = target || new Texture2D();
+	        tex1.initEmpty(texture.width, texture.height);
+	        var fbo1 = new FrameBuffer(tex1);
+	        fbo1.init();
+
+	        var tex2 = new Texture2D();
+	        tex2.initEmpty(texture.width, texture.height);
+	        var fbo2 = new FrameBuffer(tex2);
+	        fbo2.init();
+
+	        var toRGBA8 = new CustomCopyShader(ShaderLibrary.get("greyscale_to_rgba8.glsl"));
+	        var oldRT = GL.getCurrentRenderTarget();
+
+	        GL.setRenderTarget(fbo1);
+	        GL.clear();
+	        toRGBA8.execute(RectMesh.DEFAULT, texture);
+
+	        var originalFilter = target.filter;
+			target.filter = TextureFilter.NEAREST_NOMIP;
+
+	        var smooth = new CustomCopyShader(ShaderLibrary.get("smooth_heightmap_fragment.glsl"));
+	        var textureLocation = gl.getUniformLocation(smooth.program, "reference");
+	        var offsetLocation = gl.getUniformLocation(smooth.program, "stepSize");
+	        gl.uniform1i(textureLocation, 1);
+
+	        texture.bind(1);
+
+	        GL.setRenderTarget(fbo2);
+	        GL.clear();
+	        gl.uniform2f(offsetLocation, 1.0 / texture.width, 0.0);
+	        smooth.execute(RectMesh.DEFAULT, tex1);
+	        tex2.generateMipmap();
+
+	        GL.setRenderTarget(fbo1);
+	        GL.clear();
+	        gl.uniform2f(offsetLocation, 0.0, 1.0 / texture.height);
+	        smooth.execute(RectMesh.DEFAULT, tex2);
+
+			target.filter = originalFilter;
+
+			// TODO: This should be a custom mip generation
+	        if (generateMipmaps)
+	            target.generateMipmap();
+
+	        GL.setRenderTarget(oldRT);
+
+	        return tex1;
+	    }
+	};
+
+	/**
+	 * EquirectangularTexture is a utility class that converts equirectangular environment {@linknode Texture2D} to a
+	 * {@linkcode TextureCube}.
+	 *
+	 * @namespace
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	var EquirectangularTexture =
+	{
+	    /**
+	     * Convert an equirectangular environment {@linknode Texture2D} to a {@linkcode TextureCube}.
+	     * @param source The source {@linknode Texture2D}
+	     * @param [size] The size of the target cube map.
+	     * @param [generateMipmaps] Whether or not a mip chain should be generated.
+	     * @param [target] An optional target {@linkcode TextureCube} to contain the converted data.
+	     * @returns {TextureCube} The environment map in a {@linkcode TextureCube}
+	     */
+	    toCube: function(source, size, generateMipmaps, target)
+	    {
+	        generateMipmaps = generateMipmaps || true;
+	        size = size || source.height;
+
+	        if (!EquirectangularTexture._EQUI_TO_CUBE_SHADER)
+	            EquirectangularTexture._EQUI_TO_CUBE_SHADER = new Shader(ShaderLibrary.get("2d_to_cube_vertex.glsl"), ShaderLibrary.get("equirectangular_to_cube_fragment.glsl"));
+
+	        this._createRenderCubeGeometry();
+
+	        var gl = GL.gl;
+	        target = target || new TextureCube();
+	        target.initEmpty(size, source.format, source.dataType);
+	        var faces = [ CubeFace.POSITIVE_X, CubeFace.NEGATIVE_X, CubeFace.POSITIVE_Y, CubeFace.NEGATIVE_Y, CubeFace.POSITIVE_Z, CubeFace.NEGATIVE_Z ];
+
+			GL.setShader(EquirectangularTexture._EQUI_TO_CUBE_SHADER);
+
+	        var textureLocation = EquirectangularTexture._EQUI_TO_CUBE_SHADER.getUniformLocation("source");
+	        var posLocation = EquirectangularTexture._EQUI_TO_CUBE_SHADER.getAttributeLocation("hx_position");
+	        var cornerLocation = EquirectangularTexture._EQUI_TO_CUBE_SHADER.getAttributeLocation("corner");
+
+	        gl.uniform1i(textureLocation, 0);
+	        source.bind(0);
+
+	        EquirectangularTexture._TO_CUBE_VERTICES.bind();
+	        EquirectangularTexture._TO_CUBE_INDICES.bind();
+	        gl.vertexAttribPointer(posLocation, 2, gl.FLOAT, false, 20, 0);
+	        gl.vertexAttribPointer(cornerLocation, 3, gl.FLOAT, false, 20, 8);
+
+	        GL.enableAttributes(2);
+	        var old = GL.getCurrentRenderTarget();
+
+	        for (var i = 0; i < 6; ++i) {
+	            var fbo = new FrameBuffer(target, null, faces[i]);
+	            fbo.init();
+
+	            GL.setRenderTarget(fbo);
+	            GL.drawElements(gl.TRIANGLES, 6, i * 6);
+	        }
+
+	        GL.setRenderTarget(old);
+
+	        if (generateMipmaps)
+	            target.generateMipmap();
+
+	        // TODO: for some reason, if EXT_shader_texture_lod is not supported, mipmapping of rendered-to cubemaps does not work
+	        if (!capabilities.EXT_SHADER_TEXTURE_LOD)
+	            target.filter = TextureFilter.BILINEAR_NOMIP;
+
+	        return target;
+	    },
+
+	    _createRenderCubeGeometry: function()
+	    {
+	        if (EquirectangularTexture._TO_CUBE_VERTICES) return;
+	        var vertices = [
+	            // pos X
+	            1.0, 1.0, 1.0, -1.0, -1.0,
+	            -1.0, 1.0, 1.0, -1.0, 1.0,
+	            -1.0, -1.0, 1.0, 1.0, 1.0,
+	            1.0, -1.0, 1.0, 1.0, -1.0,
+
+	            // neg X
+	            1.0, 1.0, -1.0, -1.0, 1.0,
+	            -1.0, 1.0, -1.0, -1.0, -1.0,
+	            -1.0, -1.0, -1.0, 1.0, -1.0,
+	            1.0, -1.0, -1.0, 1.0, 1.0,
+
+	            // pos Y
+	            1.0, 1.0, 1.0, -1.0, 1.0,
+	            -1.0, 1.0, -1.0, -1.0, 1.0,
+	            -1.0, -1.0, -1.0, 1.0, 1.0,
+	            1.0, -1.0, 1.0, 1.0, 1.0,
+
+	            // neg Y
+	            1.0, 1.0, -1.0, -1.0, -1.0,
+	            -1.0, 1.0, 1.0, -1.0, -1.0,
+	            -1.0, -1.0, 1.0, 1.0, -1.0,
+	            1.0, -1.0, -1.0, 1.0, -1.0,
+
+	            // pos Z
+	            -1.0, -1.0, -1.0, 1.0, -1.0,
+	            1.0, -1.0, 1.0, 1.0, -1.0,
+	            1.0, 1.0, 1.0, 1.0, 1.0,
+	            -1.0, 1.0, -1.0, 1.0, 1.0,
+
+	            // neg Z
+	            -1.0, -1.0, -1.0, -1.0, 1.0,
+	            1.0, -1.0, 1.0, -1.0, 1.0,
+	            1.0, 1.0, 1.0, -1.0, -1.0,
+	            -1.0, 1.0, -1.0, -1.0, -1.0
+	        ];
+	        var indices = [
+	            0, 1, 2, 0, 2, 3,
+	            4, 5, 6, 4, 6, 7,
+	            8, 9, 10, 8, 10, 11,
+	            12, 13, 14, 12, 14, 15,
+	            16, 17, 18, 16, 18, 19,
+	            20, 21, 22, 20, 22, 23
+	        ];
+	        EquirectangularTexture._TO_CUBE_VERTICES = new VertexBuffer();
+	        EquirectangularTexture._TO_CUBE_INDICES = new IndexBuffer();
+	        EquirectangularTexture._TO_CUBE_VERTICES.uploadData(new Float32Array(vertices));
+	        EquirectangularTexture._TO_CUBE_INDICES.uploadData(new Uint16Array(indices));
+	    }
+	};
+
+	/**
 	 * @classdesc
 	 *
-	 * JPG is an importer for JPG images as textures. Yields a {@linkcode Texture2D} object.
+	 * JPG is an importer for JPG images as textures. Normally this yields a {@linkcode Texture2D} object.
+	 *
+	 * The options property supports the following settings:
+	 * <ul>
+	 * <li>equiToCube: This will assume the jpg contains an equirectangular texture that needs to be transformed to a cube map.
+	 * Yields a {@linkcode TextureCube} object.</li>
+	 * <li>cubeSize: An optional size for the cube map size.</li>
+	 * <li>heightMap: This will assume the jpg contains height map data that needs to be smoothed out to counter the staircase
+	 * effect exhibited by the limited 8-bit precision. The data will be encoded in 32-bit RGBA.</li>
+	 * <li>generateMipmaps: This will cause mipmaps to be generated. Defaults to true.</li>
+	 * </ul>
+	 *
 	 *
 	 * @constructor
 	 *
@@ -27235,9 +27442,25 @@
 
 	JPG.prototype.parse = function(data, target)
 	{
-	    target = target || new Texture2D();
+	    var tex2D;
+	    if (this.options.equiToCube) {
+			tex2D = new Texture2D();
+			target = target || new TextureCube();
+	    }
+	    else {
+			target = target || new Texture2D();
+			tex2D = this.options.heightMap? new Texture2D() : target;
+		}
+
 	    var generateMipmaps = this.options.generateMipmaps === undefined? true : this.options.generateMipmaps;
-	    target.uploadImage(data, data.naturalWidth, data.naturalHeight, generateMipmaps);
+	    tex2D.uploadImage(data, data.naturalWidth, data.naturalHeight, generateMipmaps);
+
+	    console.log(this.options);
+	    if (this.options.equiToCube)
+			EquirectangularTexture.toCube(tex2D, this.options.cubeSize, generateMipmaps, target);
+	    else if (this.options.heightmap)
+			HeightMap.from8BitTexture(tex2D, generateMipmaps, target);
+
 	    this._notifyComplete(target);
 	};
 
@@ -27929,131 +28152,6 @@
 	            ++this._currentIndex;
 	            this._executeTask();
 	        }
-	    }
-	};
-
-	/**
-	 * EquirectangularTexture is a utility class that converts equirectangular environment {@linknode Texture2D} to a
-	 * {@linkcode TextureCube}.
-	 *
-	 * @namespace
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	var EquirectangularTexture =
-	{
-	    /**
-	     * Convert an equirectangular environment {@linknode Texture2D} to a {@linkcode TextureCube}.
-	     * @param source The source {@linknode Texture2D}
-	     * @param [size] The size of the target cube map.
-	     * @param [generateMipmaps] Whether or not a mip chain should be generated.
-	     * @param [target] An optional target {@linkcode TextureCube} to contain the converted data.
-	     * @returns {TextureCube} The environment map in a {@linkcode TextureCube}
-	     */
-	    toCube: function(source, size, generateMipmaps, target)
-	    {
-	        generateMipmaps = generateMipmaps || true;
-	        size = size || source.height;
-
-	        if (!EquirectangularTexture._EQUI_TO_CUBE_SHADER)
-	            EquirectangularTexture._EQUI_TO_CUBE_SHADER = new Shader(ShaderLibrary.get("2d_to_cube_vertex.glsl"), ShaderLibrary.get("equirectangular_to_cube_fragment.glsl"));
-
-	        this._createRenderCubeGeometry();
-
-	        var gl = GL.gl;
-	        target = target || new TextureCube();
-	        target.initEmpty(size, source.format, source.dataType);
-	        var faces = [ CubeFace.POSITIVE_X, CubeFace.NEGATIVE_X, CubeFace.POSITIVE_Y, CubeFace.NEGATIVE_Y, CubeFace.POSITIVE_Z, CubeFace.NEGATIVE_Z ];
-
-			GL.setShader(EquirectangularTexture._EQUI_TO_CUBE_SHADER);
-
-	        var textureLocation = EquirectangularTexture._EQUI_TO_CUBE_SHADER.getUniformLocation("source");
-	        var posLocation = EquirectangularTexture._EQUI_TO_CUBE_SHADER.getAttributeLocation("hx_position");
-	        var cornerLocation = EquirectangularTexture._EQUI_TO_CUBE_SHADER.getAttributeLocation("corner");
-
-	        gl.uniform1i(textureLocation, 0);
-	        source.bind(0);
-
-	        EquirectangularTexture._TO_CUBE_VERTICES.bind();
-	        EquirectangularTexture._TO_CUBE_INDICES.bind();
-	        gl.vertexAttribPointer(posLocation, 2, gl.FLOAT, false, 20, 0);
-	        gl.vertexAttribPointer(cornerLocation, 3, gl.FLOAT, false, 20, 8);
-
-	        GL.enableAttributes(2);
-	        var old = GL.getCurrentRenderTarget();
-
-	        for (var i = 0; i < 6; ++i) {
-	            var fbo = new FrameBuffer(target, null, faces[i]);
-	            fbo.init();
-
-	            GL.setRenderTarget(fbo);
-	            GL.drawElements(gl.TRIANGLES, 6, i * 6);
-	        }
-
-	        GL.setRenderTarget(old);
-
-	        if (generateMipmaps)
-	            target.generateMipmap();
-
-	        // TODO: for some reason, if EXT_shader_texture_lod is not supported, mipmapping of rendered-to cubemaps does not work
-	        if (!capabilities.EXT_SHADER_TEXTURE_LOD)
-	            target.filter = TextureFilter.BILINEAR_NOMIP;
-
-	        return target;
-	    },
-
-	    _createRenderCubeGeometry: function()
-	    {
-	        if (EquirectangularTexture._TO_CUBE_VERTICES) return;
-	        var vertices = [
-	            // pos X
-	            1.0, 1.0, 1.0, -1.0, -1.0,
-	            -1.0, 1.0, 1.0, -1.0, 1.0,
-	            -1.0, -1.0, 1.0, 1.0, 1.0,
-	            1.0, -1.0, 1.0, 1.0, -1.0,
-
-	            // neg X
-	            1.0, 1.0, -1.0, -1.0, 1.0,
-	            -1.0, 1.0, -1.0, -1.0, -1.0,
-	            -1.0, -1.0, -1.0, 1.0, -1.0,
-	            1.0, -1.0, -1.0, 1.0, 1.0,
-
-	            // pos Y
-	            1.0, 1.0, 1.0, -1.0, 1.0,
-	            -1.0, 1.0, -1.0, -1.0, 1.0,
-	            -1.0, -1.0, -1.0, 1.0, 1.0,
-	            1.0, -1.0, 1.0, 1.0, 1.0,
-
-	            // neg Y
-	            1.0, 1.0, -1.0, -1.0, -1.0,
-	            -1.0, 1.0, 1.0, -1.0, -1.0,
-	            -1.0, -1.0, 1.0, 1.0, -1.0,
-	            1.0, -1.0, -1.0, 1.0, -1.0,
-
-	            // pos Z
-	            -1.0, -1.0, -1.0, 1.0, -1.0,
-	            1.0, -1.0, 1.0, 1.0, -1.0,
-	            1.0, 1.0, 1.0, 1.0, 1.0,
-	            -1.0, 1.0, -1.0, 1.0, 1.0,
-
-	            // neg Z
-	            -1.0, -1.0, -1.0, -1.0, 1.0,
-	            1.0, -1.0, 1.0, -1.0, 1.0,
-	            1.0, 1.0, 1.0, -1.0, -1.0,
-	            -1.0, 1.0, -1.0, -1.0, -1.0
-	        ];
-	        var indices = [
-	            0, 1, 2, 0, 2, 3,
-	            4, 5, 6, 4, 6, 7,
-	            8, 9, 10, 8, 10, 11,
-	            12, 13, 14, 12, 14, 15,
-	            16, 17, 18, 16, 18, 19,
-	            20, 21, 22, 20, 22, 23
-	        ];
-	        EquirectangularTexture._TO_CUBE_VERTICES = new VertexBuffer();
-	        EquirectangularTexture._TO_CUBE_INDICES = new IndexBuffer();
-	        EquirectangularTexture._TO_CUBE_VERTICES.uploadData(new Float32Array(vertices));
-	        EquirectangularTexture._TO_CUBE_INDICES.uploadData(new Uint16Array(indices));
 	    }
 	};
 
@@ -29111,77 +29209,6 @@
 	};
 
 	var PNG_EQUIRECTANGULAR = JPG_EQUIRECTANGULAR;
-
-	/**
-	 * HeightMap contains some utilities for height maps.
-	 *
-	 * @namespace
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	var HeightMap =
-	{
-	    /**
-	     * Smooths out an 8-bit per channel texture to serve as a height map. Otherwise, the limited 8 bit precision would
-	     * result in a stair-case effect.
-	     *
-	     * @param texture The source 8-bit per channel texture.
-	     * @param [generateMipmaps] Whether or not to generate a mip chain.
-	     * @param [target] An optional target texture.
-	     */
-	    from8BitTexture: function(texture, generateMipmaps, target)
-	    {
-	        var gl = GL.gl;
-	        generateMipmaps = generateMipmaps || true;
-	        var tex1 = target || new Texture2D();
-	        tex1.initEmpty(texture.width, texture.height);
-	        var fbo1 = new FrameBuffer(tex1);
-	        fbo1.init();
-
-	        var tex2 = new Texture2D();
-	        tex2.initEmpty(texture.width, texture.height);
-	        var fbo2 = new FrameBuffer(tex2);
-	        fbo2.init();
-
-	        var toRGBA8 = new CustomCopyShader(ShaderLibrary.get("greyscale_to_rgba8.glsl"));
-	        var oldRT = GL.getCurrentRenderTarget();
-
-	        GL.setRenderTarget(fbo1);
-	        GL.clear();
-	        toRGBA8.execute(RectMesh.DEFAULT, texture);
-
-	        var originalFilter = target.filter;
-			target.filter = TextureFilter.NEAREST_NOMIP;
-
-	        var smooth = new CustomCopyShader(ShaderLibrary.get("smooth_heightmap_fragment.glsl"));
-	        var textureLocation = gl.getUniformLocation(smooth.program, "reference");
-	        var offsetLocation = gl.getUniformLocation(smooth.program, "stepSize");
-	        gl.uniform1i(textureLocation, 1);
-
-	        texture.bind(1);
-
-	        GL.setRenderTarget(fbo2);
-	        GL.clear();
-	        gl.uniform2f(offsetLocation, 1.0 / texture.width, 0.0);
-	        smooth.execute(RectMesh.DEFAULT, tex1);
-	        tex2.generateMipmap();
-
-	        GL.setRenderTarget(fbo1);
-	        GL.clear();
-	        gl.uniform2f(offsetLocation, 0.0, 1.0 / texture.height);
-	        smooth.execute(RectMesh.DEFAULT, tex2);
-
-			target.filter = originalFilter;
-
-			// TODO: This should be a custom mip generation
-	        if (generateMipmaps)
-	            target.generateMipmap();
-
-	        GL.setRenderTarget(oldRT);
-
-	        return tex1;
-	    }
-	};
 
 	/**
 	 * @classdesc

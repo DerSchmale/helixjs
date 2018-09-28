@@ -189,7 +189,7 @@ Texture2D.prototype =
     {
         var gl = GL.gl;
 
-        if (capabilities.EXT_HALF_FLOAT_TEXTURES && dataType === DataType.HALF_FLOAT)
+        if (capabilities.EXT_HALF_FLOAT_TEXTURES && dataType === DataType.HALF_FLOAT && !(data instanceof Uint16Array))
             data = TextureUtils.encodeToFloat16Array(data);
 
         if (!mipLevel) {
@@ -275,12 +275,11 @@ Texture2D.prototype =
      * @param {*} data An typed array containing the initial data.
 	 * @param {number} width The width of the texture.
 	 * @param {number} height The height of the texture.
-	 * @param {number} border The border of the compressed texture.
 	 * @param {boolean} generateMips Whether or not a mip chain should be generated.
 	 * @param {*} internalFormat The texture's internal compression format.
      * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
 	 */
-	uploadCompressedData: function(data, width, height, border, generateMips, internalFormat, mipLevel)
+	uploadCompressedData: function(data, width, height, generateMips, internalFormat, mipLevel)
     {
 		var gl = GL.gl;
 
@@ -293,7 +292,7 @@ Texture2D.prototype =
 
 		this.bind();
 
-		gl.compressedTexImage2D(gl.TEXTURE_2D, mipLevel || 0, internalFormat, width, height, border, data);
+		gl.compressedTexImage2D(gl.TEXTURE_2D, mipLevel || 0, internalFormat, width, height, 0, data);
 
 		if (generateMips)
 			gl.generateMipmap(gl.TEXTURE_2D);

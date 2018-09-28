@@ -1,5 +1,6 @@
 import {GL} from "../core/GL";
 import {DataType, TextureFormat, TextureFilter, capabilities, CubeFace} from "../Helix";
+import {TextureUtils} from "./TextureUtils";
 
 var nameCounter = 0;
 
@@ -152,6 +153,43 @@ TextureCube.prototype =
         gl.bindTexture(gl.TEXTURE_2D, null);
     },
 
+	/**
+	 * Uploads compressed data.
+	 *
+	 * @param {*} data An typed array containing the initial data.
+	 * @param {number} size The size of the texture.
+	 * @param {boolean} generateMips Whether or not a mip chain should be generated.
+	 * @param {*} internalFormat The texture's internal compression format.
+	 * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
+	 */
+	uploadCompressedData: function(data, size, generateMips, internalFormat, mipLevel)
+	{
+		var gl = GL.gl;
+
+		if (!mipLevel) {
+			this._size = size;
+			this._format = TextureFormat.RGBA;
+			this._dataType = DataType.UNSIGNED_BYTE;
+		}
+
+		this.bind();
+
+		mipLevel = mipLevel || 0;
+		gl.compressedTexImage2D(CubeFace.POSITIVE_X, mipLevel, internalFormat, size, size, 0, data[0]);
+		gl.compressedTexImage2D(CubeFace.NEGATIVE_X, mipLevel, internalFormat, size, size, 0, data[1]);
+		gl.compressedTexImage2D(CubeFace.POSITIVE_Y, mipLevel, internalFormat, size, size, 0, data[2]);
+		gl.compressedTexImage2D(CubeFace.NEGATIVE_Y, mipLevel, internalFormat, size, size, 0, data[3]);
+		gl.compressedTexImage2D(CubeFace.POSITIVE_Z, mipLevel, internalFormat, size, size, 0, data[4]);
+		gl.compressedTexImage2D(CubeFace.NEGATIVE_Z, mipLevel, internalFormat, size, size, 0, data[5]);
+
+		if (generateMips)
+			gl.generateMipmap(gl.TEXTURE_2D);
+
+		this._isReady = true;
+
+		gl.bindTexture(gl.TEXTURE_2D, null);
+	},
+
     /**
      * Initializes the texture with the given data.
      * @param data A array of typed arrays (per {@linkcode CubeFace}) containing the initial data.
@@ -169,6 +207,9 @@ TextureCube.prototype =
 			this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
 		}
 
+		if (capabilities.EXT_HALF_FLOAT_TEXTURES && dataType === DataType.HALF_FLOAT && !(data instanceof Uint16Array))
+			data = TextureUtils.encodeToFloat16Array(data);
+
         generateMips = generateMips === undefined? true: generateMips;
 
         this.bind();
@@ -176,12 +217,12 @@ TextureCube.prototype =
         var gl = GL.gl;
 		mipLevel = mipLevel || 0;
 		var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
-        gl.texImage2D(CubeFace.POSITIVE_X, 0, internalFormat, size, size, mipLevel, format, dataType, data[0]);
-        gl.texImage2D(CubeFace.NEGATIVE_X, 0, internalFormat, size, size, mipLevel, format, dataType, data[1]);
-        gl.texImage2D(CubeFace.POSITIVE_Y, 0, internalFormat, size, size, mipLevel, format, dataType, data[2]);
-        gl.texImage2D(CubeFace.NEGATIVE_Y, 0, internalFormat, size, size, mipLevel, format, dataType, data[3]);
-        gl.texImage2D(CubeFace.POSITIVE_Z, 0, internalFormat, size, size, mipLevel, format, dataType, data[4]);
-        gl.texImage2D(CubeFace.NEGATIVE_Z, 0, internalFormat, size, size, mipLevel, format, dataType, data[5]);
+        gl.texImage2D(CubeFace.POSITIVE_X, mipLevel, internalFormat, size, size, 0, format, dataType, data[0]);
+        gl.texImage2D(CubeFace.NEGATIVE_X, mipLevel, internalFormat, size, size, 0, format, dataType, data[1]);
+        gl.texImage2D(CubeFace.POSITIVE_Y, mipLevel, internalFormat, size, size, 0, format, dataType, data[2]);
+        gl.texImage2D(CubeFace.NEGATIVE_Y, mipLevel, internalFormat, size, size, 0, format, dataType, data[3]);
+        gl.texImage2D(CubeFace.POSITIVE_Z, mipLevel, internalFormat, size, size, 0, format, dataType, data[4]);
+        gl.texImage2D(CubeFace.NEGATIVE_Z, mipLevel, internalFormat, size, size, 0, format, dataType, data[5]);
 
         if (generateMips)
             gl.generateMipmap(gl.TEXTURE_CUBE_MAP);

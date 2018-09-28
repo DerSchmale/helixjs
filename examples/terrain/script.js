@@ -6,12 +6,13 @@ var project = new DemoProject();
 var terrainMaterial;
 var waterMaterial;
 var time = 0;
+var physics = false;
 
 // 1 = 10m
 var worldSize = 20000;
-var waterLevel = 367;
+var waterLevel = 467;
 var minHeight = 0;
-var maxHeight = 3000;
+var maxHeight = 4000;
 
 function CenterAtComponent(camera)
 {
@@ -43,11 +44,13 @@ project.queueAssets = function(assetLibrary)
 
 project.onInit = function()
 {
-	this.scene.startSystem(new HX_PHYS.PhysicsSystem());
-    initCamera(this.camera);
+	initCamera(this.camera);
     initScene(this.scene, this.camera, this.assetLibrary);
 
     time = 0;
+
+	if (physics)
+		this.scene.startSystem(new HX_PHYS.PhysicsSystem());
 };
 
 project.onUpdate = function(dt)
@@ -80,31 +83,38 @@ function initCamera(camera)
 {
     camera.position.x = 4187;
     camera.position.y = 2000;
-    camera.position.z = 410;
+    camera.position.z = 540;
     camera.nearDistance = 0.1;
     camera.farDistance = 8000.0;
 
-    var controller = new FPSController();
-    controller.walkAcceleration = 2000.0;
-    controller.runAcceleration = 20000.0;
-    controller.jumpForce = 5.0;
+    if (physics) {
+		var controller = new FPSController();
+		controller.walkAcceleration = 2000.0;
+		controller.runAcceleration = 20000.0;
+		controller.jumpForce = 5.0;
 
-	var rigidBody = new HX_PHYS.RigidBody(
-	    new HX_PHYS.CapsuleCollider(1.0, 2, new HX.Float4(0, 0, -.9)),
-        undefined,
-		new HX_PHYS.PhysicsMaterial(0.12, 0.0)
-    );
 
-	rigidBody.linearDamping = 0.8;
-	rigidBody.mass = 70;
-	// important so the player capsule does not rotate along with the "head"
-	rigidBody.ignoreRotation = true;
+		var rigidBody = new HX_PHYS.RigidBody(
+			new HX_PHYS.CapsuleCollider(1.0, 2, new HX.Float4(0, 0, -.9)),
+			undefined,
+			new HX_PHYS.PhysicsMaterial(0.12, 0.0)
+		);
+
+		rigidBody.linearDamping = 0.8;
+		rigidBody.mass = 70;
+		// important so the player capsule does not rotate along with the "head"
+		rigidBody.ignoreRotation = true;
+		camera.addComponents([controller, rigidBody])
+	}
+	else {
+		controller = new FloatController();
+		controller.shiftMultiplier = 100;
+		camera.addComponent(controller)
+	}
 
 	var fog = new HX.Fog(0.001, new HX.Color(0x1155ff), 0.005, 0);
-
 	var toneMap = new HX.FilmicToneMapping();
-	// toneMap.exposure = .5;
-	camera.addComponents([controller, rigidBody, fog, toneMap]);
+	camera.addComponents([fog, toneMap]);
 }
 
 function initScene(scene, camera, assetLibrary)
@@ -116,7 +126,7 @@ function initScene(scene, camera, assetLibrary)
         dirLight.castShadows = true;
 
     var sun = new HX.Entity(dirLight);
-	sun.lookAt(new HX.Float4(-0.3, -1.0, -0.3, 0.0));
+	sun.lookAt(new HX.Float4(-0.3, -.5, -0.3, 0.0));
     scene.attach(sun);
 
     // TODO: Add procedural skybox
@@ -155,13 +165,6 @@ function initScene(scene, camera, assetLibrary)
     var terrain = new HX.Entity();
 	terrain.addComponent(new HX.Terrain(camera.farDistance * 2.5, minHeight, maxHeight, 4, terrainMaterial, 64));
 
-    var rigidBody = new HX_PHYS.RigidBody(
-		new HX_PHYS.HeightfieldCollider(heightMap, worldSize, minHeight, maxHeight),
-        0,
-        new HX_PHYS.PhysicsMaterial(0.12, 0.0)
-    );
-	terrain.addComponent(rigidBody);
-
 	// this is definitely overkill:
 	var plane = new HX.PlanePrimitive({width: 8000, height: 8000, numSegmentsW: 40, numSegmentsH: 40});
 	var water = new HX.Entity();
@@ -172,4 +175,13 @@ function initScene(scene, camera, assetLibrary)
 
 	scene.attach(terrain);
     scene.attach(water);
+
+	if (physics) {
+		var rigidBody = new HX_PHYS.RigidBody(
+			new HX_PHYS.HeightfieldCollider(heightMap, worldSize, minHeight, maxHeight),
+			0,
+			new HX_PHYS.PhysicsMaterial(0.12, 0.0)
+		);
+		terrain.addComponent(rigidBody);
+	}
 }

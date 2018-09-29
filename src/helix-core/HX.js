@@ -43,6 +43,7 @@ export {PoissonDisk} from "./math/PoissonDisk";
 export {PoissonSphere} from "./math/PoissonSphere";
 export {Quaternion} from "./math/Quaternion";
 export {Ray} from "./math/Ray";
+export {SphericalHarmonicsRGB} from "./math/SphericalHarmonicsRGB";
 export {Transform} from "./math/Transform";
 
 export {Debug} from "./debug/Debug";

@@ -56,6 +56,7 @@ Float4.subtract = function (a, b, target)
 	return target;
 };
 
+
 /**
  * Multiplies a vector with a scalar. The w-coordinate is not scaled, since that's generally not what is desired.
  *

@@ -3663,6 +3663,30 @@
 
 	ShaderLibrary._files['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
 
+	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
+
+	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
+
+	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
+
+	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
+
+	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['esm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readValue(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readValue(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValue(uv + offset) + readValue(uv - offset);\n	}\n\n//	hx_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	hx_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
+
+	ShaderLibrary._files['shadow_esm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    // I wish we could write exp directly, but precision issues (can\'t encode real floats)\n    return vec4(exp(HX_ESM_CONSTANT * depth));\n// so when blurring, we\'ll need to do ln(sum(exp())\n//    return vec4(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;\n    shadowMapCoord.z += depthBias;\n//    float diff = shadowSample - shadowMapCoord.z;\n//    return saturate(HX_ESM_DARKENING * exp(HX_ESM_CONSTANT * diff));\n    return saturate(HX_ESM_DARKENING * shadowSample * exp(-HX_ESM_CONSTANT * shadowMapCoord.z));\n}';
+
+	ShaderLibrary._files['shadow_hard.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    return hx_floatToRGBA8(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    float shadowSample = hx_RGBA8ToFloat(texture2D(shadowMap, shadowMapCoord.xy));\n    float diff = shadowMapCoord.z - shadowSample - depthBias;\n    return float(diff < 0.0);\n}';
+
+	ShaderLibrary._files['shadow_pcf.glsl'] = '#ifdef HX_PCF_DITHER_SHADOWS\n    uniform sampler2D hx_dither2D;\n    uniform vec2 hx_dither2DTextureScale;\n#endif\n\nuniform vec2 hx_poissonDisk[32];\n\nvec4 hx_getShadowMapValue(float depth)\n{\n    return hx_floatToRGBA8(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    float shadowTest = 0.0;\n\n    #ifdef HX_PCF_DITHER_SHADOWS\n        vec4 dither = hx_sampleDefaultDither(hx_dither2D, gl_FragCoord.xy * hx_dither2DTextureScale);\n        dither = vec4(dither.x, -dither.y, dither.y, dither.x) * HX_PCF_SOFTNESS;  // add radius scale\n    #endif\n\n    for (int i = 0; i < HX_PCF_NUM_SHADOW_SAMPLES; ++i) {\n        vec2 offset;\n        #ifdef HX_PCF_DITHER_SHADOWS\n        offset.x = dot(dither.xy, hx_poissonDisk[i]);\n        offset.y = dot(dither.zw, hx_poissonDisk[i]);\n        #else\n        offset = hx_poissonDisk[i] * HX_PCF_SOFTNESS;\n        #endif\n        float shadowSample = hx_RGBA8ToFloat(texture2D(shadowMap, shadowMapCoord.xy + offset));\n        float diff = shadowMapCoord.z - shadowSample - depthBias;\n        shadowTest += float(diff < 0.0);\n    }\n\n    return shadowTest * HX_PCF_RCP_NUM_SHADOW_SAMPLES;\n}';
+
+	ShaderLibrary._files['shadow_vsm.glsl'] = '#derivatives\n\nvec4 hx_getShadowMapValue(float depth)\n{\n    float dx = dFdx(depth);\n    float dy = dFdy(depth);\n    float moment2 = depth * depth + 0.25*(dx*dx + dy*dy);\n\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    return vec4(depth, moment2, 0.0, 1.0);\n    #else\n    return vec4(hx_floatToRG8(depth), hx_floatToRG8(moment2));\n    #endif\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    vec4 s = texture2D(shadowMap, shadowMapCoord.xy);\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    vec2 moments = s.xy;\n    #else\n    vec2 moments = vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    #endif\n    shadowMapCoord.z += depthBias;\n\n    float variance = moments.y - moments.x * moments.x;\n    variance = max(variance, HX_VSM_MIN_VARIANCE);\n\n    float diff = shadowMapCoord.z - moments.x;\n    float upperBound = 1.0;\n\n    // transparents could be closer to the light than casters\n    if (diff > 0.0)\n        upperBound = variance / (variance + diff*diff);\n\n    return saturate((upperBound - HX_VSM_LIGHT_BLEED_REDUCTION) * HX_VSM_RCP_LIGHT_BLEED_REDUCTION_RANGE);\n}';
+
+	ShaderLibrary._files['vsm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nvec2 readValues(vec2 coord)\n{\n    vec4 s = texture2D(source, coord);\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    return s.xy;\n    #else\n    return vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    #endif\n}\n\nvoid main()\n{\n    vec2 total = readValues(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValues(uv + offset) + readValues(uv - offset);\n	}\n\n    total *= RCP_NUM_SAMPLES;\n\n#if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    hx_FragColor = vec4(total, 0.0, 1.0);\n#else\n	hx_FragColor.xy = hx_floatToRG8(total.x);\n	hx_FragColor.zw = hx_floatToRG8(total.y);\n#endif\n}';
+
 	ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	hx_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
 	ShaderLibrary._files['bloom_composite_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
@@ -3692,30 +3716,6 @@
 	ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	hx_FragColor = vec4(l, l, l, 1.0);\n}';
 
 	ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	hx_FragColor = color / (1.0 + lum);\n}';
-
-	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
-
-	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
-
-	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
-
-	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
-
-	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['esm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readValue(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readValue(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValue(uv + offset) + readValue(uv - offset);\n	}\n\n//	hx_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	hx_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
-
-	ShaderLibrary._files['shadow_esm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    // I wish we could write exp directly, but precision issues (can\'t encode real floats)\n    return vec4(exp(HX_ESM_CONSTANT * depth));\n// so when blurring, we\'ll need to do ln(sum(exp())\n//    return vec4(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;\n    shadowMapCoord.z += depthBias;\n//    float diff = shadowSample - shadowMapCoord.z;\n//    return saturate(HX_ESM_DARKENING * exp(HX_ESM_CONSTANT * diff));\n    return saturate(HX_ESM_DARKENING * shadowSample * exp(-HX_ESM_CONSTANT * shadowMapCoord.z));\n}';
-
-	ShaderLibrary._files['shadow_hard.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    return hx_floatToRGBA8(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    float shadowSample = hx_RGBA8ToFloat(texture2D(shadowMap, shadowMapCoord.xy));\n    float diff = shadowMapCoord.z - shadowSample - depthBias;\n    return float(diff < 0.0);\n}';
-
-	ShaderLibrary._files['shadow_pcf.glsl'] = '#ifdef HX_PCF_DITHER_SHADOWS\n    uniform sampler2D hx_dither2D;\n    uniform vec2 hx_dither2DTextureScale;\n#endif\n\nuniform vec2 hx_poissonDisk[32];\n\nvec4 hx_getShadowMapValue(float depth)\n{\n    return hx_floatToRGBA8(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    float shadowTest = 0.0;\n\n    #ifdef HX_PCF_DITHER_SHADOWS\n        vec4 dither = hx_sampleDefaultDither(hx_dither2D, gl_FragCoord.xy * hx_dither2DTextureScale);\n        dither = vec4(dither.x, -dither.y, dither.y, dither.x) * HX_PCF_SOFTNESS;  // add radius scale\n    #endif\n\n    for (int i = 0; i < HX_PCF_NUM_SHADOW_SAMPLES; ++i) {\n        vec2 offset;\n        #ifdef HX_PCF_DITHER_SHADOWS\n        offset.x = dot(dither.xy, hx_poissonDisk[i]);\n        offset.y = dot(dither.zw, hx_poissonDisk[i]);\n        #else\n        offset = hx_poissonDisk[i] * HX_PCF_SOFTNESS;\n        #endif\n        float shadowSample = hx_RGBA8ToFloat(texture2D(shadowMap, shadowMapCoord.xy + offset));\n        float diff = shadowMapCoord.z - shadowSample - depthBias;\n        shadowTest += float(diff < 0.0);\n    }\n\n    return shadowTest * HX_PCF_RCP_NUM_SHADOW_SAMPLES;\n}';
-
-	ShaderLibrary._files['shadow_vsm.glsl'] = '#derivatives\n\nvec4 hx_getShadowMapValue(float depth)\n{\n    float dx = dFdx(depth);\n    float dy = dFdy(depth);\n    float moment2 = depth * depth + 0.25*(dx*dx + dy*dy);\n\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    return vec4(depth, moment2, 0.0, 1.0);\n    #else\n    return vec4(hx_floatToRG8(depth), hx_floatToRG8(moment2));\n    #endif\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    vec4 s = texture2D(shadowMap, shadowMapCoord.xy);\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    vec2 moments = s.xy;\n    #else\n    vec2 moments = vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    #endif\n    shadowMapCoord.z += depthBias;\n\n    float variance = moments.y - moments.x * moments.x;\n    variance = max(variance, HX_VSM_MIN_VARIANCE);\n\n    float diff = shadowMapCoord.z - moments.x;\n    float upperBound = 1.0;\n\n    // transparents could be closer to the light than casters\n    if (diff > 0.0)\n        upperBound = variance / (variance + diff*diff);\n\n    return saturate((upperBound - HX_VSM_LIGHT_BLEED_REDUCTION) * HX_VSM_RCP_LIGHT_BLEED_REDUCTION_RANGE);\n}';
-
-	ShaderLibrary._files['vsm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nvec2 readValues(vec2 coord)\n{\n    vec4 s = texture2D(source, coord);\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    return s.xy;\n    #else\n    return vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    #endif\n}\n\nvoid main()\n{\n    vec2 total = readValues(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValues(uv + offset) + readValues(uv - offset);\n	}\n\n    total *= RCP_NUM_SAMPLES;\n\n#if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    hx_FragColor = vec4(total, 0.0, 1.0);\n#else\n	hx_FragColor.xy = hx_floatToRG8(total.x);\n	hx_FragColor.zw = hx_floatToRG8(total.y);\n#endif\n}';
 
 	ShaderLibrary._files['snippets_general.glsl'] = '#define HX_LOG_10 2.302585093\n\n#ifdef HX_GLSL_300_ES\n// replace some outdated function names\nvec4 texture2D(sampler2D s, vec2 uv) { return texture(s, uv); }\nvec4 textureCube(samplerCube s, vec3 uvw) { return texture(s, uvw); }\n\n#define vertex_attribute in\n#define varying_in in\n#define varying_out out\n\n#ifdef HX_FRAGMENT_SHADER\nout vec4 hx_FragColor;\n#endif\n\n#else\n\n#define vertex_attribute attribute\n#define varying_in varying\n#define varying_out varying\n#define hx_FragColor gl_FragColor\n\n#endif\n\nfloat saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);\n    // cannot fract first value or 1 would not be encodable\n    enc.yzw = fract(enc.yzw);\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc.y = fract(enc.y);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec2 hx_encodeNormal(vec3 normal)\n{\n    vec2 data;\n    float p = sqrt(-normal.y*8.0 + 8.0);\n    data = normal.xz / p + .5;\n    return data;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    vec3 normal;\n    data.xy = data.xy*4.0 - 2.0;\n    float f = dot(data.xy, data.xy);\n    float g = sqrt(1.0 - f * .25);\n    normal.xz = data.xy * g;\n    normal.y = -(1.0 - f * .5);\n    return normal;\n}\n\nfloat hx_log10(float val)\n{\n    return log(val) / HX_LOG_10;\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\n/*float hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}*/\n\nfloat hx_decodeLinearDepth(vec4 samp)\n{\n    return hx_RG8ToFloat(samp.zw);\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = 1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return unproj.xyz / unproj.y;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewY(float depthSample, mat4 projectionMatrix)\n{\n    // View Y maps to NDC Z!!!\n    // y = projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[1][2])\n    return projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[1][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\n// https://seblagarde.wordpress.com/2011/08/17/hello-world/\nvec3 hx_fresnelProbe(vec3 normalSpecularReflectance, vec3 lightDir, vec3 normal, float roughness)\n{\n    float cosAngle = 1.0 - max(dot(normal, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    float gloss = (1.0 - roughness) * (1.0 - roughness);\n    vec3 bound = max(vec3(gloss), normalSpecularReflectance);\n    return normalSpecularReflectance + (bound - normalSpecularReflectance) * power;\n}\n\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}\n\nvec4 hx_sampleDefaultDither(sampler2D ditherTexture, vec2 uv)\n{\n    vec4 s = texture2D(ditherTexture, uv);\n\n    #ifndef HX_FLOAT_TEXTURES\n    s = s * 2.0 - 1.0;\n    #endif\n\n    return s;\n}\n\nvec3 hx_intersectCubeMap(vec3 rayOrigin, vec3 cubeCenter, vec3 rayDir, float cubeSize)\n{\n    vec3 t = (cubeSize * sign(rayDir) - (rayOrigin - cubeCenter)) / rayDir;\n    float minT = min(min(t.x, t.y), t.z);\n    return rayOrigin + minT * rayDir;\n}\n\n// sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.\n#ifdef HX_USE_SKINNING_TEXTURE\n#define HX_RCP_MAX_SKELETON_JOINTS 1.0 / float(HX_MAX_SKELETON_JOINTS - 1)\nmat4 hx_getSkinningMatrixImpl(vec4 weights, vec4 indices, sampler2D tex)\n{\n    mat4 m = mat4(0.0);\n    for (int i = 0; i < 4; ++i) {\n        mat4 t;\n        float index = indices[i] * HX_RCP_MAX_SKELETON_JOINTS;\n        t[0] = texture2D(tex, vec2(index, 0.0));\n        t[1] = texture2D(tex, vec2(index, 0.5));\n        t[2] = texture2D(tex, vec2(index, 1.0));\n        t[3] = vec4(0.0, 0.0, 0.0, 1.0);\n        m += weights[i] * t;\n    }\n    return m;\n}\n#define hx_getSkinningMatrix(v) hx_getSkinningMatrixImpl(hx_jointWeights, hx_jointIndices, hx_skinningTexture)\n#else\n#define hx_getSkinningMatrix(v) ( hx_jointWeights.x * mat4(hx_skinningMatrices[int(hx_jointIndices.x) * 3], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.y * mat4(hx_skinningMatrices[int(hx_jointIndices.y) * 3], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.z * mat4(hx_skinningMatrices[int(hx_jointIndices.z) * 3], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.w * mat4(hx_skinningMatrices[int(hx_jointIndices.w) * 3], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) )\n#endif';
 
@@ -15808,7 +15808,7 @@
 
 		this.name = "hx_meshinstance_" + (nameCounter$3++);
 		this.castShadows = true;
-		this.lodRangeStart = Number.NEGATIVE_INFINITY;
+		this.lodRangeStart = -Number.NEGATIVE_INFINITY;
 		this.lodRangeEnd = Number.POSITIVE_INFINITY;
 		this._lodVisible = true;
 		this.skeletonPose = null;
@@ -29320,52 +29320,1039 @@
 
 	/**
 	 * @classdesc
-	 * WriteOnlyDepthBuffer is a depth buffer that can be used with {@linkcode FrameBuffer} as a depth buffer if read-backs
-	 * are not required.
+	 *
+	 * FixedLightsSystem is System that automatically assigns all lights in a scene to all materials in the scene.
 	 *
 	 * @constructor
 	 *
 	 * @author derschmale <http://www.derschmale.com>
 	 */
-	function WriteOnlyDepthBuffer()
+	function FixedLightsSystem()
 	{
-	    this._renderBuffer = GL.gl.createRenderbuffer();
-	    this._format = null;
+		EntitySystem.call(this);
+		this._onLightAddedFuncs = {};
+		this._onLightRemovedFuncs = {};
+		this._queue = null;
 	}
 
-	WriteOnlyDepthBuffer.prototype = {
-	    /**
-	     * The width of the depth buffer.
-	     */
-	    get width() { return this._width; },
+	FixedLightsSystem.prototype = Object.create(EntitySystem.prototype);
 
-	    /**
-	     * The height of the depth buffer.
-	     */
-	    get height() { return this._height; },
+	/**
+	 * @ignore
+	 */
+	FixedLightsSystem.prototype.onStarted = function()
+	{
+		this._lights = [];
+		this._meshSet = this.getEntitySet([MeshInstance]);
+		this._meshSet.onEntityAdded.bind(this._onMeshInstanceAdded, this);
+		this._pointSet = this._initSet(PointLight);
+		this._spotSet = this._initSet(SpotLight);
+		this._dirSet = this._initSet(DirectionalLight);
+		this._probeSet = this._initSet(LightProbe);
+		this._assignLights();
+	};
 
-	    /**
-	     * The format of the depth buffer.
-	     */
-	    get format() { return this._format; },
+	/**
+	 * @ignore
+	 * @private
+	 */
+	FixedLightsSystem.prototype.onStopped = function()
+	{
+		this._meshSet.onEntityAdded.unbind(this._onMeshInstanceAdded);
+		this._destroySet(this._pointSet, PointLight);
+		this._destroySet(this._spotSet, SpotLight);
+		this._destroySet(this._dirSet, DirectionalLight);
+		this._destroySet(this._probeSet, LightProbe);
+		this._meshSet.free();
+	};
 
-	    /**
-	     * Initializes the depth buffer.
-	     * @param width The width of the depth buffer.
-	     * @param height The height of the depth buffer.
-	     * @param stencil Whether or not a stencil buffer is required.
-	     */
-	    init: function(width, height, stencil)
+	/**
+	 * @ignore
+	 * @private
+	 */
+	FixedLightsSystem.prototype._initSet = function(type)
+	{
+		var set = this.getEntitySet([type]);
+		this._onLightAddedFuncs[type] = this._onLightAdded.bind(this, type);
+		this._onLightRemovedFuncs[type] = this._onLightRemoved.bind(this, type);
+		set.onEntityAdded.bind(this._onLightAddedFuncs[type]);
+		set.onEntityRemoved.bind(this._onLightRemovedFuncs[type]);
+		addLights(this._lights, set, type);
+		return set;
+	};
+
+	/**
+	 * @ignore
+	 * @private
+	 */
+	FixedLightsSystem.prototype._destroySet = function(set, type)
+	{
+		set.onEntityAdded.unbind(this._onLightAddedFuncs[type]);
+		set.onEntityRemoved.unbind(this._onLightRemovedFuncs[type]);
+		set.free();
+	};
+
+
+	/**
+	 * @ignore
+	 */
+	FixedLightsSystem.prototype._onLightAdded = function(lightType, entity)
+	{
+		var light = entity.getFirstComponentByType(lightType);
+		this._lights.push(light);
+		this._assignLights();
+	};
+
+	FixedLightsSystem.prototype._onLightRemoved = function(lightType, entity)
+	{
+		var light = entity.getFirstComponentByType(lightType);
+		var index = this._lights.indexOf(light);
+		this._lights.splice(index, 1);
+		this._assignLights();
+	};
+
+	/**
+	 * @ignore
+	 * @private
+	 */
+	FixedLightsSystem.prototype._onMeshInstanceAdded = function(entity)
+	{
+		this._queueOrAssign(entity, this._lights);
+	};
+
+	/**
+	 * @ignore
+	 * @private
+	 */
+	FixedLightsSystem.prototype._assignLights = function()
+	{
+		// all lights need to be re-assigned, cancel this
+		if (this._queue)
+			this._queue.cancel();
+
+		// this will invalidate all materials, so do things one at a time
+		for (var i = 0, len = this._meshSet.numEntities; i < len; ++i)
+			this._queueOrAssign(this._meshSet.getEntity(i));
+	};
+
+	/**
+	 * @ignore
+	 * @material
+	 */
+	FixedLightsSystem.prototype._queueOrAssign = function(entity)
+	{
+		if (!this._queue || !this._queue.isRunning)
+			this._queue = new AsyncTaskQueue();
+
+		// if material isn't initialized, it's okay to assign lights directly, since the material will be compiled on render
+		// anyway
+		var meshInstance = entity.getFirstComponentByType(MeshInstance);
+		var material = meshInstance.material;
+		if (material._initialized)
+			this._queue.queue(assignLights, material, this._lights);
+		else
+			assignLights(material, this._lights);
+
+		if (!this._queue.isRunning)
+			this._queue.execute();
+	};
+
+	function assignLights(material, lights)
+	{
+		material.fixedLights = lights;
+		material.init();
+	}
+
+	function addLights(lights, set, componentType)
+	{
+		for (var i = 0, len = set.numEntities; i < len; ++i) {
+			var light = set.getEntity(i).getFirstComponentByType(componentType);
+			lights.push(light);
+		}
+	}
+
+	/**
+	 * @ignore
+	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function ESMBlurShader(blurRadius)
+	{
+	    Shader.call(this);
+	    var gl = GL.gl;
+
+	    var defines = {
+	        RADIUS: blurRadius,
+	        RCP_NUM_SAMPLES: "float(" + (1.0 / (1.0 + 2.0 * blurRadius)) + ")"
+	    };
+
+	    var vertex = ShaderLibrary.get("copy_vertex.glsl", defines);
+	    var fragment = ShaderLibrary.get("esm_blur_fragment.glsl", defines);
+
+	    this.init(vertex, fragment);
+
+	    this._textureLocation = gl.getUniformLocation(this.program, "source");
+	    this._directionLocation = gl.getUniformLocation(this.program, "direction");
+	    this._positionAttributeLocation = gl.getAttribLocation(this.program, "hx_position");
+	    this._texCoordAttributeLocation = gl.getAttribLocation(this.program, "hx_texCoord");
+
+	    gl.useProgram(this.program);
+	    gl.uniform1i(this._textureLocation, 0);
+	}
+
+	ESMBlurShader.prototype = Object.create(Shader.prototype);
+
+	ESMBlurShader.prototype.execute = function(rect, texture, dirX, dirY)
+	{
+	    var gl = GL.gl;
+
+	    GL.setDepthTest(Comparison.DISABLED);
+	    GL.setCullMode(CullMode.NONE);
+
+	    rect._vertexBuffers[0].bind();
+	    rect._indexBuffer.bind();
+
+	    GL.setShader(this);
+
+	    texture.bind(0);
+
+	    gl.vertexAttribPointer(this._positionAttributeLocation, 2, gl.FLOAT, false, 16, 0);
+	    gl.vertexAttribPointer(this._texCoordAttributeLocation, 2, gl.FLOAT, false, 16, 8);
+
+	    GL.enableAttributes(2);
+
+	    gl.uniform2f(this._directionLocation, dirX, dirY);
+
+	    GL.drawElements(ElementType.TRIANGLES, 6, 0);
+	};
+
+	/**
+	 * @ignore
+	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function VSMBlurShader(blurRadius)
+	{
+	    var gl = GL.gl;
+	    Shader.call(this);
+
+	    var defines = {
+	        RADIUS: blurRadius,
+	        RCP_NUM_SAMPLES: "float(" + (1.0 / (1.0 + 2.0 * blurRadius)) + ")"
+	    };
+
+	    var vertex = ShaderLibrary.get("copy_vertex.glsl", defines);
+	    var fragment = ShaderLibrary.get("vsm_blur_fragment.glsl", defines);
+
+	    this.init(vertex, fragment);
+
+	    this._textureLocation = gl.getUniformLocation(this.program, "source");
+	    this._directionLocation = gl.getUniformLocation(this.program, "direction");
+	    this._positionAttributeLocation = gl.getAttribLocation(this.program, "hx_position");
+	    this._texCoordAttributeLocation = gl.getAttribLocation(this.program, "hx_texCoord");
+
+	    gl.useProgram(this.program);
+	    gl.uniform1i(this._textureLocation, 0);
+	}
+	VSMBlurShader.prototype = Object.create(Shader.prototype);
+
+	VSMBlurShader.prototype.execute = function (rect, texture, dirX, dirY)
+	{
+	    var gl = GL.gl;
+	    GL.setDepthTest(Comparison.DISABLED);
+	    GL.setCullMode(CullMode.NONE);
+
+	    rect._vertexBuffers[0].bind();
+	    rect._indexBuffer.bind();
+
+		GL.setShader(this);
+
+	    texture.bind(0);
+
+	    gl.vertexAttribPointer(this._positionAttributeLocation, 2, DataType.FLOAT, false, 16, 0);
+	    gl.vertexAttribPointer(this._texCoordAttributeLocation, 2, DataType.FLOAT, false, 16, 8);
+
+	    GL.enableAttributes(2);
+
+	    gl.uniform2f(this._directionLocation, dirX, dirY);
+
+	    GL.drawElements(gl.TRIANGLES, 6, 0);
+	};
+
+	/**
+	 * @classdesc
+	 * VarianceShadowFilter is a shadow filter that provides variance soft shadow mapping. The implementation is highly
+	 * experimental at this point.
+	 *
+	 * @property {Number} blurRadius The blur radius for the soft shadows.
+	 * @property {Number} lightBleedReduction A value to counter light bleeding, an artifact of the technique.
+	 * @property {Number} minVariance The minimum amount of variance.
+	 * @property {Boolean} useHalfFloat Uses half float textures for the shadow map, if available. This may result in
+	 * performance improvements, but also precision artifacts. Defaults to true.
+	 *
+	 * @see {@linkcode InitOptions#shadowFilter}
+	 *
+	 * @constructor
+	 *
+	 * @extends ShadowFilter
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function VarianceShadowFilter()
+	{
+	    ShadowFilter.call(this);
+		this.lightBleedReduction = .5;
+		this.minVariance = .001;
+		this.useHalfFloat = true;
+		this._blurRadius = 2;
+	}
+
+	VarianceShadowFilter.prototype = Object.create(ShadowFilter.prototype,
 	    {
-	        var gl = GL.gl;
-	        stencil = stencil === undefined? true : stencil;
-	        this._width = width;
-	        this._height = height;
-	        this._format = stencil? gl.DEPTH_STENCIL : gl.DEPTH_COMPONENT16;
+	    	blurRadius: {
+	            get: function()
+	            {
+	                return this._blurRadius;
+	            },
 
-	        gl.bindRenderbuffer(gl.RENDERBUFFER, this._renderBuffer);
-	        gl.renderbufferStorage(gl.RENDERBUFFER, this._format, width, height);
-	        gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+	            set: function(value)
+	            {
+	                this._blurRadius = value;
+	                this._invalidateBlurShader();
+	            }
+	        }
+	    });
+
+	/**
+	 * @ignore
+	 */
+	VarianceShadowFilter.prototype.getGLSL = function()
+	{
+	    var defines = this._getDefines();
+	    return ShaderLibrary.get("shadow_vsm.glsl", defines);
+	};
+
+	VarianceShadowFilter.prototype.getCullMode = function()
+	{
+		return CullMode.BACK;
+	};
+
+	VarianceShadowFilter.prototype.getShadowMapFilter = function()
+	{
+		return TextureFilter.BILINEAR_NOMIP;
+	};
+
+	VarianceShadowFilter.prototype.getShadowMapFormat = function()
+	{
+	    return capabilities.EXT_COLOR_BUFFER_HALF_FLOAT || capabilities.EXT_COLOR_BUFFER_FLOAT? TextureFormat.RG || TextureFormat.RGB : TextureFormat.RGBA;
+	};
+
+	VarianceShadowFilter.prototype.getShadowMapDataType = function()
+	{
+	    return capabilities.EXT_COLOR_BUFFER_HALF_FLOAT && this.useHalfFloat? DataType.HALF_FLOAT :
+	            capabilities.EXT_COLOR_BUFFER_FLOAT? DataType.FLOAT : DataType.UNSIGNED_BYTE;
+	};
+
+	/**
+	 * @ignore
+	 */
+	VarianceShadowFilter.prototype._createBlurShader = function()
+	{
+	    return new VSMBlurShader(this._blurRadius);
+	};
+
+	/**
+	 * @ignore
+	 */
+	VarianceShadowFilter.prototype._getDefines = function()
+	{
+	    var range = 1.0 - this.lightBleedReduction;
+	    return {
+	        HX_VSM_MIN_VARIANCE: "float(" + this.minVariance + ")",
+	        HX_VSM_LIGHT_BLEED_REDUCTION: "float(" + this.lightBleedReduction + ")",
+	        HX_VSM_RCP_LIGHT_BLEED_REDUCTION_RANGE: "float(" + (1.0 / range) + ")"
+	    };
+	};
+
+	/**
+	 * @classdesc
+	 * ExponentialShadowFilter is a shadow filter for directional lights that provides exponential soft shadow
+	 * mapping. The implementation is highly experimental at this point.
+	 *
+	 * @property {number} blurRadius The blur radius for the soft shadows.
+	 * @property {number} darkeningFactor A darkening factor of the shadows. Counters some artifacts of the technique.
+	 * @property {number} expScaleFactor The exponential scale factor. Probably you shouldn't touch this.
+	 *
+	 * @see {@linkcode InitOptions#shadowFilter}
+	 *
+	 * @constructor
+	 *
+	 * @extends ShadowFilter
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function ExponentialShadowFilter()
+	{
+	    ShadowFilter.call(this);
+	    this.shadowMapFilter = TextureFilter.BILINEAR_NOMIP;
+	    this._expScaleFactor = 80;
+	    this._blurRadius = 1;
+	    this._darkeningFactor = .35;
+	}
+
+
+	ExponentialShadowFilter.prototype = Object.create(ShadowFilter.prototype,
+	    {
+	        blurRadius: {
+	            get: function()
+	            {
+	                return this._blurRadius;
+	            },
+
+	            set: function(value)
+	            {
+	                this._blurRadius = value;
+	                this._invalidateBlurShader();
+	            }
+	        },
+
+	        darkeningFactor: {
+	            get: function()
+	            {
+	                return this._darkeningFactor;
+	            },
+
+	            set: function(value)
+	            {
+	                this._darkeningFactor = value;
+	            }
+	        },
+
+	        expScaleFactor: {
+	            get: function()
+	            {
+	                return this._expScaleFactor;
+	            },
+
+	            set: function(value)
+	            {
+	                this._expScaleFactor = value;
+	            }
+	        }
+	    });
+
+	ExponentialShadowFilter.prototype.getCullMode = function()
+	{
+		return CullMode.BACK;
+	};
+
+	ExponentialShadowFilter.prototype.getShadowMapFilter = function()
+	{
+		return TextureFilter.BILINEAR_NOMIP;
+	};
+
+
+	/**
+	 * @ignore
+	 */
+	ExponentialShadowFilter.prototype.getShadowMapFormat = function()
+	{
+	    return TextureFormat.RG || TextureFormat.RGB;
+	};
+
+	/**
+	 * @ignore
+	 */
+	ExponentialShadowFilter.prototype.getShadowMapDataType = function()
+	{
+	    return DataType.FLOAT;
+	};
+
+	/**
+	 * @ignore
+	 */
+	ExponentialShadowFilter.prototype.getGLSL = function()
+	{
+	    var defines = this._getDefines();
+	    return ShaderLibrary.get("shadow_esm.glsl", defines);
+	};
+
+	/**
+	 * @ignore
+	 */
+	ExponentialShadowFilter.prototype._getDefines = function()
+	{
+	    return {
+	        HX_ESM_CONSTANT: "float(" + this._expScaleFactor + ")",
+	        HX_ESM_DARKENING: "float(" + this._darkeningFactor + ")"
+	    };
+	};
+
+	/**
+	 * @ignore
+	 */
+	ExponentialShadowFilter.prototype._createBlurShader = function()
+	{
+	    return new ESMBlurShader(this._blurRadius);
+	};
+
+	/**
+	 * @classdesc
+	 * PCFShadowFilter is a shadow filter that provides percentage closer soft shadow mapping. However, WebGL does not
+	 * support shadow test interpolations, so the results aren't as great as its GL/DX counterpart.
+	 *
+	 * @property {number} softness The softness of the shadows in shadow map space.
+	 * @property {number} numShadowSamples The amount of shadow samples to take.
+	 * @property {boolean} dither Whether or not the samples should be randomly rotated per screen pixel. Introduces noise but can improve the look.
+	 *
+	 * @see {@linkcode InitOptions#shadowFilter}
+	 *
+	 * @constructor
+	 *
+	 * @extends ShadowFilter
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function PCFShadowFilter()
+	{
+	    ShadowFilter.call(this);
+	    this.softness = .001;
+	    this.numShadowSamples = 6;
+	    this.dither = false;
+	}
+
+	PCFShadowFilter.prototype = Object.create(ShadowFilter.prototype);
+
+	/**
+	 * @ignore
+	 */
+	PCFShadowFilter.prototype.getGLSL = function ()
+	{
+	    var defines = {
+	        HX_PCF_NUM_SHADOW_SAMPLES: this.numShadowSamples,
+	        HX_PCF_RCP_NUM_SHADOW_SAMPLES: "float(" + (1.0 / this.numShadowSamples) + ")",
+	        HX_PCF_SOFTNESS: this.softness
+	    };
+
+	    if (this.dither)
+	        defines.HX_PCF_DITHER_SHADOWS = 1;
+
+	    return ShaderLibrary.get("shadow_pcf.glsl", defines);
+	};
+
+	/**
+	 * @classdesc
+	 * ConePrimitive provides a primitive cone {@linkcode Model}.
+	 *
+	 * @constructor
+	 * @param definition An object containing the following (optional) parameters:
+	 * <ul>
+	 *     <li>numSegmentsW: The amount of horizontal segments</li>
+	 *     <li>numSegmentsH: The amount of vertical segments </li>
+	 *     <li>radius: The radius of the cone base</li>
+	 *     <li>height: The height of the cone</li>
+	 *     <li>doubleSided: Whether or not the faces should point both ways</li>
+	 * </ul>
+	 *
+	 * @extends Primitive
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function ConePrimitive(definition)
+	{
+	    Primitive.call(this, definition);
+	}
+
+	ConePrimitive.prototype = Object.create(Primitive.prototype);
+
+	/**
+	 * The alignment dictates which access should be parallel to the sides of the cone
+	 * @type {number}
+	 */
+	ConePrimitive.ALIGN_X = 1;
+	ConePrimitive.ALIGN_Y = 2;
+	ConePrimitive.ALIGN_Z = 3;
+
+	ConePrimitive.prototype._generate = function(target, definition)
+	{
+	    definition = definition || {};
+	    var alignment = definition.alignment || ConePrimitive.ALIGN_Z;
+	    var numSegmentsH = definition.numSegmentsH || 1;
+	    var numSegmentsW = definition.numSegmentsW || 16;
+	    var radius = definition.radius || .5;
+	    var height = definition.height || 1;
+	    var doubleSided = definition.doubleSided === undefined? false : definition.doubleSided;
+
+	    var positions = target.positions;
+	    var uvs = target.uvs;
+	    var normals = target.normals;
+	    var indices = target.indices;
+	    var hi, ci;
+	    var cx, cy;
+	    var angle;
+
+	    var rcpNumSegmentsW = 1/numSegmentsW;
+	    var rcpNumSegmentsH = 1/numSegmentsH;
+
+	    // sides
+	    for (hi = 0; hi <= numSegmentsH; ++hi) {
+	        var rad = (1.0 - hi * rcpNumSegmentsH) * radius;
+	        var h = (hi*rcpNumSegmentsH - .5)*height;
+	        for (ci = 0; ci <= numSegmentsW; ++ci) {
+	            angle = ci * rcpNumSegmentsW * Math.PI * 2;
+	            var nx = Math.sin(angle);
+	            var ny = Math.cos(angle);
+	            cx = nx * rad;
+	            cy = ny * rad;
+
+	            switch (alignment) {
+	                case ConePrimitive.ALIGN_X:
+	                    positions.push(h, cy, cx);
+	                    if (normals) normals.push(0, ny, nx);
+	                    break;
+	                case ConePrimitive.ALIGN_Z:
+	                    positions.push(cx, -cy, h);
+	                    if (normals) normals.push(nx, -ny, 0);
+	                    break;
+	                default:
+	                    // Y
+	                    positions.push(cx, h, cy);
+	                    if (normals) normals.push(nx, 0, ny);
+	                    break;
+	            }
+
+	            if (uvs) uvs.push(1.0 - ci*rcpNumSegmentsW, 1.0 - hi*rcpNumSegmentsH);
+	        }
+	    }
+
+	    var w = numSegmentsW + 1;
+	    var base;
+	    for (ci = 0; ci < numSegmentsW; ++ci) {
+	        for (hi = 0; hi < numSegmentsH - 1; ++hi) {
+	            base = ci + hi*w;
+	            indices.push(base, base + w + 1, base + w);
+	            indices.push(base, base + 1, base + w + 1);
+
+	            if (doubleSided) {
+	                indices.push(base, base + w, base + w + 1);
+	                indices.push(base, base + w + 1, base + 1);
+	            }
+	        }
+
+	        // tip only needs 1 tri
+	        base = ci + (numSegmentsH - 1)*w;
+	        indices.push(base, base + 1, base + w + 1);
+	    }
+
+	    // bottom
+	    var indexOffset = positions.length / 3;
+	    var halfH = height * .5;
+	    for (ci = 0; ci < numSegmentsW; ++ci) {
+	        angle = ci * rcpNumSegmentsW * Math.PI * 2;
+	        var u = Math.sin(angle);
+	        var v = Math.cos(angle);
+	        cx = u * radius;
+	        cy = v * radius;
+
+	        u = -u * .5 + .5;
+	        v = v * .5 + .5;
+
+	        switch (alignment) {
+	            case ConePrimitive.ALIGN_X:
+	                positions.push(-halfH, cy, cx);
+	                if (normals) normals.push(-1, 0, 0);
+	                if (uvs) uvs.push(v, u);
+	                break;
+
+	            case ConePrimitive.ALIGN_Z:
+	                positions.push(cx, -cy, -halfH);
+	                if (normals) normals.push(0, 0, -1);
+	                if (uvs) uvs.push(u, 1.0 - v);
+	                break;
+	            default:
+	                positions.push(cx, -halfH, cy);
+	                if (normals) normals.push(0, -1, 0);
+	                if (uvs) uvs.push(u, 1.0 - v);
+	                break;
+	        }
+	    }
+
+	    for (ci = 1; ci < numSegmentsW - 1; ++ci)
+	        indices.push(indexOffset, indexOffset + ci + 1, indexOffset + ci);
+	};
+
+	/**
+	 * @classdesc
+	 * PlanePrimitive provides a primitive plane {@linkcode Model}.
+	 *
+	 * @constructor
+	 * @param definition An object containing the following (optional) parameters:
+	 * <ul>
+	 *     <li>numSegmentsW: The amount of horizontal segments</li>
+	 *     <li>numSegmentsH: The amount of vertical segments </li>
+	 *     <li>width: The width of the plane</li>
+	 *     <li>height: The height of the plane</li>
+	 *     <li>doubleSided: Whether or not the faces should point both ways</li>
+	 *     <li>alignment: The axes along which to orient the plane. One of {@linkcode PlanePrimitive#ALIGN_XZ}, {@linkcode PlanePrimitive#ALIGN_XY}, {@linkcode PlanePrimitive#ALIGN_YZ}</li>
+	 * </ul>
+	 *
+	 * @extends Primitive
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function PlanePrimitive(definition)
+	{
+	    Primitive.call(this, definition);
+	}
+
+	PlanePrimitive.prototype = Object.create(Primitive.prototype);
+
+	PlanePrimitive.ALIGN_XZ = 1;
+	PlanePrimitive.ALIGN_XY = 2;
+	PlanePrimitive.ALIGN_YZ = 3;
+
+	PlanePrimitive.prototype._generate = function(target, definition)
+	{
+	    definition = definition || {};
+	    var alignment = definition.alignment || PlanePrimitive.ALIGN_XY;
+	    var numSegmentsW = definition.numSegmentsW || 1;
+	    var numSegmentsH = definition.numSegmentsH || 1;
+	    var width = definition.width || 1;
+	    var height = definition.height || 1;
+	    var doubleSided = definition.doubleSided === undefined? false : definition.doubleSided;
+
+	    var positions = target.positions;
+	    var uvs = target.uvs;
+	    var normals = target.normals;
+	    var indices = target.indices;
+
+	    var rcpNumSegmentsW = 1/numSegmentsW;
+	    var rcpNumSegmentsH = 1/numSegmentsH;
+	    var posX = 0, posY = 0, posZ = 0;
+	    var normalX = 0, normalY = 0, normalZ = 0;
+	    var uvU = 0, uvV = 0;
+
+	    if (alignment === PlanePrimitive.ALIGN_XY)
+	        normalZ = 1;
+	    else if (alignment === PlanePrimitive.ALIGN_XZ)
+	        normalY = 1;
+	    else
+	        normalX = 1;
+
+	    for (var yi = 0; yi <= numSegmentsH; ++yi) {
+	        var y = (yi*rcpNumSegmentsH - .5)*height;
+
+	        for (var xi = 0; xi <= numSegmentsW; ++xi) {
+	            var x = (xi*rcpNumSegmentsW - .5)*width;
+
+	            if (alignment === PlanePrimitive.ALIGN_XY) {
+	                posX = x;
+	                posY = y;
+	                uvU = 1.0 - xi*rcpNumSegmentsW;
+	                uvV = yi*rcpNumSegmentsH;
+	            }
+	            else if (alignment === PlanePrimitive.ALIGN_XZ) {
+	                posX = x;
+	                posZ = y;
+	                uvU = 1.0 - xi*rcpNumSegmentsW;
+	                uvV = yi*rcpNumSegmentsH;
+	            }
+	            else {
+	                posY = x;
+	                posZ = y;
+	                uvU = 1.0 - xi*rcpNumSegmentsW;
+	                uvV = yi*rcpNumSegmentsH;
+	            }
+
+	            positions.push(posX, posY, posZ);
+
+	            if (normals)
+	                normals.push(normalX, normalY, normalZ);
+
+	            if (uvs)
+	                uvs.push(uvU, 1.0 - uvV);
+
+	            // add vertex with same position, but with inverted normal & tangent
+	            if (doubleSided) {
+	                positions.push(posX, posY, posZ);
+
+	                if (normals)
+	                    normals.push(-normalX, -normalY, -normalZ);
+
+	                if (uvs)
+	                    uvs.push(1.0 - uvU, 1.0 - uvV);
+	            }
+
+	            if (xi !== numSegmentsW && yi !== numSegmentsH) {
+	                var w = numSegmentsW + 1;
+	                var base = xi + yi*w;
+	                var mult = doubleSided ? 1 : 0;
+
+	                indices.push(base << mult, (base + w + 1) << mult, (base + w) << mult);
+	                indices.push(base << mult, (base + 1) << mult, (base + w + 1) << mult);
+
+	                if(doubleSided) {
+	                    indices.push(((base + w) << mult) + 1, ((base + w + 1) << mult) + 1, (base << mult) + 1);
+	                    indices.push(((base + w + 1) << mult) + 1, ((base + 1) << mult) + 1, (base << mult) + 1);
+	                }
+	            }
+	        }
+	    }
+	};
+
+	/**
+	 * @classdesc
+	 * TorusPrimitive provides a primitive cylinder {@linkcode Model}.
+	 *
+	 * @constructor
+	 * @param definition An object containing the following (optional) parameters:
+	 * <ul>
+	 *     <li>numSegmentsW: The amount of horizontal segments</li>
+	 *     <li>numSegmentsH: The amount of vertical segments </li>
+	 *     <li>radius: The radius of the torus</li>
+	 *     <li>tubeRadius: The radius of the torus's tube</li>
+	 *     <li>invert: Whether or not the faces should point inwards</li>
+	 *     <li>doubleSided: Whether or not the faces should point both ways</li>
+	 *     <li>alignment: The axes along which to orient the torus. One of {@linkcode TorusPrimitive#ALIGN_XZ}, {@linkcode TorusPrimitive#ALIGN_XY}, {@linkcode TorusPrimitive#ALIGN_YZ}</li>
+	 * </ul>
+	 *
+	 * @extends Primitive
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function TorusPrimitive(definition)
+	{
+	    Primitive.call(this, definition);
+	}
+
+	TorusPrimitive.prototype = Object.create(Primitive.prototype);
+
+	TorusPrimitive.ALIGN_XY = 1;
+	TorusPrimitive.ALIGN_XZ = 2;
+	TorusPrimitive.ALIGN_YZ = 3;
+
+	TorusPrimitive.prototype._generate = function(target, definition)
+	{
+	    definition = definition || {};
+	    var numSegmentsW = definition.numSegmentsW || 15;
+	    var numSegmentsH = definition.numSegmentsH || 20;
+	    var radius = definition.radius || .5;
+	    var tubeRadius = definition.tubeRadius || .1;
+	    var alignment = definition.alignment || TorusPrimitive.ALIGN_XY;
+
+	    var doubleSided = definition.doubleSided === undefined? false : definition.doubleSided;
+
+	    var positions = target.positions;
+	    var uvs = target.uvs;
+	    var normals = target.normals;
+
+	    var rcpNumSegmentsW = 1/numSegmentsW;
+	    var rcpNumSegmentsH = 1/numSegmentsH;
+
+	    for (var poloidalSegment = 0; poloidalSegment <= numSegmentsH; ++poloidalSegment) {
+	        var ratioV = poloidalSegment * rcpNumSegmentsH;
+	        var theta = ratioV * Math.PI * 2.0;
+	        var px = Math.cos(theta);
+	        var py = Math.sin(theta);
+
+	        for (var toroidalSegment = 0; toroidalSegment <= numSegmentsW; ++toroidalSegment) {
+	            var ratioU = toroidalSegment * rcpNumSegmentsW;
+	            var phi = ratioU * Math.PI * 2.0;
+	            var tx = Math.cos(phi);
+	            var tz = Math.sin(phi);
+	            var rad = radius + px  * tubeRadius;
+
+	            switch(alignment) {
+	                case TorusPrimitive.ALIGN_XZ:
+	                    positions.push(tx * rad, -py  * tubeRadius, tz * rad);
+
+	                    if (normals)
+	                        normals.push(tx * px, -py, tz * px);
+
+	                    break;
+	                case TorusPrimitive.ALIGN_XY:
+	                    positions.push(tx * rad, tz * rad, py  * tubeRadius);
+
+	                    if (normals)
+	                        normals.push(tx * px, tz * px, py);
+	                    break;
+	                case TorusPrimitive.ALIGN_YZ:
+	                    positions.push(py  * tubeRadius, tx * rad, tz * rad);
+
+	                    if (normals)
+	                        normals.push(py, tx * px, tz * px);
+	                    break;
+
+	                default:
+	                    // nothing
+
+	            }
+
+	            if (uvs)
+	                uvs.push(ratioU, ratioV);
+	        }
+	    }
+
+	    var indices = target.indices;
+
+	    for (var polarSegment = 0; polarSegment < numSegmentsH; ++polarSegment) {
+	        for (var azimuthSegment = 0; azimuthSegment < numSegmentsW; ++azimuthSegment) {
+	            var w = numSegmentsW + 1;
+	            var base = azimuthSegment + polarSegment*w;
+
+	            indices.push(base, base + w + 1, base + w);
+	            indices.push(base, base + 1, base + w + 1);
+
+	            if (doubleSided) {
+	                indices.push(base, base + w, base + w + 1);
+	                indices.push(base, base + w + 1, base + 1);
+	            }
+	        }
+	    }
+	};
+
+	/**
+	 * @classdesc
+	 * WireBoxPrimitive provides a primitive box {@linkcode Model} to use with line types, useful for debugging.
+	 *
+	 * @constructor
+	 * @param definition An object containing the following (optional) parameters:
+	 * <ul>
+	 *     <li>width: The width of the box</li>
+	 *     <li>height: The height of the box</li>
+	 *     <li>depth: The depth of the box</li>
+	 * </ul>
+	 *
+	 * @extends Primitive
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function WireBoxPrimitive(definition)
+	{
+	    Primitive.call(this, definition);
+		this.elementType = ElementType.LINES;
+	}
+
+	WireBoxPrimitive.prototype = Object.create(Primitive.prototype);
+
+	WireBoxPrimitive.prototype._generate = function(target, definition)
+	{
+	    var width = definition.width || 1;
+	    var height = definition.height || width;
+	    var depth = definition.depth || width;
+
+	    var halfW = width * .5;
+	    var halfH = height * .5;
+	    var halfD = depth * .5;
+
+	    var positions = target.positions;
+	    var indices = target.indices;
+
+	    positions.push(-halfW, -halfD, -halfH);
+	    positions.push(halfW, -halfD, -halfH);
+	    positions.push(-halfW, -halfD, halfH);
+	    positions.push(halfW, -halfD, halfH);
+
+	    positions.push(-halfW, halfD, -halfH);
+	    positions.push(halfW, halfD, -halfH);
+	    positions.push(-halfW, halfD, halfH);
+	    positions.push(halfW, halfD, halfH);
+
+	    indices.push(0, 1);
+	    indices.push(2, 3);
+	    indices.push(0, 2);
+	    indices.push(1, 3);
+
+	    indices.push(4, 5);
+	    indices.push(6, 7);
+	    indices.push(4, 6);
+	    indices.push(5, 7);
+
+	    indices.push(0, 4);
+	    indices.push(2, 6);
+	    indices.push(1, 5);
+	    indices.push(3, 7);
+	};
+
+	/**
+	 * @classdesc
+	 * WirePlanePrimitive provides a primitive plane {@linkcode Model} with lines, useful for debugging.
+	 *
+	 * @constructor
+	 * @param definition An object containing the following (optional) parameters:
+	 * <ul>
+	 *     <li>numSegmentsW: The amount of horizontal segments</li>
+	 *     <li>numSegmentsH: The amount of vertical segments </li>
+	 *     <li>width: The width of the plane</li>
+	 *     <li>height: The height of the plane</li>
+	 *     <li>alignment: The axes along which to orient the plane. One of {@linkcode WirePlanePrimitive#ALIGN_XZ}, {@linkcode WirePlanePrimitive#ALIGN_XY}, {@linkcode WirePlanePrimitive#ALIGN_YZ}</li>
+	 * </ul>
+	 *
+	 * @extends Primitive
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function WirePlanePrimitive(definition)
+	{
+	    Primitive.call(this, definition);
+	    this.elementType = ElementType.LINES;
+	}
+
+	WirePlanePrimitive.prototype = Object.create(Primitive.prototype);
+
+	WirePlanePrimitive.ALIGN_XZ = 1;
+	WirePlanePrimitive.ALIGN_XY = 2;
+	WirePlanePrimitive.ALIGN_YZ = 3;
+
+	WirePlanePrimitive.prototype._generate = function(target, definition)
+	{
+	    definition = definition || {};
+	    var alignment = definition.alignment || WirePlanePrimitive.ALIGN_XY;
+	    var numSegmentsW = definition.numSegmentsW || 1;
+	    var numSegmentsH = definition.numSegmentsH || 1;
+	    var width = definition.width || 1;
+	    var height = definition.height || 1;
+
+	    var positions = target.positions;
+	    var indices = target.indices;
+
+	    var rcpNumSegmentsW = 1/numSegmentsW;
+	    var rcpNumSegmentsH = 1/numSegmentsH;
+	    var posX = 0, posY = 0, posZ = 0;
+
+	    for (var yi = 0; yi <= numSegmentsH; ++yi) {
+	        var y = (yi*rcpNumSegmentsH - .5)*height;
+
+	        for (var xi = 0; xi <= numSegmentsW; ++xi) {
+	            var x = (xi*rcpNumSegmentsW - .5)*width;
+
+	            if (alignment === WirePlanePrimitive.ALIGN_XY) {
+	                posX = x;
+	                posY = y;
+	            }
+	            else if (alignment === WirePlanePrimitive.ALIGN_XZ) {
+	                posX = x;
+	                posZ = y;
+	            }
+	            else {
+	                posY = x;
+	                posZ = y;
+	            }
+
+	            positions.push(posX, posY, posZ);
+
+	            if (xi !== numSegmentsW && yi !== numSegmentsH) {
+	                var w = numSegmentsW + 1;
+	                var base = xi + yi*w;
+
+	                indices.push(base, base + 1);
+	                indices.push(base + 1, base + w + 1);
+	                indices.push(base + w + 1, base + w);
+	                indices.push(base + w, base);
+	            }
+	        }
 	    }
 	};
 
@@ -29515,6 +30502,7 @@
 		var dist = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
 
 		meshInstance._lodVisible = dist >= meshInstance.lodRangeStart && dist < meshInstance.lodRangeEnd;
+
 		if (!meshInstance._lodVisible)
 		    return;
 
@@ -29637,6 +30625,57 @@
 	    GL.setBlendState(null);
 	    return len;
 	}
+
+	/**
+	 * @classdesc
+	 * WriteOnlyDepthBuffer is a depth buffer that can be used with {@linkcode FrameBuffer} as a depth buffer if read-backs
+	 * are not required.
+	 *
+	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function WriteOnlyDepthBuffer()
+	{
+	    this._renderBuffer = GL.gl.createRenderbuffer();
+	    this._format = null;
+	}
+
+	WriteOnlyDepthBuffer.prototype = {
+	    /**
+	     * The width of the depth buffer.
+	     */
+	    get width() { return this._width; },
+
+	    /**
+	     * The height of the depth buffer.
+	     */
+	    get height() { return this._height; },
+
+	    /**
+	     * The format of the depth buffer.
+	     */
+	    get format() { return this._format; },
+
+	    /**
+	     * Initializes the depth buffer.
+	     * @param width The width of the depth buffer.
+	     * @param height The height of the depth buffer.
+	     * @param stencil Whether or not a stencil buffer is required.
+	     */
+	    init: function(width, height, stencil)
+	    {
+	        var gl = GL.gl;
+	        stencil = stencil === undefined? true : stencil;
+	        this._width = width;
+	        this._height = height;
+	        this._format = stencil? gl.DEPTH_STENCIL : gl.DEPTH_COMPONENT16;
+
+	        gl.bindRenderbuffer(gl.RENDERBUFFER, this._renderBuffer);
+	        gl.renderbufferStorage(gl.RENDERBUFFER, this._format, width, height);
+	        gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+	    }
+	};
 
 	/**
 	 * @classdesc
@@ -31339,1156 +32378,6 @@
 
 	/**
 	 * @classdesc
-	 * DynamicLightProbe is a {@linkcode LightProbe} that is rendered from the scene dynamically.
-	 *
-	 * @constructor
-	 *
-	 * @extends LightProbe
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function DynamicLightProbe(textureSize, textureDataType, near, far)
-	{
-	    var diffuse = new TextureCube();
-	    var specular = new TextureCube();
-
-	    textureDataType = textureDataType || DataType.UNSIGNED_BYTE;
-
-	    diffuse.initEmpty(4, null, textureDataType);
-	    specular.initEmpty(textureSize, null, textureDataType);
-
-	    near = near || .1;
-	    far = far || 1000.0;
-
-	    LightProbe.call(this, diffuse, specular);
-	    this._cameras = [];
-	    this._specularFBOs = [];
-	    this._diffuseFBOs = [];
-
-	    var depthBuffer = new WriteOnlyDepthBuffer();
-	    depthBuffer.init(textureSize, textureSize, false);
-
-	    var rotations = [];
-	    for (var i = 0; i < 6; ++i) {
-	        rotations[i] = new Quaternion();
-	    }
-
-	    rotations[0].fromAxisAngle(Float4.Y_AXIS, Math.PI * .5);
-	    rotations[1].fromAxisAngle(Float4.Y_AXIS, -Math.PI * .5);
-	    rotations[2].fromAxisAngle(Float4.X_AXIS, -Math.PI * .5);
-	    rotations[3].fromAxisAngle(Float4.X_AXIS, Math.PI * .5);
-	    rotations[4].fromAxisAngle(Float4.Y_AXIS, 0);
-	    rotations[5].fromAxisAngle(Float4.Y_AXIS, Math.PI);
-
-	    this._diffuseScene = new Scene();
-	    this._diffuseScene.skybox = new Skybox(specular);
-
-	    var cubeFaces = [ CubeFace.POSITIVE_X, CubeFace.NEGATIVE_X, CubeFace.POSITIVE_Y, CubeFace.NEGATIVE_Y, CubeFace.POSITIVE_Z, CubeFace.NEGATIVE_Z ];
-	    for (i = 0; i < 6; ++i) {
-	        var camera = new PerspectiveCamera();
-	        camera.nearDistance = near;
-	        camera.farDistance = far;
-	        camera.verticalFOV = Math.PI * .5;
-	        camera.rotation.copyFrom(rotations[i]);
-	        camera.scale.set(1, -1, 1);
-	        this._cameras.push(camera);
-
-	        var fbo = new FrameBuffer(specular, depthBuffer, cubeFaces[i]);
-	        fbo.init();
-	        this._specularFBOs.push(fbo);
-
-	        fbo = new FrameBuffer(diffuse, null, cubeFaces[i]);
-	        fbo.init();
-	        this._diffuseFBOs.push(fbo);
-	    }
-
-	    this._renderer = new Renderer();
-	}
-
-	Component.create(DynamicLightProbe, {}, LightProbe);
-
-	/**
-	 * Triggers an update of the light probe.
-	 */
-	DynamicLightProbe.prototype.render = function()
-	{
-	    var specularTexture = this._specularTexture;
-	    var diffuseTexture = this._diffuseTexture;
-
-	    this._specularTexture = DEFAULTS.DARK_CUBE_TEXTURE;
-	    this._diffuseTexture = DEFAULTS.DARK_CUBE_TEXTURE;
-
-	    var pos = this.entity.worldMatrix.getColumn(3);
-	    var scene = this.entity._scene;
-
-	    GL.setInvertCulling(true);
-
-	    for (var i = 0; i < 6; ++i) {
-	        this._cameras[i].position.copyFrom(pos);
-	        this._renderer.render(this._cameras[i], scene, 0, this._specularFBOs[i]);
-	    }
-
-	    specularTexture.generateMipmap();
-
-	    for (i = 0; i < 6; ++i)
-	        this._renderer.render(this._cameras[i], this._diffuseScene, 0, this._diffuseFBOs[i]);
-
-	    diffuseTexture.generateMipmap();
-
-	    GL.setInvertCulling(false);
-
-	    this._diffuseTexture = diffuseTexture;
-	    this._specularTexture = specularTexture;
-	};
-
-	DynamicLightProbe.prototype.clone = function()
-	{
-		var clone = new DynamicLightProbe(this._diffuseTexture.size, this._diffuseTexture.dataType, this._cameras[0].nearDistance, this._cameras[0].farDistance);
-		clone.size = this.size;
-		clone.intensity = this.intensity;
-		return clone;
-	};
-
-	/**
-	 * @classdesc
-	 *
-	 * FixedLightsSystem is System that automatically assigns all lights in a scene to all materials in the scene.
-	 *
-	 * @constructor
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function FixedLightsSystem()
-	{
-		EntitySystem.call(this);
-		this._onLightAddedFuncs = {};
-		this._onLightRemovedFuncs = {};
-		this._queue = null;
-	}
-
-	FixedLightsSystem.prototype = Object.create(EntitySystem.prototype);
-
-	/**
-	 * @ignore
-	 */
-	FixedLightsSystem.prototype.onStarted = function()
-	{
-		this._lights = [];
-		this._meshSet = this.getEntitySet([MeshInstance]);
-		this._meshSet.onEntityAdded.bind(this._onMeshInstanceAdded, this);
-		this._pointSet = this._initSet(PointLight);
-		this._spotSet = this._initSet(SpotLight);
-		this._dirSet = this._initSet(DirectionalLight);
-		this._probeSet = this._initSet(LightProbe);
-		this._assignLights();
-	};
-
-	/**
-	 * @ignore
-	 * @private
-	 */
-	FixedLightsSystem.prototype.onStopped = function()
-	{
-		this._meshSet.onEntityAdded.unbind(this._onMeshInstanceAdded);
-		this._destroySet(this._pointSet, PointLight);
-		this._destroySet(this._spotSet, SpotLight);
-		this._destroySet(this._dirSet, DirectionalLight);
-		this._destroySet(this._probeSet, LightProbe);
-		this._meshSet.free();
-	};
-
-	/**
-	 * @ignore
-	 * @private
-	 */
-	FixedLightsSystem.prototype._initSet = function(type)
-	{
-		var set = this.getEntitySet([type]);
-		this._onLightAddedFuncs[type] = this._onLightAdded.bind(this, type);
-		this._onLightRemovedFuncs[type] = this._onLightRemoved.bind(this, type);
-		set.onEntityAdded.bind(this._onLightAddedFuncs[type]);
-		set.onEntityRemoved.bind(this._onLightRemovedFuncs[type]);
-		addLights(this._lights, set, type);
-		return set;
-	};
-
-	/**
-	 * @ignore
-	 * @private
-	 */
-	FixedLightsSystem.prototype._destroySet = function(set, type)
-	{
-		set.onEntityAdded.unbind(this._onLightAddedFuncs[type]);
-		set.onEntityRemoved.unbind(this._onLightRemovedFuncs[type]);
-		set.free();
-	};
-
-
-	/**
-	 * @ignore
-	 */
-	FixedLightsSystem.prototype._onLightAdded = function(lightType, entity)
-	{
-		var light = entity.getFirstComponentByType(lightType);
-		this._lights.push(light);
-		this._assignLights();
-	};
-
-	FixedLightsSystem.prototype._onLightRemoved = function(lightType, entity)
-	{
-		var light = entity.getFirstComponentByType(lightType);
-		var index = this._lights.indexOf(light);
-		this._lights.splice(index, 1);
-		this._assignLights();
-	};
-
-	/**
-	 * @ignore
-	 * @private
-	 */
-	FixedLightsSystem.prototype._onMeshInstanceAdded = function(entity)
-	{
-		this._queueOrAssign(entity, this._lights);
-	};
-
-	/**
-	 * @ignore
-	 * @private
-	 */
-	FixedLightsSystem.prototype._assignLights = function()
-	{
-		// all lights need to be re-assigned, cancel this
-		if (this._queue)
-			this._queue.cancel();
-
-		// this will invalidate all materials, so do things one at a time
-		for (var i = 0, len = this._meshSet.numEntities; i < len; ++i)
-			this._queueOrAssign(this._meshSet.getEntity(i));
-	};
-
-	/**
-	 * @ignore
-	 * @material
-	 */
-	FixedLightsSystem.prototype._queueOrAssign = function(entity)
-	{
-		if (!this._queue || !this._queue.isRunning)
-			this._queue = new AsyncTaskQueue();
-
-		// if material isn't initialized, it's okay to assign lights directly, since the material will be compiled on render
-		// anyway
-		var meshInstance = entity.getFirstComponentByType(MeshInstance);
-		var material = meshInstance.material;
-		if (material._initialized)
-			this._queue.queue(assignLights, material, this._lights);
-		else
-			assignLights(material, this._lights);
-
-		if (!this._queue.isRunning)
-			this._queue.execute();
-	};
-
-	function assignLights(material, lights)
-	{
-		material.fixedLights = lights;
-		material.init();
-	}
-
-	function addLights(lights, set, componentType)
-	{
-		for (var i = 0, len = set.numEntities; i < len; ++i) {
-			var light = set.getEntity(i).getFirstComponentByType(componentType);
-			lights.push(light);
-		}
-	}
-
-	/**
-	 * @ignore
-	 * @constructor
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function ESMBlurShader(blurRadius)
-	{
-	    Shader.call(this);
-	    var gl = GL.gl;
-
-	    var defines = {
-	        RADIUS: blurRadius,
-	        RCP_NUM_SAMPLES: "float(" + (1.0 / (1.0 + 2.0 * blurRadius)) + ")"
-	    };
-
-	    var vertex = ShaderLibrary.get("copy_vertex.glsl", defines);
-	    var fragment = ShaderLibrary.get("esm_blur_fragment.glsl", defines);
-
-	    this.init(vertex, fragment);
-
-	    this._textureLocation = gl.getUniformLocation(this.program, "source");
-	    this._directionLocation = gl.getUniformLocation(this.program, "direction");
-	    this._positionAttributeLocation = gl.getAttribLocation(this.program, "hx_position");
-	    this._texCoordAttributeLocation = gl.getAttribLocation(this.program, "hx_texCoord");
-
-	    gl.useProgram(this.program);
-	    gl.uniform1i(this._textureLocation, 0);
-	}
-
-	ESMBlurShader.prototype = Object.create(Shader.prototype);
-
-	ESMBlurShader.prototype.execute = function(rect, texture, dirX, dirY)
-	{
-	    var gl = GL.gl;
-
-	    GL.setDepthTest(Comparison.DISABLED);
-	    GL.setCullMode(CullMode.NONE);
-
-	    rect._vertexBuffers[0].bind();
-	    rect._indexBuffer.bind();
-
-	    GL.setShader(this);
-
-	    texture.bind(0);
-
-	    gl.vertexAttribPointer(this._positionAttributeLocation, 2, gl.FLOAT, false, 16, 0);
-	    gl.vertexAttribPointer(this._texCoordAttributeLocation, 2, gl.FLOAT, false, 16, 8);
-
-	    GL.enableAttributes(2);
-
-	    gl.uniform2f(this._directionLocation, dirX, dirY);
-
-	    GL.drawElements(ElementType.TRIANGLES, 6, 0);
-	};
-
-	/**
-	 * @ignore
-	 * @constructor
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function VSMBlurShader(blurRadius)
-	{
-	    var gl = GL.gl;
-	    Shader.call(this);
-
-	    var defines = {
-	        RADIUS: blurRadius,
-	        RCP_NUM_SAMPLES: "float(" + (1.0 / (1.0 + 2.0 * blurRadius)) + ")"
-	    };
-
-	    var vertex = ShaderLibrary.get("copy_vertex.glsl", defines);
-	    var fragment = ShaderLibrary.get("vsm_blur_fragment.glsl", defines);
-
-	    this.init(vertex, fragment);
-
-	    this._textureLocation = gl.getUniformLocation(this.program, "source");
-	    this._directionLocation = gl.getUniformLocation(this.program, "direction");
-	    this._positionAttributeLocation = gl.getAttribLocation(this.program, "hx_position");
-	    this._texCoordAttributeLocation = gl.getAttribLocation(this.program, "hx_texCoord");
-
-	    gl.useProgram(this.program);
-	    gl.uniform1i(this._textureLocation, 0);
-	}
-	VSMBlurShader.prototype = Object.create(Shader.prototype);
-
-	VSMBlurShader.prototype.execute = function (rect, texture, dirX, dirY)
-	{
-	    var gl = GL.gl;
-	    GL.setDepthTest(Comparison.DISABLED);
-	    GL.setCullMode(CullMode.NONE);
-
-	    rect._vertexBuffers[0].bind();
-	    rect._indexBuffer.bind();
-
-		GL.setShader(this);
-
-	    texture.bind(0);
-
-	    gl.vertexAttribPointer(this._positionAttributeLocation, 2, DataType.FLOAT, false, 16, 0);
-	    gl.vertexAttribPointer(this._texCoordAttributeLocation, 2, DataType.FLOAT, false, 16, 8);
-
-	    GL.enableAttributes(2);
-
-	    gl.uniform2f(this._directionLocation, dirX, dirY);
-
-	    GL.drawElements(gl.TRIANGLES, 6, 0);
-	};
-
-	/**
-	 * @classdesc
-	 * VarianceShadowFilter is a shadow filter that provides variance soft shadow mapping. The implementation is highly
-	 * experimental at this point.
-	 *
-	 * @property {Number} blurRadius The blur radius for the soft shadows.
-	 * @property {Number} lightBleedReduction A value to counter light bleeding, an artifact of the technique.
-	 * @property {Number} minVariance The minimum amount of variance.
-	 * @property {Boolean} useHalfFloat Uses half float textures for the shadow map, if available. This may result in
-	 * performance improvements, but also precision artifacts. Defaults to true.
-	 *
-	 * @see {@linkcode InitOptions#shadowFilter}
-	 *
-	 * @constructor
-	 *
-	 * @extends ShadowFilter
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function VarianceShadowFilter()
-	{
-	    ShadowFilter.call(this);
-		this.lightBleedReduction = .5;
-		this.minVariance = .001;
-		this.useHalfFloat = true;
-		this._blurRadius = 2;
-	}
-
-	VarianceShadowFilter.prototype = Object.create(ShadowFilter.prototype,
-	    {
-	    	blurRadius: {
-	            get: function()
-	            {
-	                return this._blurRadius;
-	            },
-
-	            set: function(value)
-	            {
-	                this._blurRadius = value;
-	                this._invalidateBlurShader();
-	            }
-	        }
-	    });
-
-	/**
-	 * @ignore
-	 */
-	VarianceShadowFilter.prototype.getGLSL = function()
-	{
-	    var defines = this._getDefines();
-	    return ShaderLibrary.get("shadow_vsm.glsl", defines);
-	};
-
-	VarianceShadowFilter.prototype.getCullMode = function()
-	{
-		return CullMode.BACK;
-	};
-
-	VarianceShadowFilter.prototype.getShadowMapFilter = function()
-	{
-		return TextureFilter.BILINEAR_NOMIP;
-	};
-
-	VarianceShadowFilter.prototype.getShadowMapFormat = function()
-	{
-	    return capabilities.EXT_COLOR_BUFFER_HALF_FLOAT || capabilities.EXT_COLOR_BUFFER_FLOAT? TextureFormat.RG || TextureFormat.RGB : TextureFormat.RGBA;
-	};
-
-	VarianceShadowFilter.prototype.getShadowMapDataType = function()
-	{
-	    return capabilities.EXT_COLOR_BUFFER_HALF_FLOAT && this.useHalfFloat? DataType.HALF_FLOAT :
-	            capabilities.EXT_COLOR_BUFFER_FLOAT? DataType.FLOAT : DataType.UNSIGNED_BYTE;
-	};
-
-	/**
-	 * @ignore
-	 */
-	VarianceShadowFilter.prototype._createBlurShader = function()
-	{
-	    return new VSMBlurShader(this._blurRadius);
-	};
-
-	/**
-	 * @ignore
-	 */
-	VarianceShadowFilter.prototype._getDefines = function()
-	{
-	    var range = 1.0 - this.lightBleedReduction;
-	    return {
-	        HX_VSM_MIN_VARIANCE: "float(" + this.minVariance + ")",
-	        HX_VSM_LIGHT_BLEED_REDUCTION: "float(" + this.lightBleedReduction + ")",
-	        HX_VSM_RCP_LIGHT_BLEED_REDUCTION_RANGE: "float(" + (1.0 / range) + ")"
-	    };
-	};
-
-	/**
-	 * @classdesc
-	 * ExponentialShadowFilter is a shadow filter for directional lights that provides exponential soft shadow
-	 * mapping. The implementation is highly experimental at this point.
-	 *
-	 * @property {number} blurRadius The blur radius for the soft shadows.
-	 * @property {number} darkeningFactor A darkening factor of the shadows. Counters some artifacts of the technique.
-	 * @property {number} expScaleFactor The exponential scale factor. Probably you shouldn't touch this.
-	 *
-	 * @see {@linkcode InitOptions#shadowFilter}
-	 *
-	 * @constructor
-	 *
-	 * @extends ShadowFilter
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function ExponentialShadowFilter()
-	{
-	    ShadowFilter.call(this);
-	    this.shadowMapFilter = TextureFilter.BILINEAR_NOMIP;
-	    this._expScaleFactor = 80;
-	    this._blurRadius = 1;
-	    this._darkeningFactor = .35;
-	}
-
-
-	ExponentialShadowFilter.prototype = Object.create(ShadowFilter.prototype,
-	    {
-	        blurRadius: {
-	            get: function()
-	            {
-	                return this._blurRadius;
-	            },
-
-	            set: function(value)
-	            {
-	                this._blurRadius = value;
-	                this._invalidateBlurShader();
-	            }
-	        },
-
-	        darkeningFactor: {
-	            get: function()
-	            {
-	                return this._darkeningFactor;
-	            },
-
-	            set: function(value)
-	            {
-	                this._darkeningFactor = value;
-	            }
-	        },
-
-	        expScaleFactor: {
-	            get: function()
-	            {
-	                return this._expScaleFactor;
-	            },
-
-	            set: function(value)
-	            {
-	                this._expScaleFactor = value;
-	            }
-	        }
-	    });
-
-	ExponentialShadowFilter.prototype.getCullMode = function()
-	{
-		return CullMode.BACK;
-	};
-
-	ExponentialShadowFilter.prototype.getShadowMapFilter = function()
-	{
-		return TextureFilter.BILINEAR_NOMIP;
-	};
-
-
-	/**
-	 * @ignore
-	 */
-	ExponentialShadowFilter.prototype.getShadowMapFormat = function()
-	{
-	    return TextureFormat.RG || TextureFormat.RGB;
-	};
-
-	/**
-	 * @ignore
-	 */
-	ExponentialShadowFilter.prototype.getShadowMapDataType = function()
-	{
-	    return DataType.FLOAT;
-	};
-
-	/**
-	 * @ignore
-	 */
-	ExponentialShadowFilter.prototype.getGLSL = function()
-	{
-	    var defines = this._getDefines();
-	    return ShaderLibrary.get("shadow_esm.glsl", defines);
-	};
-
-	/**
-	 * @ignore
-	 */
-	ExponentialShadowFilter.prototype._getDefines = function()
-	{
-	    return {
-	        HX_ESM_CONSTANT: "float(" + this._expScaleFactor + ")",
-	        HX_ESM_DARKENING: "float(" + this._darkeningFactor + ")"
-	    };
-	};
-
-	/**
-	 * @ignore
-	 */
-	ExponentialShadowFilter.prototype._createBlurShader = function()
-	{
-	    return new ESMBlurShader(this._blurRadius);
-	};
-
-	/**
-	 * @classdesc
-	 * PCFShadowFilter is a shadow filter that provides percentage closer soft shadow mapping. However, WebGL does not
-	 * support shadow test interpolations, so the results aren't as great as its GL/DX counterpart.
-	 *
-	 * @property {number} softness The softness of the shadows in shadow map space.
-	 * @property {number} numShadowSamples The amount of shadow samples to take.
-	 * @property {boolean} dither Whether or not the samples should be randomly rotated per screen pixel. Introduces noise but can improve the look.
-	 *
-	 * @see {@linkcode InitOptions#shadowFilter}
-	 *
-	 * @constructor
-	 *
-	 * @extends ShadowFilter
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function PCFShadowFilter()
-	{
-	    ShadowFilter.call(this);
-	    this.softness = .001;
-	    this.numShadowSamples = 6;
-	    this.dither = false;
-	}
-
-	PCFShadowFilter.prototype = Object.create(ShadowFilter.prototype);
-
-	/**
-	 * @ignore
-	 */
-	PCFShadowFilter.prototype.getGLSL = function ()
-	{
-	    var defines = {
-	        HX_PCF_NUM_SHADOW_SAMPLES: this.numShadowSamples,
-	        HX_PCF_RCP_NUM_SHADOW_SAMPLES: "float(" + (1.0 / this.numShadowSamples) + ")",
-	        HX_PCF_SOFTNESS: this.softness
-	    };
-
-	    if (this.dither)
-	        defines.HX_PCF_DITHER_SHADOWS = 1;
-
-	    return ShaderLibrary.get("shadow_pcf.glsl", defines);
-	};
-
-	/**
-	 * @classdesc
-	 * ConePrimitive provides a primitive cone {@linkcode Model}.
-	 *
-	 * @constructor
-	 * @param definition An object containing the following (optional) parameters:
-	 * <ul>
-	 *     <li>numSegmentsW: The amount of horizontal segments</li>
-	 *     <li>numSegmentsH: The amount of vertical segments </li>
-	 *     <li>radius: The radius of the cone base</li>
-	 *     <li>height: The height of the cone</li>
-	 *     <li>doubleSided: Whether or not the faces should point both ways</li>
-	 * </ul>
-	 *
-	 * @extends Primitive
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function ConePrimitive(definition)
-	{
-	    Primitive.call(this, definition);
-	}
-
-	ConePrimitive.prototype = Object.create(Primitive.prototype);
-
-	/**
-	 * The alignment dictates which access should be parallel to the sides of the cone
-	 * @type {number}
-	 */
-	ConePrimitive.ALIGN_X = 1;
-	ConePrimitive.ALIGN_Y = 2;
-	ConePrimitive.ALIGN_Z = 3;
-
-	ConePrimitive.prototype._generate = function(target, definition)
-	{
-	    definition = definition || {};
-	    var alignment = definition.alignment || ConePrimitive.ALIGN_Z;
-	    var numSegmentsH = definition.numSegmentsH || 1;
-	    var numSegmentsW = definition.numSegmentsW || 16;
-	    var radius = definition.radius || .5;
-	    var height = definition.height || 1;
-	    var doubleSided = definition.doubleSided === undefined? false : definition.doubleSided;
-
-	    var positions = target.positions;
-	    var uvs = target.uvs;
-	    var normals = target.normals;
-	    var indices = target.indices;
-	    var hi, ci;
-	    var cx, cy;
-	    var angle;
-
-	    var rcpNumSegmentsW = 1/numSegmentsW;
-	    var rcpNumSegmentsH = 1/numSegmentsH;
-
-	    // sides
-	    for (hi = 0; hi <= numSegmentsH; ++hi) {
-	        var rad = (1.0 - hi * rcpNumSegmentsH) * radius;
-	        var h = (hi*rcpNumSegmentsH - .5)*height;
-	        for (ci = 0; ci <= numSegmentsW; ++ci) {
-	            angle = ci * rcpNumSegmentsW * Math.PI * 2;
-	            var nx = Math.sin(angle);
-	            var ny = Math.cos(angle);
-	            cx = nx * rad;
-	            cy = ny * rad;
-
-	            switch (alignment) {
-	                case ConePrimitive.ALIGN_X:
-	                    positions.push(h, cy, cx);
-	                    if (normals) normals.push(0, ny, nx);
-	                    break;
-	                case ConePrimitive.ALIGN_Z:
-	                    positions.push(cx, -cy, h);
-	                    if (normals) normals.push(nx, -ny, 0);
-	                    break;
-	                default:
-	                    // Y
-	                    positions.push(cx, h, cy);
-	                    if (normals) normals.push(nx, 0, ny);
-	                    break;
-	            }
-
-	            if (uvs) uvs.push(1.0 - ci*rcpNumSegmentsW, 1.0 - hi*rcpNumSegmentsH);
-	        }
-	    }
-
-	    var w = numSegmentsW + 1;
-	    var base;
-	    for (ci = 0; ci < numSegmentsW; ++ci) {
-	        for (hi = 0; hi < numSegmentsH - 1; ++hi) {
-	            base = ci + hi*w;
-	            indices.push(base, base + w + 1, base + w);
-	            indices.push(base, base + 1, base + w + 1);
-
-	            if (doubleSided) {
-	                indices.push(base, base + w, base + w + 1);
-	                indices.push(base, base + w + 1, base + 1);
-	            }
-	        }
-
-	        // tip only needs 1 tri
-	        base = ci + (numSegmentsH - 1)*w;
-	        indices.push(base, base + 1, base + w + 1);
-	    }
-
-	    // bottom
-	    var indexOffset = positions.length / 3;
-	    var halfH = height * .5;
-	    for (ci = 0; ci < numSegmentsW; ++ci) {
-	        angle = ci * rcpNumSegmentsW * Math.PI * 2;
-	        var u = Math.sin(angle);
-	        var v = Math.cos(angle);
-	        cx = u * radius;
-	        cy = v * radius;
-
-	        u = -u * .5 + .5;
-	        v = v * .5 + .5;
-
-	        switch (alignment) {
-	            case ConePrimitive.ALIGN_X:
-	                positions.push(-halfH, cy, cx);
-	                if (normals) normals.push(-1, 0, 0);
-	                if (uvs) uvs.push(v, u);
-	                break;
-
-	            case ConePrimitive.ALIGN_Z:
-	                positions.push(cx, -cy, -halfH);
-	                if (normals) normals.push(0, 0, -1);
-	                if (uvs) uvs.push(u, 1.0 - v);
-	                break;
-	            default:
-	                positions.push(cx, -halfH, cy);
-	                if (normals) normals.push(0, -1, 0);
-	                if (uvs) uvs.push(u, 1.0 - v);
-	                break;
-	        }
-	    }
-
-	    for (ci = 1; ci < numSegmentsW - 1; ++ci)
-	        indices.push(indexOffset, indexOffset + ci + 1, indexOffset + ci);
-	};
-
-	/**
-	 * @classdesc
-	 * PlanePrimitive provides a primitive plane {@linkcode Model}.
-	 *
-	 * @constructor
-	 * @param definition An object containing the following (optional) parameters:
-	 * <ul>
-	 *     <li>numSegmentsW: The amount of horizontal segments</li>
-	 *     <li>numSegmentsH: The amount of vertical segments </li>
-	 *     <li>width: The width of the plane</li>
-	 *     <li>height: The height of the plane</li>
-	 *     <li>doubleSided: Whether or not the faces should point both ways</li>
-	 *     <li>alignment: The axes along which to orient the plane. One of {@linkcode PlanePrimitive#ALIGN_XZ}, {@linkcode PlanePrimitive#ALIGN_XY}, {@linkcode PlanePrimitive#ALIGN_YZ}</li>
-	 * </ul>
-	 *
-	 * @extends Primitive
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function PlanePrimitive(definition)
-	{
-	    Primitive.call(this, definition);
-	}
-
-	PlanePrimitive.prototype = Object.create(Primitive.prototype);
-
-	PlanePrimitive.ALIGN_XZ = 1;
-	PlanePrimitive.ALIGN_XY = 2;
-	PlanePrimitive.ALIGN_YZ = 3;
-
-	PlanePrimitive.prototype._generate = function(target, definition)
-	{
-	    definition = definition || {};
-	    var alignment = definition.alignment || PlanePrimitive.ALIGN_XY;
-	    var numSegmentsW = definition.numSegmentsW || 1;
-	    var numSegmentsH = definition.numSegmentsH || 1;
-	    var width = definition.width || 1;
-	    var height = definition.height || 1;
-	    var doubleSided = definition.doubleSided === undefined? false : definition.doubleSided;
-
-	    var positions = target.positions;
-	    var uvs = target.uvs;
-	    var normals = target.normals;
-	    var indices = target.indices;
-
-	    var rcpNumSegmentsW = 1/numSegmentsW;
-	    var rcpNumSegmentsH = 1/numSegmentsH;
-	    var posX = 0, posY = 0, posZ = 0;
-	    var normalX = 0, normalY = 0, normalZ = 0;
-	    var uvU = 0, uvV = 0;
-
-	    if (alignment === PlanePrimitive.ALIGN_XY)
-	        normalZ = 1;
-	    else if (alignment === PlanePrimitive.ALIGN_XZ)
-	        normalY = 1;
-	    else
-	        normalX = 1;
-
-	    for (var yi = 0; yi <= numSegmentsH; ++yi) {
-	        var y = (yi*rcpNumSegmentsH - .5)*height;
-
-	        for (var xi = 0; xi <= numSegmentsW; ++xi) {
-	            var x = (xi*rcpNumSegmentsW - .5)*width;
-
-	            if (alignment === PlanePrimitive.ALIGN_XY) {
-	                posX = x;
-	                posY = y;
-	                uvU = 1.0 - xi*rcpNumSegmentsW;
-	                uvV = yi*rcpNumSegmentsH;
-	            }
-	            else if (alignment === PlanePrimitive.ALIGN_XZ) {
-	                posX = x;
-	                posZ = y;
-	                uvU = 1.0 - xi*rcpNumSegmentsW;
-	                uvV = yi*rcpNumSegmentsH;
-	            }
-	            else {
-	                posY = x;
-	                posZ = y;
-	                uvU = 1.0 - xi*rcpNumSegmentsW;
-	                uvV = yi*rcpNumSegmentsH;
-	            }
-
-	            positions.push(posX, posY, posZ);
-
-	            if (normals)
-	                normals.push(normalX, normalY, normalZ);
-
-	            if (uvs)
-	                uvs.push(uvU, 1.0 - uvV);
-
-	            // add vertex with same position, but with inverted normal & tangent
-	            if (doubleSided) {
-	                positions.push(posX, posY, posZ);
-
-	                if (normals)
-	                    normals.push(-normalX, -normalY, -normalZ);
-
-	                if (uvs)
-	                    uvs.push(1.0 - uvU, 1.0 - uvV);
-	            }
-
-	            if (xi !== numSegmentsW && yi !== numSegmentsH) {
-	                var w = numSegmentsW + 1;
-	                var base = xi + yi*w;
-	                var mult = doubleSided ? 1 : 0;
-
-	                indices.push(base << mult, (base + w + 1) << mult, (base + w) << mult);
-	                indices.push(base << mult, (base + 1) << mult, (base + w + 1) << mult);
-
-	                if(doubleSided) {
-	                    indices.push(((base + w) << mult) + 1, ((base + w + 1) << mult) + 1, (base << mult) + 1);
-	                    indices.push(((base + w + 1) << mult) + 1, ((base + 1) << mult) + 1, (base << mult) + 1);
-	                }
-	            }
-	        }
-	    }
-	};
-
-	/**
-	 * @classdesc
-	 * TorusPrimitive provides a primitive cylinder {@linkcode Model}.
-	 *
-	 * @constructor
-	 * @param definition An object containing the following (optional) parameters:
-	 * <ul>
-	 *     <li>numSegmentsW: The amount of horizontal segments</li>
-	 *     <li>numSegmentsH: The amount of vertical segments </li>
-	 *     <li>radius: The radius of the torus</li>
-	 *     <li>tubeRadius: The radius of the torus's tube</li>
-	 *     <li>invert: Whether or not the faces should point inwards</li>
-	 *     <li>doubleSided: Whether or not the faces should point both ways</li>
-	 *     <li>alignment: The axes along which to orient the torus. One of {@linkcode TorusPrimitive#ALIGN_XZ}, {@linkcode TorusPrimitive#ALIGN_XY}, {@linkcode TorusPrimitive#ALIGN_YZ}</li>
-	 * </ul>
-	 *
-	 * @extends Primitive
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function TorusPrimitive(definition)
-	{
-	    Primitive.call(this, definition);
-	}
-
-	TorusPrimitive.prototype = Object.create(Primitive.prototype);
-
-	TorusPrimitive.ALIGN_XY = 1;
-	TorusPrimitive.ALIGN_XZ = 2;
-	TorusPrimitive.ALIGN_YZ = 3;
-
-	TorusPrimitive.prototype._generate = function(target, definition)
-	{
-	    definition = definition || {};
-	    var numSegmentsW = definition.numSegmentsW || 15;
-	    var numSegmentsH = definition.numSegmentsH || 20;
-	    var radius = definition.radius || .5;
-	    var tubeRadius = definition.tubeRadius || .1;
-	    var alignment = definition.alignment || TorusPrimitive.ALIGN_XY;
-
-	    var doubleSided = definition.doubleSided === undefined? false : definition.doubleSided;
-
-	    var positions = target.positions;
-	    var uvs = target.uvs;
-	    var normals = target.normals;
-
-	    var rcpNumSegmentsW = 1/numSegmentsW;
-	    var rcpNumSegmentsH = 1/numSegmentsH;
-
-	    for (var poloidalSegment = 0; poloidalSegment <= numSegmentsH; ++poloidalSegment) {
-	        var ratioV = poloidalSegment * rcpNumSegmentsH;
-	        var theta = ratioV * Math.PI * 2.0;
-	        var px = Math.cos(theta);
-	        var py = Math.sin(theta);
-
-	        for (var toroidalSegment = 0; toroidalSegment <= numSegmentsW; ++toroidalSegment) {
-	            var ratioU = toroidalSegment * rcpNumSegmentsW;
-	            var phi = ratioU * Math.PI * 2.0;
-	            var tx = Math.cos(phi);
-	            var tz = Math.sin(phi);
-	            var rad = radius + px  * tubeRadius;
-
-	            switch(alignment) {
-	                case TorusPrimitive.ALIGN_XZ:
-	                    positions.push(tx * rad, -py  * tubeRadius, tz * rad);
-
-	                    if (normals)
-	                        normals.push(tx * px, -py, tz * px);
-
-	                    break;
-	                case TorusPrimitive.ALIGN_XY:
-	                    positions.push(tx * rad, tz * rad, py  * tubeRadius);
-
-	                    if (normals)
-	                        normals.push(tx * px, tz * px, py);
-	                    break;
-	                case TorusPrimitive.ALIGN_YZ:
-	                    positions.push(py  * tubeRadius, tx * rad, tz * rad);
-
-	                    if (normals)
-	                        normals.push(py, tx * px, tz * px);
-	                    break;
-
-	                default:
-	                    // nothing
-
-	            }
-
-	            if (uvs)
-	                uvs.push(ratioU, ratioV);
-	        }
-	    }
-
-	    var indices = target.indices;
-
-	    for (var polarSegment = 0; polarSegment < numSegmentsH; ++polarSegment) {
-	        for (var azimuthSegment = 0; azimuthSegment < numSegmentsW; ++azimuthSegment) {
-	            var w = numSegmentsW + 1;
-	            var base = azimuthSegment + polarSegment*w;
-
-	            indices.push(base, base + w + 1, base + w);
-	            indices.push(base, base + 1, base + w + 1);
-
-	            if (doubleSided) {
-	                indices.push(base, base + w, base + w + 1);
-	                indices.push(base, base + w + 1, base + 1);
-	            }
-	        }
-	    }
-	};
-
-	/**
-	 * @classdesc
-	 * WireBoxPrimitive provides a primitive box {@linkcode Model} to use with line types, useful for debugging.
-	 *
-	 * @constructor
-	 * @param definition An object containing the following (optional) parameters:
-	 * <ul>
-	 *     <li>width: The width of the box</li>
-	 *     <li>height: The height of the box</li>
-	 *     <li>depth: The depth of the box</li>
-	 * </ul>
-	 *
-	 * @extends Primitive
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function WireBoxPrimitive(definition)
-	{
-	    Primitive.call(this, definition);
-		this.elementType = ElementType.LINES;
-	}
-
-	WireBoxPrimitive.prototype = Object.create(Primitive.prototype);
-
-	WireBoxPrimitive.prototype._generate = function(target, definition)
-	{
-	    var width = definition.width || 1;
-	    var height = definition.height || width;
-	    var depth = definition.depth || width;
-
-	    var halfW = width * .5;
-	    var halfH = height * .5;
-	    var halfD = depth * .5;
-
-	    var positions = target.positions;
-	    var indices = target.indices;
-
-	    positions.push(-halfW, -halfD, -halfH);
-	    positions.push(halfW, -halfD, -halfH);
-	    positions.push(-halfW, -halfD, halfH);
-	    positions.push(halfW, -halfD, halfH);
-
-	    positions.push(-halfW, halfD, -halfH);
-	    positions.push(halfW, halfD, -halfH);
-	    positions.push(-halfW, halfD, halfH);
-	    positions.push(halfW, halfD, halfH);
-
-	    indices.push(0, 1);
-	    indices.push(2, 3);
-	    indices.push(0, 2);
-	    indices.push(1, 3);
-
-	    indices.push(4, 5);
-	    indices.push(6, 7);
-	    indices.push(4, 6);
-	    indices.push(5, 7);
-
-	    indices.push(0, 4);
-	    indices.push(2, 6);
-	    indices.push(1, 5);
-	    indices.push(3, 7);
-	};
-
-	/**
-	 * @classdesc
-	 * WirePlanePrimitive provides a primitive plane {@linkcode Model} with lines, useful for debugging.
-	 *
-	 * @constructor
-	 * @param definition An object containing the following (optional) parameters:
-	 * <ul>
-	 *     <li>numSegmentsW: The amount of horizontal segments</li>
-	 *     <li>numSegmentsH: The amount of vertical segments </li>
-	 *     <li>width: The width of the plane</li>
-	 *     <li>height: The height of the plane</li>
-	 *     <li>alignment: The axes along which to orient the plane. One of {@linkcode WirePlanePrimitive#ALIGN_XZ}, {@linkcode WirePlanePrimitive#ALIGN_XY}, {@linkcode WirePlanePrimitive#ALIGN_YZ}</li>
-	 * </ul>
-	 *
-	 * @extends Primitive
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function WirePlanePrimitive(definition)
-	{
-	    Primitive.call(this, definition);
-	    this.elementType = ElementType.LINES;
-	}
-
-	WirePlanePrimitive.prototype = Object.create(Primitive.prototype);
-
-	WirePlanePrimitive.ALIGN_XZ = 1;
-	WirePlanePrimitive.ALIGN_XY = 2;
-	WirePlanePrimitive.ALIGN_YZ = 3;
-
-	WirePlanePrimitive.prototype._generate = function(target, definition)
-	{
-	    definition = definition || {};
-	    var alignment = definition.alignment || WirePlanePrimitive.ALIGN_XY;
-	    var numSegmentsW = definition.numSegmentsW || 1;
-	    var numSegmentsH = definition.numSegmentsH || 1;
-	    var width = definition.width || 1;
-	    var height = definition.height || 1;
-
-	    var positions = target.positions;
-	    var indices = target.indices;
-
-	    var rcpNumSegmentsW = 1/numSegmentsW;
-	    var rcpNumSegmentsH = 1/numSegmentsH;
-	    var posX = 0, posY = 0, posZ = 0;
-
-	    for (var yi = 0; yi <= numSegmentsH; ++yi) {
-	        var y = (yi*rcpNumSegmentsH - .5)*height;
-
-	        for (var xi = 0; xi <= numSegmentsW; ++xi) {
-	            var x = (xi*rcpNumSegmentsW - .5)*width;
-
-	            if (alignment === WirePlanePrimitive.ALIGN_XY) {
-	                posX = x;
-	                posY = y;
-	            }
-	            else if (alignment === WirePlanePrimitive.ALIGN_XZ) {
-	                posX = x;
-	                posZ = y;
-	            }
-	            else {
-	                posY = x;
-	                posZ = y;
-	            }
-
-	            positions.push(posX, posY, posZ);
-
-	            if (xi !== numSegmentsW && yi !== numSegmentsH) {
-	                var w = numSegmentsW + 1;
-	                var base = xi + yi*w;
-
-	                indices.push(base, base + 1);
-	                indices.push(base + 1, base + w + 1);
-	                indices.push(base + w + 1, base + w);
-	                indices.push(base + w, base);
-	            }
-	        }
-	    }
-	};
-
-	/**
-	 * @classdesc
 	 * VRRenderer is a renderer to WebVR. This can only be used if `HX.enableVR` is called
 	 *
 	 * @constructor
@@ -33367,7 +33256,6 @@
 	exports.Light = Light;
 	exports.DirectLight = DirectLight;
 	exports.LightProbe = LightProbe;
-	exports.DynamicLightProbe = DynamicLightProbe;
 	exports.PointLight = PointLight;
 	exports.SpotLight = SpotLight;
 	exports.FixedLightsSystem = FixedLightsSystem;

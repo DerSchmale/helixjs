@@ -133,14 +133,15 @@ export {Touch} from "./input/Touch";
 
 export {AssetLibrary} from "./loaders/AssetLibrary";
 export {AssetLoader} from "./loaders/AssetLoader";
-export {AudioFile} from "./loaders/AudioFile";
 export {URLLoader} from "./loaders/URLLoader";
+export {AudioFile} from "./loaders/AudioFile";
+export {ASH} from "./loaders/ASH";
+export {DDS} from "./loaders/DDS";
 export {HCM} from "./loaders/HCM";
 export {HMAT} from "./loaders/HMAT";
 export {HX} from "./loaders/HX";
 export {Importer} from "./loaders/Importer";
 export {JPG, PNG} from "./loaders/JPG_PNG";
-export {DDS} from "./loaders/DDS";
 
 export {AmbientLight} from "./light/AmbientLight";
 export {DirectionalLight} from "./light/DirectionalLight";

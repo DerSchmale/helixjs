@@ -51,6 +51,8 @@ SphericalHarmonicsRGB.prototype = {
 	{
 		var i = this._getCoeffIndex(level, index);
 		Float4.scale(value, shConstants[i], this._coefficients[i]);
+
+		console.log(this._coefficients);
 	},
 
 	/**

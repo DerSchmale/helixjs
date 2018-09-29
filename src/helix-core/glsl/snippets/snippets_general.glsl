@@ -226,6 +226,16 @@ vec4 hx_sampleDefaultDither(sampler2D ditherTexture, vec2 uv)
     return s;
 }
 
+vec3 hx_evaluateSH(vec3 dir, vec3 coeff[9])
+{
+    vec3 sq = dir * dir;
+
+    return  coeff[0] +
+            coeff[1] * dir.y + coeff[2] * dir.z + coeff[3] * dir.x +
+            coeff[4] * dir.x * dir.y + coeff[5] * dir.y * dir.z + coeff[6] * (3.0 * sq.z - 1.0) +
+            coeff[7] * dir.x * dir.z + coeff[8] * (sq.x - sq.y);
+}
+
 vec3 hx_intersectCubeMap(vec3 rayOrigin, vec3 cubeCenter, vec3 rayDir, float cubeSize)
 {
     vec3 t = (cubeSize * sign(rayDir) - (rayOrigin - cubeCenter)) / rayDir;

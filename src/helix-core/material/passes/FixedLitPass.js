@@ -1,7 +1,6 @@
 import {MaterialPass} from "../MaterialPass";
 import {DirectionalLight} from "../../light/DirectionalLight";
 import {PointLight} from "../../light/PointLight";
-import {LightProbe} from "../../light/LightProbe";
 import {ShaderLibrary} from "../../shader/ShaderLibrary";
 import {capabilities, META} from "../../Helix";
 import {Float4} from "../../math/Float4";
@@ -31,13 +30,10 @@ function FixedLitPass(geometryVertex, geometryFragment, lightingModel, lights)
     this._dirLights = null;
     this._pointLights = null;
     this._spotLights = null;
-    this._diffuseLightProbes = null;
-    this._specularLightProbes = null;
 
 	MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, lights));
 
 	this._getUniformLocations();
-    this._assignLightProbes();
 
 	this._MP_updatePassRenderState = MaterialPass.prototype.updatePassRenderState;
 }
@@ -50,7 +46,6 @@ FixedLitPass.prototype.updatePassRenderState = function (camera, renderer)
     this._assignDirLights(camera);
     this._assignPointLights(camera);
     this._assignSpotLights(camera);
-    this._assignLightProbes(camera);
 
 	this._MP_updatePassRenderState(camera, renderer);
 };
@@ -60,8 +55,6 @@ FixedLitPass.prototype._generateShader = function (geometryVertex, geometryFragm
     this._dirLights = [];
     this._pointLights = [];
     this._spotLights = [];
-    this._diffuseLightProbes = [];
-    this._specularLightProbes = [];
 
     for (var i = 0; i < lights.length; ++i) {
         var light = lights[i];
@@ -76,30 +69,15 @@ FixedLitPass.prototype._generateShader = function (geometryVertex, geometryFragm
         else if (light instanceof SpotLight) {
             this._spotLights.push(light);
         }
-        else if (light instanceof LightProbe) {
-            if (light.diffuseTexture)
-                this._diffuseLightProbes.push(light);
-
-            if (light.specularTexture)
-                this._specularLightProbes.push(light);
-        }
     }
 
     var extensions = [];
 
-    var numDiffProbes = this._diffuseLightProbes.length;
-    var numSpecProbes = this._specularLightProbes.length;
     var defines = {
         HX_NUM_DIR_LIGHTS: this._dirLights.length,
         HX_NUM_POINT_LIGHTS: this._pointLights.length,
-        HX_NUM_SPOT_LIGHTS: this._spotLights.length,
-        HX_NUM_DIFFUSE_PROBES: numDiffProbes,
-        HX_NUM_SPECULAR_PROBES: numSpecProbes
+        HX_NUM_SPOT_LIGHTS: this._spotLights.length
     };
-
-	this._diffProbeIntensityData = new Float32Array(numDiffProbes);
-	this._specProbeIntensityData = new Float32Array(numSpecProbes);
-	this._specProbeMipData = new Float32Array(numSpecProbes);
 
     if (capabilities.EXT_SHADER_TEXTURE_LOD) {
         extensions += "#texturelod\n";
@@ -115,7 +93,6 @@ FixedLitPass.prototype._generateShader = function (geometryVertex, geometryFragm
         ShaderLibrary.get("directional_light.glsl", defines) + "\n" +
         ShaderLibrary.get("point_light.glsl") + "\n" +
         ShaderLibrary.get("spot_light.glsl") + "\n" +
-        ShaderLibrary.get("light_probe.glsl") + "\n" +
         geometryFragment + "\n" +
         ShaderLibrary.get("material_fwd_fixed_fragment.glsl");
 
@@ -278,46 +255,6 @@ FixedLitPass.prototype._assignSpotLights = function (camera)
     }
 }();
 
-
-FixedLitPass.prototype._assignLightProbes = function () {
-    var diffuseMaps = [];
-    var specularMaps = [];
-
-    var diffIntensities = this._diffProbeIntensityData;
-    var probes = this._diffuseLightProbes;
-    var len = probes.length;
-    var probe;
-
-    for (var i = 0; i < len; ++i) {
-        probe = probes[i];
-        diffuseMaps[i] = probe.diffuseTexture;
-		var visible = probe.entity.hierarchyVisible? 1 : 0;
-		diffIntensities[i] = probe.intensity * visible;
-	}
-
-	var specIntensities = this._specProbeIntensityData;
-    probes = this._specularLightProbes;
-    len = probes.length;
-    var mips = this._specProbeMipData;
-    for (i = 0; i < len; ++i) {
-        probe = probes[i];
-        var tex = probe.specularTexture;
-        specularMaps[i] = tex;
-        mips[i] = Math.floor(MathX.log2(tex.size));
-		var visible = probe.entity.hierarchyVisible? 1 : 0;
-        specIntensities[i] = probe.intensity * visible;
-    }
-
-    if (diffuseMaps.length > 0) {
-        this.setTextureArray("hx_diffuseProbeMaps", diffuseMaps);
-		this.setUniformArray("hx_diffuseProbeIntensities", diffIntensities);
-	}
-    if (specularMaps.length > 0) {
-        this.setTextureArray("hx_specularProbeMaps", specularMaps);
-        this.setUniformArray("hx_specularProbeNumMips", mips);
-        this.setUniformArray("hx_specularProbeIntensities", specIntensities);
-    }
-};
 
 FixedLitPass.prototype._getUniformLocations = function ()
 {

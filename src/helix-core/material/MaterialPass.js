@@ -52,9 +52,8 @@ MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS = 3;
 MaterialPass.DIR_LIGHT_PASS = 4;
 MaterialPass.POINT_LIGHT_PASS = 5;
 MaterialPass.SPOT_LIGHT_PASS = 6;
-MaterialPass.LIGHT_PROBE_PASS = 7;
 
-MaterialPass.NUM_PASS_TYPES = 8;
+MaterialPass.NUM_PASS_TYPES = 7;
 
 MaterialPass.prototype =
     {

@@ -95,13 +95,6 @@ uniform hx_lights
 
 };
 
-#if HX_NUM_LIGHT_PROBES > 0
-uniform mat4 hx_cameraWorldMatrix;
-
-uniform samplerCube hx_diffuseProbes[HX_NUM_LIGHT_PROBES];
-uniform samplerCube hx_specularProbes[HX_NUM_LIGHT_PROBES];
-#endif
-
 ivec2 getCurrentCell(vec2 screenUV)
 {
     return ivec2(screenUV * vec2(float(HX_NUM_CELLS_X), float(HX_NUM_CELLS_Y)));
@@ -143,25 +136,6 @@ void main()
         }
     #endif
 
-    #if HX_NUM_LIGHT_PROBES > 0
-        vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;
-        vec3 reflectedViewDir = reflect(viewVector, data.normal);
-        vec3 fresnel = hx_fresnelProbe(specularColor, reflectedViewDir, data.normal, data.roughness);
-
-        reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;
-
-        for (int i = 0; i < HX_NUM_LIGHT_PROBES; ++i) {
-            // this is a bit icky, but since the cube textures need to indexed using a literal, we can't loop over hx_numLightProbes
-            if (i < hx_numLightProbes) {
-                if (hx_probes[i].hasDiffuse == 1)
-                    diffuseAccum += hx_calculateDiffuseProbeLight(hx_diffuseProbes[i], worldNormal) * ao * hx_probes[i].intensity;
-
-                if (hx_probes[i].hasSpecular == 1)
-                    specularAccum += hx_calculateSpecularProbeLight(hx_specularProbes[i], hx_probes[i].numMipLevels, reflectedViewDir, fresnel, data.roughness) * ao * hx_probes[i].intensity;
-            }
-        }
-    #endif
-
     #if HX_NUM_POINT_SPOT_LIGHTS > 0
         ivec2 cell = getCurrentCell(screenUV);
         int cellIndex = HX_CELL_STRIDE * (HX_NUM_CELLS_X * cell.y + cell.x);
@@ -169,8 +143,6 @@ void main()
         int comp = cellIndex - cellElm * 4;
 
         int numLights = hx_cells[cellElm][comp];
-
-//        specularAccum += float(numLights) / 5.0;
 
         for (int i = 1; i <= numLights; ++i) {
             vec3 diffuse, specular;

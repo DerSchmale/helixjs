@@ -16,21 +16,6 @@ uniform HX_PointLight hx_pointLights[HX_NUM_POINT_LIGHTS];
 uniform HX_SpotLight hx_spotLights[HX_NUM_SPOT_LIGHTS];
 #endif
 
-#if HX_NUM_DIFFUSE_PROBES > 0 || HX_NUM_SPECULAR_PROBES > 0
-uniform mat4 hx_cameraWorldMatrix;
-#endif
-
-#if HX_NUM_DIFFUSE_PROBES > 0
-uniform samplerCube hx_diffuseProbeMaps[HX_NUM_DIFFUSE_PROBES];
-uniform float hx_diffuseProbeIntensities[HX_NUM_DIFFUSE_PROBES];
-#endif
-
-#if HX_NUM_SPECULAR_PROBES > 0
-uniform samplerCube hx_specularProbeMaps[HX_NUM_SPECULAR_PROBES];
-uniform float hx_specularProbeNumMips[HX_NUM_SPECULAR_PROBES];
-uniform float hx_specularProbeIntensities[HX_NUM_SPECULAR_PROBES];
-#endif
-
 #ifdef HX_SSAO
 uniform sampler2D hx_ssao;
 
@@ -102,26 +87,6 @@ void main()
 
         diffuseAccum += diffuse;
         specularAccum += specular;
-    }
-    #endif
-
-// TODO: add support for local probes
-
-    #if HX_NUM_DIFFUSE_PROBES > 0
-    vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;
-    for (int i = 0; i < HX_NUM_DIFFUSE_PROBES; ++i) {
-        diffuseAccum += hx_calculateDiffuseProbeLight(hx_diffuseProbeMaps[i], worldNormal) * ao * hx_diffuseProbeIntensities[i];
-    }
-    #endif
-
-    #if HX_NUM_SPECULAR_PROBES > 0
-    vec3 reflectedViewDir = reflect(viewVector, data.normal);
-    vec3 fresnel = hx_fresnelProbe(specularColor, reflectedViewDir, data.normal, data.roughness);
-
-    reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;
-
-   for (int i = 0; i < HX_NUM_SPECULAR_PROBES; ++i) {
-        specularAccum += hx_calculateSpecularProbeLight(hx_specularProbeMaps[i], hx_specularProbeNumMips[i], reflectedViewDir, fresnel, data.roughness) * ao * hx_specularProbeIntensities[i];
     }
     #endif
 

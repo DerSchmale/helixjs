@@ -9,7 +9,6 @@ import {ClusteredLitPass} from "./passes/ClusteredLitPass";
 import {DynamicLitBasePass} from "./passes/DynamicLitBasePass";
 import {FixedLitPass} from "./passes/FixedLitPass";
 import {PointLightingPass} from "./passes/PointLightingPass";
-import {ProbeLightingPass} from "./passes/ProbeLightingPass";
 import {SpotLightingPass} from "./passes/SpotLightingPass";
 import {NormalDepthPass} from "./passes/NormalDepthPass";
 import {RenderPath} from "../render/RenderPath";
@@ -121,7 +120,6 @@ Material.prototype =
             this.setPass(MaterialPass.DIR_LIGHT_PASS, new DirectionalLightingPass(vertex, fragment, this._lightingModel));
             this.setPass(MaterialPass.POINT_LIGHT_PASS, new PointLightingPass(vertex, fragment, this._lightingModel));
             this.setPass(MaterialPass.SPOT_LIGHT_PASS, new SpotLightingPass(vertex, fragment, this._lightingModel));
-            this.setPass(MaterialPass.LIGHT_PROBE_PASS, new ProbeLightingPass(vertex, fragment, this._lightingModel));
         }
 
         this.setPass(MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS, new DirectionalShadowPass(vertex, fragment));
@@ -298,7 +296,7 @@ Material.prototype =
             pass.writeColor = this._writeColor;
 
             // one of the lit ones
-            if (type >= MaterialPass.DIR_LIGHT_PASS  && type <= MaterialPass.LIGHT_PROBE_PASS)
+            if (type >= MaterialPass.DIR_LIGHT_PASS  && type <= MaterialPass.SPOT_LIGHT_PASS)
                 pass.blendState = this._additiveBlendState;
 
             if (type === MaterialPass.BASE_PASS)

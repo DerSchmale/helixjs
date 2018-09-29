@@ -610,10 +610,7 @@ Renderer.prototype =
 
             // I don't like type checking, but lighting support is such a core thing...
             // maybe we can work in a more plug-in like light system
-            if (light instanceof LightProbe) {
-                renderPass(this, this._activeCamera, MaterialPass.LIGHT_PROBE_PASS, list, light);
-            }
-            else if (light instanceof DirectionalLight) {
+            if (light instanceof DirectionalLight) {
                 // PASS IN LIGHT AS DATA, so the material can update it
                 renderPass(this, this._activeCamera, MaterialPass.DIR_LIGHT_PASS, list, light);
             }
@@ -652,10 +649,7 @@ Renderer.prototype =
 
                 // I don't like type checking, but lighting support is such a core thing...
                 // maybe we can work in a more plug-in like light system
-                if (light instanceof LightProbe) {
-                    this._renderSingleItemSingleLight(MaterialPass.LIGHT_PROBE_PASS, renderItem, light);
-                }
-                else if (light instanceof DirectionalLight) {
+                if (light instanceof DirectionalLight) {
                     // if non-global, do intersection tests
                     var passType = light.castShadows? MaterialPass.DIR_LIGHT_SHADOW_PASS : MaterialPass.DIR_LIGHT_PASS;
                     this._renderSingleItemSingleLight(passType, renderItem, light);

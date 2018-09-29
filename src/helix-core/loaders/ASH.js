@@ -1,18 +1,5 @@
-import {Material} from "../material/Material";
-import {Comparison, CullMode, BlendFactor, BlendOperation} from "../Helix";
-import {BlendState} from "../render/BlendState";
-import {Texture2D} from "../texture/Texture2D";
-import {JPG} from "./JPG_PNG";
 import {Importer} from "./Importer";
-import {AssetLibrary} from "./AssetLibrary";
-import {ArrayUtils} from "../utils/ArrayUtils";
-import {BasicMaterial} from "../material/BasicMaterial";
-import {Color} from "../core/Color";
-import {Float2} from "../math/Float2";
 import {Float4} from "../math/Float4";
-import {LightingModel} from "../render/LightingModel";
-import {DDS} from "./DDS";
-import {FileUtils} from "./FileUtils";
 import {SphericalHarmonicsRGB} from "../math/SphericalHarmonicsRGB";
 
 /**

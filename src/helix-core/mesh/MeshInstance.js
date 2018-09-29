@@ -38,7 +38,7 @@ function MeshInstance(mesh, material)
 
 	this.name = "hx_meshinstance_" + (nameCounter++);
 	this.castShadows = true;
-	this.lodRangeStart = 0;
+	this.lodRangeStart = Number.NEGATIVE_INFINITY;
 	this.lodRangeEnd = Number.POSITIVE_INFINITY;
 	this._lodVisible = true;
 	this.skeletonPose = null;

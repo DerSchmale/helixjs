@@ -100,7 +100,7 @@ uniform hx_lights
 };
 
 #if HX_NUM_SPECULAR_PROBES > 0
-uniform samplerCube hx_specularProbeTextures[HX_NUM_SPECULAR_PROBES];
+uniform samplerCube hx_specularProbeMaps[HX_NUM_SPECULAR_PROBES];
 #endif
 
 #if HX_NUM_DIFFUSE_PROBES > 0 || HX_NUM_SPECULAR_PROBES > 0
@@ -158,7 +158,7 @@ void main()
 
     for (int i = 0; i < hx_numSpecularProbes; ++i) {
         float weight = hx_getProbeWeight(hx_specularProbes[i], hx_viewPosition);
-        specularAccum += hx_calculateSpecularProbeLight(hx_specularProbes[i], hx_specularProbeTextures[i], reflectedWorldDir, fresnel, data.roughness) * weight;
+        specularAccum += hx_calculateSpecularProbeLight(hx_specularProbes[i], hx_specularProbeMaps[i], reflectedWorldDir, fresnel, data.roughness) * weight;
         specularWeightSum += weight;
     }
 

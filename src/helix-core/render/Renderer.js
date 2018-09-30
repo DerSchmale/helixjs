@@ -25,6 +25,8 @@ import {BasicMaterial} from "../material/BasicMaterial";
 import {LightingModel} from "./LightingModel";
 import {TextureCube} from "../texture/TextureCube";
 
+var probeObject = {};
+
 /**
  * @classdesc
  * Renderer performs the actual rendering of a {@linkcode Scene} as viewed by a {@linkcode Camera} to the screen.
@@ -227,9 +229,8 @@ Renderer.prototype =
 
         if (capabilities.WEBGL_2)
             this._renderTiled();
-        else {
+        else
             this._renderForward();
-        }
 
         this._swapHDRFrontAndBack();
         this._renderEffects(dt);
@@ -254,6 +255,8 @@ Renderer.prototype =
     _renderTiled: function()
     {
         var lights = this._renderCollector.lights;
+        var diffuseProbes = this._renderCollector.diffuseProbes;
+        var specularProbes = this._renderCollector.specularProbes;
         var numLights = lights.length;
         var data = this._lightingDataView;
         var cells = this._cellData;
@@ -266,7 +269,7 @@ Renderer.prototype =
 		var pointOffset = maxDirLights * dirLightStride + dirLightOffset;
 		var diffProbeOffset = maxPoints * pointStride + pointOffset;
 		var specProbeOffset = maxDiffProbes * diffProbeStride + diffProbeOffset;
-        var numDirLights = 0, numPointLights = 0, numDiffuseProbes = 0, numSpecularProbes = 0;
+        var numDirLights = 0, numPointLights = 0;
         var numCells = META.OPTIONS.numLightingCellsX * META.OPTIONS.numLightingCellsY;
         var cellStride = this._cellStride;
         var i;
@@ -297,20 +300,25 @@ Renderer.prototype =
                 pointOffset += pointStride;
                 ++numPointLights;
             }
-            else if (light instanceof LightProbe) {
-				if (light.diffuseSH && numDiffuseProbes < maxDiffProbes) {
-					this.writeDiffuseProbe(light, camera, data, diffProbeOffset);
-					diffProbeOffset += diffProbeStride;
-					++numDiffuseProbes;
-				}
-				if (light.specularTexture && numSpecularProbes < maxSpecProbes) {
-					this.writeSpecularProbe(light, camera, data, specProbeOffset);
-					specProbeOffset += specProbeStride;
-					this._specularProbeArray[numSpecularProbes] = light.specularTexture;
-					++numSpecularProbes;
-				}
-			}
         }
+
+        var numDiffuseProbes = diffuseProbes.length;
+		if (maxDiffProbes < numDiffuseProbes) numDiffuseProbes = maxDiffProbes;
+
+		for (i = 0; i < numDiffuseProbes; ++i) {
+			this.writeDiffuseProbe(diffuseProbes[i], camera, data, diffProbeOffset);
+			diffProbeOffset += diffProbeStride;
+		}
+
+		var numSpecularProbes = specularProbes.length;
+		if (maxSpecProbes < numSpecularProbes) numSpecularProbes = maxSpecProbes;
+
+		for (i = 0; i < numSpecularProbes; ++i) {
+			var probe = specularProbes[i];
+			this.writeSpecularProbe(probe, camera, data, specProbeOffset);
+			specProbeOffset += specProbeStride;
+			this._specularProbeArray[i] = probe.specularTexture;
+		}
 
 		for (i = numSpecularProbes; i < maxSpecProbes; ++i) {
 			this._specularProbeArray[i] = TextureCube.DEFAULT;
@@ -626,8 +634,8 @@ Renderer.prototype =
      * @private
      */
     _renderForwardOpaque: function()
-    {
-        renderPass(this, this._activeCamera, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
+	{
+		renderPass(this, this._activeCamera, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
 
         var list = this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC);
         if (list.length === 0) return;
@@ -637,7 +645,16 @@ Renderer.prototype =
 
     _renderOpaqueDynamicMultipass: function(list)
     {
-        renderPass(this, this._activeCamera, MaterialPass.BASE_PASS, list);
+		var diffuseProbes = this._renderCollector.diffuseProbes;
+		var specularProbes = this._renderCollector.specularProbes;
+
+		if (diffuseProbes.length > 0 || specularProbes.length > 0) {
+			probeObject.diffuseProbes = diffuseProbes;
+			probeObject.specularProbes = specularProbes;
+			renderPass(this, this._activeCamera, MaterialPass.BASE_PASS_PROBES, list, probeObject);
+		}
+		else
+        	renderPass(this, this._activeCamera, MaterialPass.BASE_PASS, list);
 
         var lights = this._renderCollector.lights;
         var numLights = lights.length;
@@ -670,11 +687,25 @@ Renderer.prototype =
 
         // transparents need to be rendered one-by-one, not light by light
         var numItems = list.length;
+
+		var diffuseProbes = this._renderCollector.diffuseProbes;
+		var specularProbes = this._renderCollector.specularProbes;
+		var hasProbes = false;
+
+		if (diffuseProbes.length > 0 || specularProbes.length > 0) {
+			probeObject.diffuseProbes = diffuseProbes;
+			probeObject.specularProbes = specularProbes;
+			hasProbes = true;
+		}
+
         for (var r = 0; r < numItems; ++r) {
 
             var renderItem = list[r];
 
-            this._renderSingleItemSingleLight(MaterialPass.BASE_PASS, renderItem);
+            if (hasProbes)
+            	this._renderSingleItemSingleLight(MaterialPass.BASE_PASS_PROBES, renderItem, probeObject);
+            else
+				this._renderSingleItemSingleLight(MaterialPass.BASE_PASS, renderItem);
 
             var material = renderItem.material;
 
@@ -725,13 +756,13 @@ Renderer.prototype =
         }
     },
 
-    _renderSingleItemSingleLight: function(passType, renderItem, light)
+    _renderSingleItemSingleLight: function(passType, renderItem, data)
     {
         var pass = renderItem.material.getPass(passType);
         if (!pass) return;
         var meshInstance = renderItem.meshInstance;
-        pass.updatePassRenderState(this._activeCamera, this, light);
-        pass.updateInstanceRenderState(this._activeCamera, renderItem, light);
+        pass.updatePassRenderState(this._activeCamera, this, data);
+        pass.updateInstanceRenderState(this._activeCamera, renderItem, data);
 		meshInstance.updateRenderState(passType);
         var mesh = meshInstance._mesh;
         GL.drawElements(mesh.elementType, mesh._numIndices, 0, mesh._indexType);

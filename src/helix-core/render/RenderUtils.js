@@ -11,7 +11,7 @@ import {GL} from "../core/GL";
  * @returns The index for the first unrendered renderItem in the list
  * @ignore
  */
-export function renderPass(renderer, camera, passType, renderItems, data, forceCamera)
+export function renderPass(renderer, camera, passType, renderItems, data)
 {
     var len = renderItems.length;
     var activePass = null;

@@ -13,6 +13,7 @@ import {SpotLightingPass} from "./passes/SpotLightingPass";
 import {NormalDepthPass} from "./passes/NormalDepthPass";
 import {RenderPath} from "../render/RenderPath";
 import {PointShadowPass} from "./passes/PointShadowPass";
+import {DynamicLitBaseProbesPass} from "./passes/DynamicLitBaseProbesPass";
 
 /**
  * @ignore
@@ -120,6 +121,8 @@ Material.prototype =
             this.setPass(MaterialPass.DIR_LIGHT_PASS, new DirectionalLightingPass(vertex, fragment, this._lightingModel));
             this.setPass(MaterialPass.POINT_LIGHT_PASS, new PointLightingPass(vertex, fragment, this._lightingModel));
             this.setPass(MaterialPass.SPOT_LIGHT_PASS, new SpotLightingPass(vertex, fragment, this._lightingModel));
+
+			this.setPass(MaterialPass.BASE_PASS_PROBES, new DynamicLitBaseProbesPass(vertex, fragment));
         }
 
         this.setPass(MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS, new DirectionalShadowPass(vertex, fragment));

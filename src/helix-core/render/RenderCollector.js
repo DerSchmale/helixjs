@@ -29,6 +29,8 @@ function RenderCollector()
     this._frustumPlanes = null;
 	this.shadowCasters = null;
 	this.lights = null;
+	this.diffuseProbes = null;
+	this.specularProbes = null;
 	this.effects = null;
 	this.ambientColor = new Color();
 	this.needsNormalDepth = false;
@@ -141,7 +143,11 @@ RenderCollector.prototype.visitAmbientLight = function(light)
 
 RenderCollector.prototype.visitLightProbe = function(probe)
 {
-	this.lights.push(probe);
+    if (probe.diffuseSH)
+        this.diffuseProbes.push(probe);
+
+    if (probe.specularTexture)
+        this.specularProbes.push(probe);
 };
 
 RenderCollector.prototype.visitLight = function(light)

@@ -45,7 +45,7 @@ export var TextureSetter = {
         TextureSetter._passTable.hx_frontbuffer = FrontbufferSetter;
         TextureSetter._passTable.hx_ssao = SSAOSetter;
         TextureSetter._passTable.hx_shadowMap = ShadowMapSetter;
-		TextureSetter._passTable["hx_specularProbeTextures[0]"] = SpecularProbesSetter;
+		TextureSetter._passTable["hx_specularProbeMaps[0]"] = SpecularProbesSetter;
 
         TextureSetter._instanceTable.hx_skinningTexture = SkinningTextureSetter;
     }

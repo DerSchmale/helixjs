@@ -460,22 +460,22 @@ export function InitOptions()
     this.maxSkeletonJoints = 64;
 
     /**
-     * Maximum number of directional lights inside a dynamic WebGL 2.0 shader.
+     * Maximum number of directional lights when using dynamic WebGL 2.0 lighting.
      */
     this.maxDirLights = 1;
 
     /**
-     * Maximum number of point / spot lights inside a dynamic WebGL 2.0 shader.
+     * Maximum number of point / spot lights when using dynamic WebGL 2.0 lighting.
      */
     this.maxPointSpotLights = 20;
 
 	/**
-     * Maximum number of diffuse probes inside a dynamic WebGL 2.0 shader.
+     * Maximum number of diffuse probes when using dynamic lighting. Increase this to support multiple probes.
      */
-    this.maxDiffuseProbes = 5;
+    this.maxDiffuseProbes = 1;
 
 	/**
-	 * Maximum number of specular probes inside a dynamic WebGL 2.0 shader.
+	 * Maximum number of specular probes when using dynamic lighting. Increase this to support multiple probes.
 	 */
 	this.maxSpecularProbes = 1;
 

@@ -22,9 +22,9 @@ function PointShadowPass(geometryVertex, geometryFragment)
 
 PointShadowPass.prototype = Object.create(MaterialPass.prototype);
 
-PointShadowPass.prototype.updatePassRenderState = function(geometryVertex, geometryFragment, light)
+PointShadowPass.prototype.updatePassRenderState = function(camera, renderer, light)
 {
-    this._MP_updatePassRenderState(geometryVertex, geometryFragment);
+    this._MP_updatePassRenderState(camera, renderer);
     GL.gl.uniform1f(this._rcpRadiusLocation, 1.0 / light._radius);
 };
 

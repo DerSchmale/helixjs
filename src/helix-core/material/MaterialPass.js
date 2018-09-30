@@ -53,7 +53,10 @@ MaterialPass.DIR_LIGHT_PASS = 4;
 MaterialPass.POINT_LIGHT_PASS = 5;
 MaterialPass.SPOT_LIGHT_PASS = 6;
 
-MaterialPass.NUM_PASS_TYPES = 7;
+// when using dynamic lighting and there are light probes, use this
+MaterialPass.BASE_PASS_PROBES = 7;
+
+MaterialPass.NUM_PASS_TYPES = 8;
 
 MaterialPass.prototype =
     {

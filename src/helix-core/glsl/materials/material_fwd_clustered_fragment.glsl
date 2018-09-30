@@ -78,15 +78,10 @@ uniform hx_lightingCells
 uniform hx_lights
 {
     int hx_numDirLights;
-    int hx_numLightProbes;
     int hx_numPointSpotLights;
 
 #if HX_NUM_DIR_LIGHTS > 0
     HX_DirectionalLight hx_directionalLights[HX_NUM_DIR_LIGHTS];
-#endif
-
-#if HX_NUM_LIGHT_PROBES > 0
-    HX_Probe hx_probes[HX_NUM_LIGHT_PROBES];
 #endif
 
 #if HX_NUM_POINT_SPOT_LIGHTS > 0

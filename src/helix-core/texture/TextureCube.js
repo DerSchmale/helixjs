@@ -1,6 +1,7 @@
 import {GL} from "../core/GL";
 import {DataType, TextureFormat, TextureFilter, capabilities, CubeFace} from "../Helix";
 import {TextureUtils} from "./TextureUtils";
+import {MathX} from "../math/MathX";
 
 var nameCounter = 0;
 
@@ -63,6 +64,14 @@ TextureCube.prototype =
         gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
         gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
     },
+
+	/**
+	 * The amount of mip levels (if present).
+	 */
+	get numMips()
+	{
+		return Math.floor(MathX.log2(this._size));
+	},
 
     /**
      * A {@linkcode TextureFilter} object defining how the texture should be filtered during sampling.

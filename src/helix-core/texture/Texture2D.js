@@ -63,6 +63,14 @@ Texture2D.prototype =
         gl.bindTexture(gl.TEXTURE_2D, null);
     },
 
+	/**
+	 * The amount of mip levels (if present).
+	 */
+	get numMips()
+	{
+		return Math.floor(MathX.log2(Math.max(this._width, this._height)));
+	},
+
     /**
      * A {@linkcode TextureFilter} object defining how the texture should be filtered during sampling.
      */

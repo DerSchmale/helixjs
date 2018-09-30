@@ -226,14 +226,18 @@ vec4 hx_sampleDefaultDither(sampler2D ditherTexture, vec2 uv)
     return s;
 }
 
-vec3 hx_evaluateSH(vec3 dir, vec3 coeff[9])
+vec3 hx_evaluateSH(vec3 sh[9], vec3 dir)
 {
+    dir = vec3(dir.x, -dir.z, dir.y);
     vec3 sq = dir * dir;
 
-    return  coeff[0] +
-            coeff[1] * dir.y + coeff[2] * dir.z + coeff[3] * dir.x +
-            coeff[4] * dir.x * dir.y + coeff[5] * dir.y * dir.z + coeff[6] * (3.0 * sq.z - 1.0) +
-            coeff[7] * dir.x * dir.z + coeff[8] * (sq.x - sq.y);
+    vec3 col =  sh[0] +
+                sh[1] * dir.y + sh[2] * dir.z + sh[3] * dir.x +
+                sh[4] * dir.x * dir.y + sh[5] * dir.y * dir.z + sh[6] * (3.0 * sq.z - 1.0) +
+                sh[7] * dir.x * dir.z + sh[8] * (sq.x - sq.y);
+
+    // why is Lys yielding gamma colours?
+    return hx_gammaToLinear(col);
 }
 
 vec3 hx_intersectCubeMap(vec3 rayOrigin, vec3 cubeCenter, vec3 rayDir, float cubeSize)

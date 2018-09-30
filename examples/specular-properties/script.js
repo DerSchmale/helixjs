@@ -6,9 +6,7 @@ var project = new DemoProject();
 project.queueAssets = function(assetLibrary)
 {
     assetLibrary.queueAsset("skybox-specular", "skyboxes/field-mips/skybox_specular.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
-    assetLibrary.queueAsset("skybox-irradiance", "skyboxes/field-mips/skybox_irradiance.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
-    // assetLibrary.queueAsset("skybox-specular", "skyboxes/studio-small/specular.dds", HX.AssetLibrary.Type.ASSET, HX.DDS);
-    assetLibrary.queueAsset("irradiance-sh", "skyboxes/studio-small/irradiance_sh.ash", HX.AssetLibrary.Type.ASSET, HX.ASH);
+    assetLibrary.queueAsset("irradiance-sh", "skyboxes/field-mips/irradiance_sh.ash", HX.AssetLibrary.Type.ASSET, HX.ASH);
 };
 
 project.onInit = function()
@@ -28,6 +26,8 @@ window.onload = function ()
     var options = new HX.InitOptions();
     options.defaultLightingModel = HX.LightingModel.GGX;
     options.hdr = true;
+    // options.webgl2 = true;
+    options.debug = true;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -56,12 +56,13 @@ function initScene(scene, assetLibrary)
 	scene.attach(lightEntity);
 
     var skyboxSpecularTexture = assetLibrary.get("skybox-specular");
-    var skyboxIrradianceTexture = assetLibrary.get("skybox-irradiance");
+    var skyboxIrradianceSH = assetLibrary.get("irradiance-sh");
 
     // top level of specular texture is the original skybox texture
     var skybox = new HX.Skybox(skyboxSpecularTexture);
     scene.skybox = skybox;
-    var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, skyboxSpecularTexture);
+    var lightProbe = new HX.LightProbe(skyboxIrradianceSH, skyboxSpecularTexture);
+	lightProbe.intensity = 2.0;
     scene.attach(new HX.Entity(lightProbe));
 
     var primitive = new HX.SpherePrimitive(
@@ -74,10 +75,11 @@ function initScene(scene, assetLibrary)
     var numX = 10;
     var numY = 7;
 
+	var gold = new HX.Color(1, 0.765557, 0.336057);
+
     for (var x = 0; x < numX; ++x) {
         for (var y = 0; y < numY; ++y) {
             var material = new HX.BasicMaterial();
-            var gold = new HX.Color(1, 0.765557, 0.336057);
             material.color = gold;
             material.roughness = x / (numX - 1.0);
             material.metallicness = y / (numY - 1.0);

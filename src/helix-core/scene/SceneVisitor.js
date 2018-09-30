@@ -17,7 +17,6 @@ function SceneVisitor()
     this._proxy = null;
     this._proxyStack = []; // both a stack and a matrix pool
     this._matrixStack = []; // both a stack and a matrix pool
-    this._stackIndex = -1;   // the current index into the stack/pool
     this._matrixPool = new ObjectPool(Matrix4x4);
     this._proxyBoundsInvalid = false;
 }
@@ -31,8 +30,7 @@ SceneVisitor.prototype =
 
     // the entry point depends on the concrete subclass (collect, etc)
     qualifies: function(object) {},
-
-    // worldMatrix and worldBounds need to be passed through getProxiedBounds and getProxiedMatrix here!
+    visitLightProbe: function(probe) {},
     visitLight: function(light) {},
     visitAmbientLight: function(light) {},
 	visitMeshInstance: function (meshInstance) {},

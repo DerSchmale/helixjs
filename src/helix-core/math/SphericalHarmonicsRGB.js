@@ -1,4 +1,4 @@
-import {Float4} from "./Float4";
+import {Color} from "../core/Color";
 
 var sh_1_4 = Math.sqrt(1.0 / (4.0 * Math.PI));
 var sh_1_3 = Math.sqrt(1.0 / (3.0 * Math.PI));
@@ -34,9 +34,11 @@ var shConstants = [
 function SphericalHarmonicsRGB()
 {
 	// coefficients are premultiplied with the SH constant values!
-	this._coefficients = [ ];
-	for (var i = 0; i < 9; ++i) {
-		this._coefficients[i] = new Float4();
+	this._coefficients = new Float32Array(27);
+	this.yUp = false;
+
+	for (var i = 0; i < 27; ++i) {
+		this._coefficients[i] = 0;
 	}
 }
 
@@ -50,36 +52,38 @@ SphericalHarmonicsRGB.prototype = {
 	setWeight: function(level, index, value)
 	{
 		var i = this._getCoeffIndex(level, index);
-		Float4.scale(value, shConstants[i], this._coefficients[i]);
+		var i3 = i * 3;
+		this._coefficients[i3] = shConstants[i] * value.x;
+		this._coefficients[i3 + 1] = shConstants[i] * value.y;
+		this._coefficients[i3 + 2] = shConstants[i] * value.z;
 	},
 
 	/**
 	 * Evaluates the SH representation and returns the value at the given direction.
 	 * @param vector The direction vector for which we're evaluating the function. This is expected to be normalized.
-	 * @param {Float4} [target] An optional target to store the evaluated value
+	 * @param {Color} [target] An optional target to store the evaluated value
 	 */
 	evaluate: function(vector, target)
 	{
+		// TODO: Rotate the coefficients when parsing ASH files instead of swizzling
 		var x = vector.x;
-		var y = vector.y;
-		var z = vector.z;
+		var y = vector.z;	// flip YZ because SH is encoded with Y-up
+		var z = vector.y;
 		var c = this._coefficients;
 
-		target = target || new Float4();
-		// L0
-		target.copyFrom(c[0]);
+		target = target || new Color();
 
-		// L1
-		target.addScaled(c[1], y);
-		target.addScaled(c[2], z);
-		target.addScaled(c[3], x);
+		// L0 + L1
+		target.r = c[0] + c[3] * y + c[6] * z + c[9] * x;
+		target.g = c[1] + c[4] * y + c[7] * z + c[10] * x;
+		target.b = c[2] + c[5] * y + c[8] * z + c[11] * x;
 
 		// L2
-		target.addScaled(c[4], x * y);
-		target.addScaled(c[5], y * z);
-		target.addScaled(c[6], 3.0 * z * z - 1.0);
-		target.addScaled(c[7], x * z);
-		target.addScaled(c[8], x * x - y * y);
+		var xy = x * y, yz = y * z, zz = 3.0 * z * z - 1.0, xz = x * z, xxyy = x*x - y*y;
+
+		target.r += c[12] * xy + c[15] * yz + c[18] * zz + c[21] * xz + c[24] * xxyy;
+		target.g += c[13] * xy + c[16] * yz + c[19] * zz + c[22] * xz + c[25] * xxyy;
+		target.b += c[14] * xy + c[17] * yz + c[20] * zz + c[23] * xz + c[26] * xxyy;
 
 		return target;
 	},

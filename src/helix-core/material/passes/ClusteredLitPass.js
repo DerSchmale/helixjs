@@ -29,7 +29,6 @@ ClusteredLitPass.prototype._generateShader = function (geometryVertex, geometryF
     var defines = {
         HX_NUM_DIR_LIGHTS: META.OPTIONS.maxDirLights,
 		HX_NUM_POINT_SPOT_LIGHTS: META.OPTIONS.maxPointSpotLights,
-        HX_NUM_LIGHT_PROBES: META.OPTIONS.maxLightProbes,
         HX_CELL_STRIDE: META.OPTIONS.maxPointSpotLights + 1,
         HX_NUM_CELLS_X: META.OPTIONS.numLightingCellsX,
         HX_NUM_CELLS_Y: META.OPTIONS.numLightingCellsY,
@@ -50,7 +49,6 @@ ClusteredLitPass.prototype._generateShader = function (geometryVertex, geometryF
         ShaderLibrary.get("directional_light.glsl", defines) + "\n" +
         ShaderLibrary.get("point_light.glsl") + "\n" +
         ShaderLibrary.get("spot_light.glsl") + "\n" +
-        ShaderLibrary.get("light_probe.glsl") + "\n" +
         geometryFragment + "\n" +
         ShaderLibrary.get("material_fwd_clustered_fragment.glsl");
 

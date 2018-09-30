@@ -6,7 +6,7 @@ var project = new DemoProject();
 
 project.queueAssets = function(assetLibrary)
 {
-    assetLibrary.queueAsset("skybox", "skyboxes/river_rocks/river_rocks_1k.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG_EQUIRECTANGULAR);
+    assetLibrary.queueAsset("skybox", "skyboxes/river_rocks/river_rocks_1k.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG, {equiToCube: true});
 };
 
 project.onInit = function()

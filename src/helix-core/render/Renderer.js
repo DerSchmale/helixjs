@@ -11,7 +11,6 @@ import {renderPass} from "./RenderUtils";
 import {WriteOnlyDepthBuffer} from "../texture/WriteOnlyDepthBuffer";
 import {DirectionalLight} from "../light/DirectionalLight";
 import {PointLight} from "../light/PointLight";
-import {LightProbe} from "../light/LightProbe";
 import {RenderPath} from "./RenderPath";
 import {SpotLight} from "../light/SpotLight";
 import {ShadowAtlas} from "./ShadowAtlas";
@@ -20,11 +19,7 @@ import {OmniShadowMapRenderer} from "./OmniShadowMapRenderer";
 import {SpotShadowMapRenderer} from "./SpotShadowMapRenderer";
 import {Float4} from "../math/Float4";
 import {Matrix4x4} from "../math/Matrix4x4";
-import {MathX} from "../math/MathX";
-import {TextureCube} from "../texture/TextureCube";
 import {UniformBuffer} from "../core/UniformBuffer";
-import {BasicMaterial} from "../material/BasicMaterial";
-import {LightingModel} from "./LightingModel";
 
 /**
  * @classdesc
@@ -66,9 +61,11 @@ function Renderer(renderTarget)
     this._normalDepthFBO = new FrameBuffer(this._normalDepthBuffer, this._depthBuffer);
 
     this._backgroundColor = Color.BLACK.clone();
-    //this._previousViewProjection = new Matrix4x4();
     this.debugMode = Renderer.DebugMode.NONE;
     this._ssaoTexture = null;
+
+    this._diffuseGITexture = null;
+    this._diffuseGIFBO = null;
 
     this._cascadeShadowRenderer = new CascadeShadowMapRenderer();
     this._omniShadowRenderer = new OmniShadowMapRenderer();
@@ -77,9 +74,7 @@ function Renderer(renderTarget)
     this._shadowAtlas.resize(2048, 2048);
 
     if (capabilities.WEBGL_2) {
-		var size = 16 + META.OPTIONS.maxDirLights * 320 + META.OPTIONS.maxLightProbes * 16 + META.OPTIONS.maxPointSpotLights * 224;
-		this._diffuseProbeArray = [];
-		this._specularProbeArray = [];
+		var size = 16 + META.OPTIONS.maxDirLights * 320 + META.OPTIONS.maxPointSpotLights * 224;
 		this._lightingUniformBuffer = new UniformBuffer(size);
 		this._lightingDataView = new DataView(new ArrayBuffer(size));
 		// these will contain all the indices into the light buffer
@@ -98,7 +93,7 @@ function Renderer(renderTarget)
 		/*var material = new BasicMaterial({ lightingModel: LightingModel.GGX });
 		var pass = material.getPass(MaterialPass.BASE_PASS);
 		this._lightingUniformBuffer = pass.shader.createUniformBuffer("hx_lights");
-		this._lightingCellsUniformBuffer = pass.shader.createUniformBuffer("hx_lightingCells");
+		// this._lightingCellsUniformBuffer = pass.shader.createUniformBuffer("hx_lightingCells");
 		console.log(this._lightingUniformBuffer);*/
     }
 }
@@ -195,9 +190,7 @@ Renderer.prototype =
 		this._ambientColor = this._renderCollector.ambientColor;
 
 		this._renderShadowCasters();
-
 		this._renderView(camera, scene, dt);
-
 		this._renderToScreen();
 
 		GL.setBlendState();
@@ -218,6 +211,7 @@ Renderer.prototype =
 
         this._renderNormalDepth();
         this._renderAO();
+        // this._renderDiffuseGI();
 
         GL.setRenderTarget(this._hdrFront.fboDepth);
         GL.setClearColor(this._backgroundColor);
@@ -235,18 +229,15 @@ Renderer.prototype =
         this._renderEffects(dt);
 
         GL.setColorMask(true);
-
-        // for the future, if we ever need back-projection
-        //this._previousViewProjection.copyFrom(this._camera.viewProjectionMatrix);
     },
 
     /**
      * @ignore
      * @private
      */
-    _renderDepthPrepass: function ()
+    _renderDepthPrepass	: function ()
     {
-        if (!this._depthPrepass) return;
+        if (!this.depthPrepass) return;
 
         GL.lockColorMask(false);
         renderPass(this, this._activeCamera, MaterialPass.NORMAL_DEPTH_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
@@ -261,12 +252,11 @@ Renderer.prototype =
         var data = this._lightingDataView;
         var cells = this._cellData;
         var camera = this._camera;
-        var maxDirLights = META.OPTIONS.maxDirLights, maxProbes = META.OPTIONS.maxLightProbes, maxPoints = META.OPTIONS.maxPointSpotLights;
-		var dirLightStride = 320, probeStride = 16, pointStride = 224;
+        var maxDirLights = META.OPTIONS.maxDirLights, maxPoints = META.OPTIONS.maxPointSpotLights;
+		var dirLightStride = 320, pointStride = 224;
 		var dirLightOffset = 16;
-		var probeOffset = maxDirLights * dirLightStride + dirLightOffset;
-		var pointOffset = maxProbes * probeStride + probeOffset;
-        var numDirLights = 0, numPointLights = 0, numProbes = 0;
+		var pointOffset = maxDirLights * dirLightStride + dirLightOffset;
+        var numDirLights = 0, numPointLights = 0;
         var numCells = META.OPTIONS.numLightingCellsX * META.OPTIONS.numLightingCellsY;
         var cellStride = this._cellStride;
         var i;
@@ -276,11 +266,6 @@ Renderer.prototype =
 			cells[i * cellStride] = 0;
 		}
 
-        for (i = 0; i < maxProbes; ++i) {
-            this._diffuseProbeArray[i] = TextureCube.DEFAULT;
-            this._specularProbeArray[i] = TextureCube.DEFAULT;
-        }
-
         for (i = 0; i < numLights; ++i) {
             var light = lights[i];
 
@@ -289,18 +274,6 @@ Renderer.prototype =
 
                 dirLightOffset += dirLightStride;
                 ++numDirLights;
-            }
-            else if (light instanceof LightProbe && numProbes < maxProbes) {
-                this.writeLightProbe(light, data, probeOffset);
-
-                if (light.diffuseTexture)
-                    this._diffuseProbeArray[numProbes] = light.diffuseTexture;
-
-                if (light.specularTexture)
-                    this._specularProbeArray[numProbes] = light.specularTexture;
-
-                probeOffset += probeStride;
-                ++numProbes;
             }
             else if (light instanceof PointLight && numPointLights < maxPoints) {
                 this.writePointSpotLight(light, camera, data, pointOffset, false, cells, numPointLights);
@@ -317,8 +290,7 @@ Renderer.prototype =
         }
 
         data.setInt32(0, numDirLights, true);
-        data.setInt32(4, numProbes, true);
-        data.setInt32(8, numPointLights, true);
+        data.setInt32(4, numPointLights, true);
 
         this._lightingUniformBuffer.uploadData(this._lightingDataView);
         this._lightingCellsUniformBuffer.uploadData(this._cellData);
@@ -488,27 +460,6 @@ Renderer.prototype =
 			}
     	}
     }(),
-
-    /**
-     * @ignore
-     * @private
-     */
-    writeLightProbe: function(light, target, offset)
-    {
-        target.setUint32(offset, light.diffuseTexture? 1: 0, true);
-
-        var specularTex = light.specularTexture;
-        if (specularTex) {
-            target.setUint32(offset + 4, 1, true);
-            var numMips = Math.floor(MathX.log2(specularTex.size));
-            target.setFloat32(offset + 8, numMips, true);
-        }
-        else {
-            target.setUint32(offset + 4, 0, true);
-        }
-
-		target.setFloat32(offset + 12, light.intensity, true);
-    },
 
     /**
      * @ignore
@@ -732,6 +683,27 @@ Renderer.prototype =
         }
     },
 
+	/**
+	 * @ignore
+	 * @private
+	 */
+	/*_renderDiffuseGI: function()
+	{
+		var probes = this._renderCollector.diffuseProbes;
+
+		if (probes.length === 0)
+			return;
+
+		if (!this._diffuseGITexture) {
+			this._diffuseGITexture = new Texture2D();
+			this._diffuseGITexture.filter = TextureFilter.BILINEAR_NOMIP;
+			this._diffuseGITexture.wrapMode = TextureWrapMode.CLAMP;
+			this._diffuseGITexture.initEmpty(width, height, TextureFormat.RGBA, capabilities.HDR_FORMAT);
+			this._diffuseGIFBO = new FrameBuffer(this._diffuseGITexture);
+			this._diffuseGIFBO.init();
+		}
+	},*/
+
     /**
      * @ignore
      * @private
@@ -863,6 +835,11 @@ Renderer.prototype =
             this._hdrFront.resize(this._width, this._height);
             this._normalDepthBuffer.initEmpty(width, height);
             this._normalDepthFBO.init();
+
+            if (this._diffuseGITexture) {
+				this._diffuseGITexture.initEmpty(width, height);
+				this._diffuseGITexture.init();
+			}
         }
     },
 

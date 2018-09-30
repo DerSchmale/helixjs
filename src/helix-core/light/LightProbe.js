@@ -10,7 +10,7 @@ import {Component} from "../entity/Component";
  * Only providing a simple specularTexture will behave like environment mapping, but diffuse convolution can be applied
  * for global diffuse illumination.
  *
- * @property {TextureCube} diffuseTexture A cube map texture containing diffuse global illumination information
+ * @property {SphericalHarmonicsRGB} diffuseSH A spherical harmonics representation of the diffuse global illumination
  * @property {TextureCube} specularTexture A cube map texture containing specular global illumination information
  * @property {number} intensity Defines the intensity of the environment map.
  * @property {number} size Defines the virtual size of the environment map box. Useful for local reflections. Leave undefined for a traditional environment map "at infinity"
@@ -18,19 +18,19 @@ import {Component} from "../entity/Component";
  * @see {@linkcode https://www.knaldtech.com/lys/} for an example tool to generate the required images.
  *
  * @constructor
- * @param {TextureCube} diffuseTexture A cube map texture containing diffuse global illumination information
+ * @param {SphericalHarmonicsRGB} diffuseSH A spherical harmonics representation of the diffuse global illumination
  * @param {TextureCube} specularTexture A cube map texture containing specular global illumination information
  *
  * @extends Entity
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function LightProbe(diffuseTexture, specularTexture)
+function LightProbe(diffuseSH, specularTexture)
 {
     Component.call(this);
     this.intensity = 1.0;
-    this._specularTexture = specularTexture;
-    this._diffuseTexture = diffuseTexture;
+	this._diffuseSH = diffuseSH;
+	this._specularTexture = specularTexture;
     this._size = undefined;
     this._bounds = new BoundingSphere();
 	this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
@@ -45,8 +45,8 @@ Component.create(LightProbe,
         specularTexture: {
             get: function() { return this._specularTexture; }
         },
-        diffuseTexture: {
-            get: function() { return this._diffuseTexture; }
+		diffuseSH: {
+            get: function() { return this._diffuseSH; }
         },
         size: {
             get: function()
@@ -73,12 +73,12 @@ Component.create(LightProbe,
  */
 LightProbe.prototype.acceptVisitor = function (visitor)
 {
-    visitor.visitLight(this);
+    visitor.visitLightProbe(this);
 };
 
 LightProbe.prototype.clone = function()
 {
-	var clone = new LightProbe(this._diffuseTexture, this._specularTexture);
+	var clone = new LightProbe(this._diffuseSH, this._specularTexture);
 	clone.size = this.size;
 	clone.intensity = this.intensity;
 	return clone;

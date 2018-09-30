@@ -480,11 +480,6 @@ export function InitOptions()
 	this.numLightingCellsY = 9;
 
     /**
-     * Maximum number of light probes inside a dynamic WebGL 2.0 shader.
-     */
-    this.maxLightProbes = 1;
-
-    /**
      * Allows applying ambient occlusion ({@linkcode SSAO} or {@linkcode HBAO}) to the scene.
      */
     this.ambientOcclusion = null;

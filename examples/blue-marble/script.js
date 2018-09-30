@@ -28,7 +28,7 @@ project.queueAssets = function(assetLibrary)
 
     assetLibrary.queueAsset("atmosMaterial", "blue-marble/materials/atmosphereMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
     assetLibrary.queueAsset("moon-material", "blue-marble/materials/moonMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
-    assetLibrary.queueAsset("skybox", "blue-marble/textures/skybox/milkyway.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG_EQUIRECTANGULAR);
+    assetLibrary.queueAsset("skybox", "blue-marble/textures/skybox/milkyway.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG, {equiToCube: true});
 };
 
 project.onInit = function()

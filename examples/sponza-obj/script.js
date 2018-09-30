@@ -27,7 +27,7 @@ window.onload = function ()
 project.queueAssets = function(assetLibrary)
 {
     assetLibrary.queueAsset("skybox-specular", "skyboxes/field-mips/skybox_specular.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
-    assetLibrary.queueAsset("skybox-irradiance", "skyboxes/field-mips/skybox_irradiance.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
+    assetLibrary.queueAsset("skybox-irradiance", "skyboxes/field-mips/irradiance_sh.ash", HX.AssetLibrary.Type.ASSET, HX.ASH);
     assetLibrary.queueAsset("model", "crytek-sponza/sponza.obj", HX.AssetLibrary.Type.ASSET, HX_IO.OBJ);
 };
 

@@ -470,12 +470,12 @@ export function InitOptions()
     this.maxPointSpotLights = 20;
 
 	/**
-     * Number of cells for clustered rendering in WebGL 2.0
+     * Number of cells for tiled rendering in WebGL 2.0
 	 */
 	this.numLightingCellsX = 16;
 
 	/**
-	 * Number of cells for clustered rendering in WebGL 2.0
+	 * Number of cells for tiled rendering in WebGL 2.0
 	 */
 	this.numLightingCellsY = 9;
 

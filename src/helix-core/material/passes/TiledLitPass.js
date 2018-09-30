@@ -16,14 +16,14 @@ import {Shader} from "../../shader/Shader";
  * @param lights
  * @constructor
  */
-function ClusteredLitPass(geometryVertex, geometryFragment, lightingModel)
+function TiledLitPass(geometryVertex, geometryFragment, lightingModel)
 {
     MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel));
 }
 
-ClusteredLitPass.prototype = Object.create(MaterialPass.prototype);
+TiledLitPass.prototype = Object.create(MaterialPass.prototype);
 
-ClusteredLitPass.prototype._generateShader = function (geometryVertex, geometryFragment, lightingModel)
+TiledLitPass.prototype._generateShader = function (geometryVertex, geometryFragment, lightingModel)
 {
     var extensions = "#derivatives\n";
     var defines = {
@@ -39,7 +39,7 @@ ClusteredLitPass.prototype._generateShader = function (geometryVertex, geometryF
         extensions += "#texturelod\n";
     }
 
-    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_fwd_clustered_vertex.glsl", defines);
+    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_fwd_tiled_vertex.glsl", defines);
 
     var fragmentShader =
         extensions +
@@ -50,9 +50,9 @@ ClusteredLitPass.prototype._generateShader = function (geometryVertex, geometryF
         ShaderLibrary.get("point_light.glsl") + "\n" +
         ShaderLibrary.get("spot_light.glsl") + "\n" +
         geometryFragment + "\n" +
-        ShaderLibrary.get("material_fwd_clustered_fragment.glsl");
+        ShaderLibrary.get("material_fwd_tiled_fragment.glsl");
 
     return new Shader(vertexShader, fragmentShader);
 };
 
-export {ClusteredLitPass};
+export {TiledLitPass};

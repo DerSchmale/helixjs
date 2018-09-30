@@ -5,7 +5,7 @@ import {UnlitPass} from "./passes/UnlitPass";
 import {DirectionalShadowPass} from "./passes/DirectionalShadowPass";
 import {BlendState} from "../render/BlendState";
 import {DirectionalLightingPass} from "./passes/DirectionalLightingPass";
-import {ClusteredLitPass} from "./passes/ClusteredLitPass";
+import {TiledLitPass} from "./passes/TiledLitPass";
 import {DynamicLitBasePass} from "./passes/DynamicLitBasePass";
 import {FixedLitPass} from "./passes/FixedLitPass";
 import {PointLightingPass} from "./passes/PointLightingPass";
@@ -110,7 +110,7 @@ Material.prototype =
         else if (capabilities.WEBGL_2) {
             this._renderPath = RenderPath.FORWARD_DYNAMIC;
 
-            this.setPass(MaterialPass.BASE_PASS, new ClusteredLitPass(vertex, fragment, this._lightingModel, null));
+            this.setPass(MaterialPass.BASE_PASS, new TiledLitPass(vertex, fragment, this._lightingModel, null));
         }
         else {
             this._renderPath = RenderPath.FORWARD_DYNAMIC;

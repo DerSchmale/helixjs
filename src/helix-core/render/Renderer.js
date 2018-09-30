@@ -204,7 +204,7 @@ Renderer.prototype =
         this._scene = scene;
 
         if (capabilities.WEBGL_2)
-            camera._updateClusterPlanes();
+            camera._updateCellPlanes();
 
         GL.setDepthMask(true);
         GL.setColorMask(true);
@@ -220,7 +220,7 @@ Renderer.prototype =
         this._renderDepthPrepass();
 
         if (capabilities.WEBGL_2)
-            this._renderClustered();
+            this._renderTiled();
         else {
             this._renderForward();
         }
@@ -245,7 +245,7 @@ Renderer.prototype =
         GL.unlockColorMask(true);
     },
 
-    _renderClustered: function()
+    _renderTiled: function()
     {
         var lights = this._renderCollector.lights;
         var numLights = lights.length;
@@ -407,8 +407,8 @@ Renderer.prototype =
 			var nx = META.OPTIONS.numLightingCellsX;
 			var ny = META.OPTIONS.numLightingCellsY;
 
-			var planesW = camera._clusterPlanesW;
-			var planesH = camera._clusterPlanesH;
+			var planesW = camera._cellPlanesW;
+			var planesH = camera._cellPlanesH;
 
 			// should we project viewPos to NDC to figure out which frustum we're in?
 			// then we don't need to calculate all of the above, only until it's considered "outside"

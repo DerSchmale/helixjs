@@ -462,12 +462,22 @@ export function InitOptions()
     /**
      * Maximum number of directional lights inside a dynamic WebGL 2.0 shader.
      */
-    this.maxDirLights = 3;
+    this.maxDirLights = 1;
 
     /**
      * Maximum number of point / spot lights inside a dynamic WebGL 2.0 shader.
      */
     this.maxPointSpotLights = 20;
+
+	/**
+     * Maximum number of diffuse probes inside a dynamic WebGL 2.0 shader.
+     */
+    this.maxDiffuseProbes = 5;
+
+	/**
+	 * Maximum number of specular probes inside a dynamic WebGL 2.0 shader.
+	 */
+	this.maxSpecularProbes = 1;
 
 	/**
      * Number of cells for tiled rendering in WebGL 2.0

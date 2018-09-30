@@ -11,8 +11,8 @@ window.onload = function ()
 
     var ssao = new HX.HBAO(5, 5);
     ssao.strength = 2.0;
-    ssao.sampleRadius = 2.0;
-    ssao.fallOffDistance = 4.0;
+    ssao.sampleRadius = 2.5;
+    ssao.fallOffDistance = 5.0;
     options.ambientOcclusion = ssao;
 
     options.hdr = true;

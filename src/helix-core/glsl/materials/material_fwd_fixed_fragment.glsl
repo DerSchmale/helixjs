@@ -60,13 +60,7 @@ void main()
     vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;
 
     for (int i = 0; i < HX_NUM_DIFFUSE_PROBES; ++i) {
-        vec3 diff = hx_viewPosition - hx_diffuseProbes[i].position;
-        float distSqr = dot(diff, diff);
-        float weight = 1.0 / distSqr;
-
-        if (hx_diffuseProbes[i].sizeSqr > 0.0)
-            weight *= saturate(1.0 - distSqr / hx_diffuseProbes[i].sizeSqr);
-
+        float weight = hx_getProbeWeight(hx_diffuseProbes[i], hx_viewPosition);
         diffuseAccum += hx_calculateDiffuseProbeLight(hx_diffuseProbes[i], worldNormal) * weight;
         diffuseWeightSum += weight;
     }
@@ -86,13 +80,7 @@ void main()
     float specularWeightSum = 0.0;
 
     for (int i = 0; i < HX_NUM_SPECULAR_PROBES; ++i) {
-        vec3 diff = hx_viewPosition - hx_specularProbes[i].position;
-        float distSqr = dot(diff, diff);
-        float weight = 1.0 / distSqr;
-
-        if (hx_specularProbes[i].sizeSqr > 0.0)
-            weight *= saturate(1.0 - distSqr / hx_specularProbes[i].sizeSqr);
-
+        float weight = hx_getProbeWeight(hx_specularProbes[i], hx_viewPosition);
         specularAccum += hx_calculateSpecularProbeLight(hx_specularProbes[i], hx_specularProbeTextures[i], reflectedWorldDir, fresnel, data.roughness) * weight;
         specularWeightSum += weight;
     }

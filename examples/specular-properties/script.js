@@ -26,7 +26,7 @@ window.onload = function ()
     var options = new HX.InitOptions();
     options.defaultLightingModel = HX.LightingModel.GGX;
     options.hdr = true;
-    options.webgl2 = true;
+    // options.webgl2 = true;
     options.debug = true;
     project.init(document.getElementById('webglContainer'), options);
 };
@@ -62,7 +62,6 @@ function initScene(scene, assetLibrary)
     var skybox = new HX.Skybox(skyboxSpecularTexture);
     scene.skybox = skybox;
     var lightProbe = new HX.LightProbe(skyboxIrradianceSH, skyboxSpecularTexture);
-	lightProbe.intensity = 2.0;
     scene.attach(new HX.Entity(lightProbe));
 
     var primitive = new HX.SpherePrimitive(

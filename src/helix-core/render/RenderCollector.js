@@ -29,8 +29,6 @@ function RenderCollector()
     this._frustumPlanes = null;
 	this.shadowCasters = null;
 	this.lights = null;
-	this.diffuseProbes = null;
-	this.specularProbes = null;
 	this.effects = null;
 	this.ambientColor = new Color();
 	this.needsNormalDepth = false;
@@ -58,9 +56,6 @@ RenderCollector.prototype.collect = function(camera, scene)
 
     for (var i = 0; i < RenderPath.NUM_PATHS; ++i)
         this._opaques[i].sort(RenderSortFunctions.sortOpaques);
-
-    if (!capabilities.WEBGL_2 && this._opaques[RenderPath.FORWARD_DYNAMIC].length > 0 && this.diffuseProbes.length > 0)
-    	this.needsNormalDepth = true;
 
     this._transparents.sort(RenderSortFunctions.sortTransparents);
 
@@ -146,11 +141,7 @@ RenderCollector.prototype.visitAmbientLight = function(light)
 
 RenderCollector.prototype.visitLightProbe = function(probe)
 {
-	if (probe.diffuseSH)
-		this.diffuseProbes.push(probe);
-
-	if (probe.specularTexture)
-		this.specularProbes.push(probe);
+	this.lights.push(probe);
 };
 
 RenderCollector.prototype.visitLight = function(light)

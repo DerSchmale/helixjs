@@ -20,6 +20,10 @@ import {SpotShadowMapRenderer} from "./SpotShadowMapRenderer";
 import {Float4} from "../math/Float4";
 import {Matrix4x4} from "../math/Matrix4x4";
 import {UniformBuffer} from "../core/UniformBuffer";
+import {LightProbe} from "../light/LightProbe";
+import {BasicMaterial} from "../material/BasicMaterial";
+import {LightingModel} from "./LightingModel";
+import {TextureCube} from "../texture/TextureCube";
 
 /**
  * @classdesc
@@ -74,7 +78,7 @@ function Renderer(renderTarget)
     this._shadowAtlas.resize(2048, 2048);
 
     if (capabilities.WEBGL_2) {
-		var size = 16 + META.OPTIONS.maxDirLights * 320 + META.OPTIONS.maxPointSpotLights * 224;
+		var size = 16 + META.OPTIONS.maxDirLights * 320 + META.OPTIONS.maxPointSpotLights * 224 + META.OPTIONS.maxDiffuseProbes * 176 + META.OPTIONS.maxSpecularProbes * 32;
 		this._lightingUniformBuffer = new UniformBuffer(size);
 		this._lightingDataView = new DataView(new ArrayBuffer(size));
 		// these will contain all the indices into the light buffer
@@ -85,6 +89,8 @@ function Renderer(renderTarget)
 		// this throws errors
 		this._lightingCellsUniformBuffer = new UniformBuffer(this._numCells * this._cellStride * 4);
 		this._cellData = new Int32Array(this._numCells * this._cellStride);
+
+		this._specularProbeArray = [];
 
 		for (var i = 0; i < size; ++i)
 		    this._lightingDataView.setInt8(i, 0);
@@ -253,10 +259,14 @@ Renderer.prototype =
         var cells = this._cellData;
         var camera = this._camera;
         var maxDirLights = META.OPTIONS.maxDirLights, maxPoints = META.OPTIONS.maxPointSpotLights;
+        var maxDiffProbes = META.OPTIONS.maxDiffuseProbes, maxSpecProbes = META.OPTIONS.maxSpecularProbes;
 		var dirLightStride = 320, pointStride = 224;
+		var diffProbeStride = 176, specProbeStride = 32;
 		var dirLightOffset = 16;
 		var pointOffset = maxDirLights * dirLightStride + dirLightOffset;
-        var numDirLights = 0, numPointLights = 0;
+		var diffProbeOffset = maxPoints * pointStride + pointOffset;
+		var specProbeOffset = maxDiffProbes * diffProbeStride + diffProbeOffset;
+        var numDirLights = 0, numPointLights = 0, numDiffuseProbes = 0, numSpecularProbes = 0;
         var numCells = META.OPTIONS.numLightingCellsX * META.OPTIONS.numLightingCellsY;
         var cellStride = this._cellStride;
         var i;
@@ -287,10 +297,29 @@ Renderer.prototype =
                 pointOffset += pointStride;
                 ++numPointLights;
             }
+            else if (light instanceof LightProbe) {
+				if (light.diffuseSH && numDiffuseProbes < maxDiffProbes) {
+					this.writeDiffuseProbe(light, camera, data, diffProbeOffset);
+					diffProbeOffset += diffProbeStride;
+					++numDiffuseProbes;
+				}
+				if (light.specularTexture && numSpecularProbes < maxSpecProbes) {
+					this.writeSpecularProbe(light, camera, data, specProbeOffset);
+					specProbeOffset += specProbeStride;
+					this._specularProbeArray[numSpecularProbes] = light.specularTexture;
+					++numSpecularProbes;
+				}
+			}
         }
+
+		for (i = numSpecularProbes; i < maxSpecProbes; ++i) {
+			this._specularProbeArray[i] = TextureCube.DEFAULT;
+		}
 
         data.setInt32(0, numDirLights, true);
         data.setInt32(4, numPointLights, true);
+        data.setInt32(8, numDiffuseProbes, true);
+        data.setInt32(12, numSpecularProbes, true);
 
         this._lightingUniformBuffer.uploadData(this._lightingDataView);
         this._lightingCellsUniformBuffer.uploadData(this._cellData);
@@ -508,6 +537,63 @@ Renderer.prototype =
             }
         }
     }(),
+
+	writeDiffuseProbe: function(probe, camera, target, offset)
+	{
+		var pos = new Float4();
+
+		return function(probe, camera, target, offset)
+		{
+			var viewMatrix = camera.viewMatrix;
+			var lightMatrix = probe.entity.worldMatrix;
+
+			lightMatrix.getColumn(3, pos);
+			viewMatrix.transformPoint(pos, pos);
+
+			var c = probe.diffuseSH._coefficients;
+			var o = offset;
+			var i = 0;
+
+			for (var l = 0; l < 9; ++l) {
+				for (var xyz = 0; xyz < 3; ++xyz) {
+					target.setFloat32(o, c[i++], true);
+					o += 4;
+				}
+
+				// vec3 arrays align to 16 bit, so skip 4th "ghost" component
+				o += 4;
+			}
+
+			target.setFloat32(offset + 144, pos.x, true);
+			target.setFloat32(offset + 148, pos.y, true);
+			target.setFloat32(offset + 152, pos.z, true);
+			target.setFloat32(offset + 156, probe.intensity, true);
+			var size = probe.size || 0;
+			target.setFloat32(offset + 160, size * size, true);
+		}
+	}(),
+
+	writeSpecularProbe: function(probe, camera, target, offset)
+	{
+		var pos = new Float4();
+
+		return function(probe, camera, target, offset)
+		{
+			var viewMatrix = camera.viewMatrix;
+			var lightMatrix = probe.entity.worldMatrix;
+
+			lightMatrix.getColumn(3, pos);
+			viewMatrix.transformPoint(pos, pos);
+
+			target.setFloat32(offset, pos.x, true);
+			target.setFloat32(offset + 4, pos.y, true);
+			target.setFloat32(offset + 8, pos.z, true);
+			target.setFloat32(offset + 12, probe.intensity, true);
+			var size = probe.size || 0;
+			target.setFloat32(offset + 16, size * size, true);
+			target.setFloat32(offset + 20, probe.specularTexture.numMips, true);
+		}
+	}(),
 
 	/**
 	 * @ignore

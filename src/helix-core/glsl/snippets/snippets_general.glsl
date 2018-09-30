@@ -236,8 +236,7 @@ vec3 hx_evaluateSH(vec3 sh[9], vec3 dir)
                 sh[4] * dir.x * dir.y + sh[5] * dir.y * dir.z + sh[6] * (3.0 * sq.z - 1.0) +
                 sh[7] * dir.x * dir.z + sh[8] * (sq.x - sq.y);
 
-    // why is Lys yielding gamma colours?
-    return hx_gammaToLinear(col);
+    return col;
 }
 
 vec3 hx_intersectCubeMap(vec3 rayOrigin, vec3 cubeCenter, vec3 rayDir, float cubeSize)

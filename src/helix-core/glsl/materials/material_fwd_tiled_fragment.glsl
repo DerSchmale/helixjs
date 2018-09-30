@@ -79,6 +79,8 @@ uniform hx_lights
 {
     int hx_numDirLights;
     int hx_numPointSpotLights;
+    int hx_numDiffuseProbes;
+    int hx_numSpecularProbes;
 
 #if HX_NUM_DIR_LIGHTS > 0
     HX_DirectionalLight hx_directionalLights[HX_NUM_DIR_LIGHTS];
@@ -88,7 +90,22 @@ uniform hx_lights
     HX_PointSpotLight hx_pointSpotLights[HX_NUM_POINT_SPOT_LIGHTS];
 #endif
 
+#if HX_NUM_DIFFUSE_PROBES > 0
+    HX_DiffuseProbe hx_diffuseProbes[HX_NUM_DIFFUSE_PROBES];
+#endif
+
+#if HX_NUM_SPECULAR_PROBES > 0
+    HX_SpecularProbe hx_specularProbes[HX_NUM_SPECULAR_PROBES];
+#endif
 };
+
+#if HX_NUM_SPECULAR_PROBES > 0
+uniform samplerCube hx_specularProbeTextures[HX_NUM_SPECULAR_PROBES];
+#endif
+
+#if HX_NUM_DIFFUSE_PROBES > 0 || HX_NUM_SPECULAR_PROBES > 0
+uniform mat4 hx_cameraWorldMatrix;
+#endif
 
 ivec2 getCurrentCell(vec2 screenUV)
 {
@@ -110,8 +127,43 @@ void main()
     float ao = data.occlusion;
     vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;
 
+
     #ifdef HX_SSAO
         ao = texture2D(hx_ssao, screenUV).x;
+    #endif
+
+    #if HX_NUM_DIFFUSE_PROBES > 0
+    float diffuseWeightSum = 0.0;
+    vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;
+
+    for (int i = 0; i < hx_numDiffuseProbes; ++i) {
+        float weight = hx_getProbeWeight(hx_diffuseProbes[i], hx_viewPosition);
+        diffuseAccum += hx_calculateDiffuseProbeLight(hx_diffuseProbes[i], worldNormal) * weight;
+        diffuseWeightSum += weight;
+    }
+
+    diffuseAccum /= max(diffuseWeightSum, 0.001);
+    #endif
+
+    diffuseAccum += hx_ambientColor;
+    diffuseAccum *= ao;
+
+    #if HX_NUM_SPECULAR_PROBES > 0
+    vec3 reflectedViewDir = reflect(viewVector, data.normal);
+    vec3 fresnel = hx_fresnelProbe(specularColor, reflectedViewDir, data.normal, data.roughness);
+
+    vec3 reflectedWorldDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;
+
+    float specularWeightSum = 0.0;
+
+    for (int i = 0; i < hx_numSpecularProbes; ++i) {
+        float weight = hx_getProbeWeight(hx_specularProbes[i], hx_viewPosition);
+        specularAccum += hx_calculateSpecularProbeLight(hx_specularProbes[i], hx_specularProbeTextures[i], reflectedWorldDir, fresnel, data.roughness) * weight;
+        specularWeightSum += weight;
+    }
+
+    specularAccum /= max(specularWeightSum, 0.001);
+    specularAccum *= ao;
     #endif
 
     #if HX_NUM_DIR_LIGHTS > 0
@@ -165,5 +217,5 @@ void main()
         }
     #endif
 
-    hx_FragColor = vec4((diffuseAccum + hx_ambientColor * ao) * data.color.xyz + specularAccum + data.emission, data.color.w);
+    hx_FragColor = vec4(diffuseAccum * data.color.xyz + specularAccum + data.emission, data.color.w);
 }

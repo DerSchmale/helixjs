@@ -35,11 +35,9 @@ function SphericalHarmonicsRGB()
 {
 	// coefficients are premultiplied with the SH constant values!
 	this._coefficients = new Float32Array(27);
-	this.yUp = false;
 
-	for (var i = 0; i < 27; ++i) {
+	for (var i = 0; i < 27; ++i)
 		this._coefficients[i] = 0;
-	}
 }
 
 SphericalHarmonicsRGB.prototype = {

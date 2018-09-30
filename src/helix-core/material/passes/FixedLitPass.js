@@ -286,7 +286,8 @@ FixedLitPass.prototype._assignDiffuseProbes = function (camera) {
 
 		gl.uniform3f(locs.position, pos.x, pos.y, pos.z);
 		gl.uniform1f(locs.intensity, probe.intensity);
-		gl.uniform1f(locs.sizeSqr, probe.size * probe.size);
+		var size = probe.size || 0;
+		gl.uniform1f(locs.sizeSqr, size * size);
 	}
 };
 

@@ -17,6 +17,29 @@ struct HX_SpecularProbe
     float numMips;
 };
 
+float hx_getProbeWeight(vec3 viewPos, vec3 pos, float sizeSqr)
+{
+    vec3 diff = viewPos - pos;
+    float distSqr = dot(diff, diff);
+    float weight = 1.0 / distSqr;
+
+    if (sizeSqr > 0.0)
+        weight *= saturate(1.0 - distSqr / sizeSqr);
+
+    return weight;
+}
+
+
+float hx_getProbeWeight(HX_SpecularProbe probe, vec3 viewPos)
+{
+    return hx_getProbeWeight(viewPos, probe.position, probe.sizeSqr);
+}
+
+float hx_getProbeWeight(HX_DiffuseProbe probe, vec3 viewPos)
+{
+    return hx_getProbeWeight(viewPos, probe.position, probe.sizeSqr);
+}
+
 vec3 hx_calculateDiffuseProbeLight(HX_DiffuseProbe probe, vec3 dir)
 {
 	return hx_evaluateSH(probe.sh, dir) * probe.intensity;

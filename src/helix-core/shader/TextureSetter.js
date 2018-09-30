@@ -45,6 +45,7 @@ export var TextureSetter = {
         TextureSetter._passTable.hx_frontbuffer = FrontbufferSetter;
         TextureSetter._passTable.hx_ssao = SSAOSetter;
         TextureSetter._passTable.hx_shadowMap = ShadowMapSetter;
+		TextureSetter._passTable["hx_specularProbeTextures[0]"] = SpecularProbesSetter;
 
         TextureSetter._instanceTable.hx_skinningTexture = SkinningTextureSetter;
     }
@@ -100,15 +101,6 @@ function ShadowMapSetter()
 ShadowMapSetter.prototype.execute = function (renderer)
 {
 	this.pass.setTextureByIndex(this.slot, renderer._shadowAtlas.texture);
-};
-
-function DiffuseProbesSetter()
-{
-}
-
-DiffuseProbesSetter.prototype.execute = function (renderer)
-{
-	this.pass.setTextureArrayByIndex(this.slot, renderer._diffuseProbeArray);
 };
 
 function SpecularProbesSetter()

@@ -34,6 +34,7 @@ function LightProbe(diffuseSH, specularTexture)
     this._size = undefined;
     this._bounds = new BoundingSphere();
 	this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
+	this._renderOrderHint = 0;
 }
 
 // conversion range for spec power to mip. Lys style.

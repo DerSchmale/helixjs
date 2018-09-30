@@ -61,7 +61,8 @@ RenderCollector.prototype.collect = function(camera, scene)
 
     this._transparents.sort(RenderSortFunctions.sortTransparents);
 
-    // Do lights still require sorting?
+	this.diffuseProbes.sort(RenderSortFunctions.sortProbes);
+	this.specularProbes.sort(RenderSortFunctions.sortProbes);
     this.shadowCasters.sort(RenderSortFunctions.sortShadowCasters);
 
 	// add camera effects at the end
@@ -143,7 +144,14 @@ RenderCollector.prototype.visitAmbientLight = function(light)
 
 RenderCollector.prototype.visitLightProbe = function(probe)
 {
-    if (probe.diffuseSH)
+	var cameraYAxis = this._cameraYAxis;
+	var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
+	var worldBounds = this.getProxiedBounds(probe.entity);
+	var center = worldBounds.center;
+
+	probe._renderOrderHint = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
+
+	if (probe.diffuseSH)
         this.diffuseProbes.push(probe);
 
     if (probe.specularTexture)

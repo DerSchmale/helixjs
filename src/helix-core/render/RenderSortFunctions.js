@@ -28,6 +28,12 @@ export var RenderSortFunctions = {
         return b.renderOrderHint - a.renderOrderHint;
     },
 
+    sortProbes: function(a, b)
+    {
+        // closest ones first:
+		return a._renderOrderHint - b._renderOrderHint;
+    },
+
     sortShadowCasters: function(a, b)
     {
         return a.shadowQualityBias - b.shadowQualityBias;

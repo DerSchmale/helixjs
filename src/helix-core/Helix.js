@@ -129,7 +129,7 @@ export var capabilities =
 		EXT_COMPRESSED_TEXTURE_S3TC: null,
 
         DEFAULT_TEXTURE_MAX_ANISOTROPY: 0,
-        HDR_FORMAT: 0,
+        HDR_DATA_TYPE: 0,
 
         VR_CAN_PRESENT: false
     };
@@ -687,7 +687,7 @@ export function init(canvas, options)
     //EXT_SRGB = _getExtension("EXT_sRGB");
     //if (!EXT_SRGB) console.warn("EXT_sRGB extension not supported!");
 
-    capabilities.HDR_FORMAT = options.hdr ? DataType.HALF_FLOAT : gl.UNSIGNED_BYTE;
+    capabilities.HDR_DATA_TYPE = options.hdr ? DataType.HALF_FLOAT : gl.UNSIGNED_BYTE;
 
     if (options.useSkinningTexture) {
         defines += "#define HX_USE_SKINNING_TEXTURE\n";

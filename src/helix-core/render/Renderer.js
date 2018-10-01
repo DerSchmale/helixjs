@@ -67,9 +67,6 @@ function Renderer(renderTarget)
     this.debugMode = Renderer.DebugMode.NONE;
     this._ssaoTexture = null;
 
-    this._diffuseGITexture = null;
-    this._diffuseGIFBO = null;
-
     this._cascadeShadowRenderer = new CascadeShadowMapRenderer();
     this._omniShadowRenderer = new OmniShadowMapRenderer();
     this._spotShadowRenderer = new SpotShadowMapRenderer();
@@ -130,7 +127,7 @@ Renderer.HDRBuffers.prototype =
 {
     resize: function(width, height)
     {
-        this.texture.initEmpty(width, height, TextureFormat.RGBA, capabilities.HDR_FORMAT);
+        this.texture.initEmpty(width, height, TextureFormat.RGBA, capabilities.HDR_DATA_TYPE);
         this.fbo.init();
         this.fboDepth.init();
     }
@@ -216,7 +213,6 @@ Renderer.prototype =
 
         this._renderNormalDepth();
         this._renderAO();
-        // this._renderDiffuseGI();
 
         GL.setRenderTarget(this._hdrFront.fboDepth);
         GL.setClearColor(this._backgroundColor);
@@ -797,27 +793,6 @@ Renderer.prototype =
         }
     },
 
-	/**
-	 * @ignore
-	 * @private
-	 */
-	/*_renderDiffuseGI: function()
-	{
-		var probes = this._renderCollector.diffuseProbes;
-
-		if (probes.length === 0)
-			return;
-
-		if (!this._diffuseGITexture) {
-			this._diffuseGITexture = new Texture2D();
-			this._diffuseGITexture.filter = TextureFilter.BILINEAR_NOMIP;
-			this._diffuseGITexture.wrapMode = TextureWrapMode.CLAMP;
-			this._diffuseGITexture.initEmpty(width, height, TextureFormat.RGBA, capabilities.HDR_FORMAT);
-			this._diffuseGIFBO = new FrameBuffer(this._diffuseGITexture);
-			this._diffuseGIFBO.init();
-		}
-	},*/
-
     /**
      * @ignore
      * @private
@@ -949,11 +924,6 @@ Renderer.prototype =
             this._hdrFront.resize(this._width, this._height);
             this._normalDepthBuffer.initEmpty(width, height);
             this._normalDepthFBO.init();
-
-            if (this._diffuseGITexture) {
-				this._diffuseGITexture.initEmpty(width, height);
-				this._diffuseGITexture.init();
-			}
         }
     },
 

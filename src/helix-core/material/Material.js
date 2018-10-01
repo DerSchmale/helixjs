@@ -102,16 +102,21 @@ Material.prototype =
 
         if (!this._lightingModel) {
             this._renderPath = RenderPath.FORWARD_FIXED;
-            this.setPass(MaterialPass.BASE_PASS, new UnlitPass(vertex, fragment));
+            var pass = new UnlitPass(vertex, fragment);
+            this.setPass(MaterialPass.BASE_PASS, pass);
+            this.setPass(MaterialPass.BASE_PASS_PROBES, pass);
         }
         else if (this._fixedLights) {
+            pass = new FixedLitPass(vertex, fragment, this._lightingModel, this._fixedLights);
             this._renderPath = RenderPath.FORWARD_FIXED;
-            this.setPass(MaterialPass.BASE_PASS, new FixedLitPass(vertex, fragment, this._lightingModel, this._fixedLights));
+            this.setPass(MaterialPass.BASE_PASS, pass);
+            this.setPass(MaterialPass.BASE_PASS_PROBES, pass);
         }
         else if (capabilities.WEBGL_2) {
             this._renderPath = RenderPath.FORWARD_DYNAMIC;
-
-            this.setPass(MaterialPass.BASE_PASS, new TiledLitPass(vertex, fragment, this._lightingModel, null));
+            var pass = new TiledLitPass(vertex, fragment, this._lightingModel, null);
+            this.setPass(MaterialPass.BASE_PASS, pass);
+            this.setPass(MaterialPass.BASE_PASS_PROBES, pass);
         }
         else {
             this._renderPath = RenderPath.FORWARD_DYNAMIC;
@@ -299,10 +304,10 @@ Material.prototype =
             pass.writeColor = this._writeColor;
 
             // one of the lit ones
-            if (type >= MaterialPass.DIR_LIGHT_PASS  && type <= MaterialPass.SPOT_LIGHT_PASS)
+            if (type >= MaterialPass.DIR_LIGHT_PASS && type <= MaterialPass.SPOT_LIGHT_PASS)
                 pass.blendState = this._additiveBlendState;
 
-            if (type === MaterialPass.BASE_PASS)
+            if (type === MaterialPass.BASE_PASS || type === MaterialPass.BASE_PASS_PROBES)
                 pass.blendState = this._blendState;
 
             if (pass.hasTexture("hx_normalDepthBuffer"))

@@ -8,7 +8,6 @@ var waterMaterial;
 var time = 0;
 var physics = false;
 
-// 1 = 10m
 var worldSize = 20000;
 var waterLevel = 467;
 var minHeight = 0;

@@ -20,9 +20,6 @@ import {SpotShadowMapRenderer} from "./SpotShadowMapRenderer";
 import {Float4} from "../math/Float4";
 import {Matrix4x4} from "../math/Matrix4x4";
 import {UniformBuffer} from "../core/UniformBuffer";
-import {LightProbe} from "../light/LightProbe";
-import {BasicMaterial} from "../material/BasicMaterial";
-import {LightingModel} from "./LightingModel";
 import {TextureCube} from "../texture/TextureCube";
 
 var probeObject = {};

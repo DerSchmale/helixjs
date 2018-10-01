@@ -59,13 +59,16 @@ void main()
     float diffuseWeightSum = 0.0;
     vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;
 
+    vec3 sh[9];
     for (int i = 0; i < HX_NUM_DIFFUSE_PROBES; ++i) {
         float weight = hx_getProbeWeight(hx_diffuseProbes[i], hx_viewPosition);
-        diffuseAccum += hx_calculateDiffuseProbeLight(hx_diffuseProbes[i], worldNormal) * weight;
+        hx_sumSH(hx_diffuseProbes[i].sh, weight * hx_diffuseProbes[i].intensity, sh);
         diffuseWeightSum += weight;
     }
 
-    diffuseAccum /= max(diffuseWeightSum, 0.001);
+    if (diffuseWeightSum > 0.0)
+        diffuseAccum += hx_evaluateSH(sh, worldNormal) / diffuseWeightSum;
+
     #endif
 
     diffuseAccum += hx_ambientColor;
@@ -85,7 +88,9 @@ void main()
         specularWeightSum += weight;
     }
 
-    specularAccum /= max(specularWeightSum, 0.001);
+    if (specularWeightSum > 0.0)
+        specularAccum /= specularWeightSum;
+
     specularAccum *= ao;
     #endif
 

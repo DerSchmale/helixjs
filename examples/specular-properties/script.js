@@ -27,7 +27,6 @@ window.onload = function ()
     options.defaultLightingModel = HX.LightingModel.GGX;
     options.hdr = true;
     // options.webgl2 = true;
-    options.debug = true;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -82,7 +81,7 @@ function initScene(scene, assetLibrary)
             material.color = gold;
             material.roughness = x / (numX - 1.0);
             material.metallicness = y / (numY - 1.0);
-            // material.fixedLights = [ light, lightProbe ];
+            material.fixedLights = [ light, lightProbe ];
 
             var entity = new HX.Entity();
             entity.addComponent(new HX.MeshInstance(primitive, material));

@@ -45,9 +45,10 @@ DynamicLitBaseProbesPass.prototype._generateShader = function(geometryVertex, ge
 
 DynamicLitBaseProbesPass.prototype.updatePassRenderState = function(camera, renderer, probes)
 {
-	this._MP_updatePassRenderState(camera, renderer);
+	GL.gl.useProgram(this.shader.program);
     this._assignDiffuseProbes(camera, probes.diffuseProbes);
-    this._assignSpecularProbes(camera, probes.specularProbes);
+	this._assignSpecularProbes(camera, probes.specularProbes);
+	this._MP_updatePassRenderState(camera, renderer);
 };
 
 DynamicLitBaseProbesPass.prototype._assignDiffuseProbes = function (camera, probes)
@@ -118,13 +119,15 @@ DynamicLitBaseProbesPass.prototype._assignSpecularProbes = function (camera, pro
 		this._specProbeTextures[i] = TextureCube.DEFAULT;
 	}
 
-	this.setTextureArray("hx_specularProbeTextures", this._specProbeTextures);
+	this.setTextureArrayByIndex(this._specularProbeTexSlot, this._specProbeTextures);
 };
 
 DynamicLitBaseProbesPass.prototype._initLocations = function()
 {
 	this._diffProbeLocations = [];
 	this._specProbeLocations = [];
+
+	this._specularProbeTexSlot = this.shader.getTextureIndex("hx_specularProbeTextures[0]");
 
 	for (var i = 0; i < META.OPTIONS.maxDiffuseProbes; ++i) {
 		this._diffProbeLocations.push({

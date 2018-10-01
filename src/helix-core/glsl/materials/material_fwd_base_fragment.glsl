@@ -32,13 +32,13 @@ void main()
         float diffuseWeightSum = 0.0;
         vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;
 
+        vec3 sh[9];
         for (int i = 0; i < HX_NUM_DIFFUSE_PROBES; ++i) {
             float weight = hx_getProbeWeight(hx_diffuseProbes[i], hx_viewPosition);
-            diffuseAccum += hx_calculateDiffuseProbeLight(hx_diffuseProbes[i], worldNormal) * weight;
+            hx_sumSH(hx_diffuseProbes[i].sh, weight * hx_diffuseProbes[i].intensity, sh);
             diffuseWeightSum += weight;
         }
-
-        diffuseAccum /= max(diffuseWeightSum, 0.001);
+        diffuseAccum += hx_evaluateSH(sh, worldNormal) / max(diffuseWeightSum, 0.001);
 
         vec3 reflectedViewDir = reflect(viewVector, data.normal);
         vec3 fresnel = hx_fresnelProbe(specularColor, reflectedViewDir, data.normal, data.roughness);

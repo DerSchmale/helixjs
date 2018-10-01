@@ -331,16 +331,17 @@ FixedLitPass.prototype._assignStaticProbeData = function ()
 		gl.uniform1f(this._specProbeLocations[i].numMips, tex.numMips);
 	}
 
-	this.setTextureArray("hx_specularProbeTextures", textures);
+	this.setTextureArrayByIndex(this._specularProbeTexSlot, textures);
 };
 
 FixedLitPass.prototype._getUniformLocations = function ()
 {
-    this._dirLocations = [];
-    this._pointLocations = [];
-    this._spotLocations = [];
-    this._diffProbeLocations = [];
-    this._specProbeLocations = [];
+	this._specularProbeTexSlot = this.shader.getTextureIndex("hx_specularProbeTextures[0]");
+	this._dirLocations = [];
+	this._pointLocations = [];
+	this._spotLocations = [];
+	this._diffProbeLocations = [];
+	this._specProbeLocations = [];
 
     for (var i = 0; i < this._dirLights.length; ++i) {
         this._dirLocations.push({

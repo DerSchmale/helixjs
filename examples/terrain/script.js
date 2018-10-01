@@ -72,7 +72,7 @@ window.onload = function ()
     if (!HX.Platform.isMobile)
         options.webgl2 = true;
     options.hdr = true;
-    options.debug = true;
+    // options.debug = true;
     options.defaultLightingModel = HX.LightingModel.GGX_FULL;
     options.shadowFilter = new HX.VarianceShadowFilter();
     options.shadowFilter.softness = .002;
@@ -114,6 +114,7 @@ function initCamera(camera)
 
 	var fog = new HX.Fog(0.001, new HX.Color(0x1155ff), 0.005, 0);
 	var toneMap = new HX.FilmicToneMapping();
+	toneMap.exposure = -.5;
 	camera.addComponents([fog, toneMap]);
 }
 
@@ -132,15 +133,15 @@ function initScene(scene, camera, assetLibrary)
     // TODO: Add procedural skybox
 
     var skyboxSpecularTexture = assetLibrary.get("skybox-specular");
-    var skyboxIrradianceTexture = assetLibrary.get("skybox-irradiance");
+    var skyboxIrradiance = assetLibrary.get("skybox-irradiance");
 
     var skybox = new HX.Skybox(skyboxSpecularTexture);
     scene.skybox = skybox;
 
-    var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, skyboxSpecularTexture);
+    var lightProbe = new HX.LightProbe(skyboxIrradiance, skyboxSpecularTexture);
     scene.attach(new HX.Entity(lightProbe));
 
-    var lights = [ lightProbe, dirLight ];
+    var lights = [ dirLight, lightProbe ];
     var heightMap = assetLibrary.get("heightMap");
     var terrainMap = assetLibrary.get("terrainMap");
 

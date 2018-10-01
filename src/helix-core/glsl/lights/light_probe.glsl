@@ -40,11 +40,6 @@ float hx_getProbeWeight(HX_DiffuseProbe probe, vec3 viewPos)
     return hx_getProbeWeight(viewPos, probe.position, probe.sizeSqr);
 }
 
-vec3 hx_calculateDiffuseProbeLight(HX_DiffuseProbe probe, vec3 dir)
-{
-	return hx_evaluateSH(probe.sh, dir) * probe.intensity;
-}
-
 vec3 hx_calculateSpecularProbeLight(HX_SpecularProbe probe, samplerCube texture, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)
 {
     #if defined(HX_TEXTURE_LOD) || defined (HX_GLSL_300_ES)

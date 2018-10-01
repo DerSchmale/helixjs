@@ -239,6 +239,12 @@ vec3 hx_evaluateSH(vec3 sh[9], vec3 dir)
     return col;
 }
 
+void hx_sumSH(in vec3 a[9], in float weight, inout vec3 b[9])
+{
+    for (int i = 0; i < 9; ++i)
+        b[i] += a[i] * weight;
+}
+
 vec3 hx_intersectCubeMap(vec3 rayOrigin, vec3 cubeCenter, vec3 rayDir, float cubeSize)
 {
     vec3 t = (cubeSize * sign(rayDir) - (rayOrigin - cubeCenter)) / rayDir;

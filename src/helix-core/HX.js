@@ -138,6 +138,7 @@ export {AudioFile} from "./loaders/AudioFile";
 export {ASH} from "./loaders/ASH";
 export {DDS} from "./loaders/DDS";
 export {HCM} from "./loaders/HCM";
+export {HDR} from "./loaders/HDR";
 export {HMAT} from "./loaders/HMAT";
 export {HX} from "./loaders/HX";
 export {Importer} from "./loaders/Importer";

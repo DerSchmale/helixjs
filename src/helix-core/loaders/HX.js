@@ -46,6 +46,7 @@ import {MorphTarget} from "../animation/morph/MorphTarget";
 import {MorphAnimation} from "../animation/morph/MorphAnimation";
 import {FileUtils} from "./FileUtils";
 import {DDS} from "./DDS";
+import {HDR} from "./HDR";
 
 /**
  * The data provided by the HX loader
@@ -746,6 +747,10 @@ HX.prototype._handleURL = function(url, target)
 			break;
 		case "dds":
 			dependencyType = DDS;
+			break;
+		case "hdr":
+		case "rgbe":
+			dependencyType = HDR;
 			break;
 		default:
 			// fallbacks for missing extensions

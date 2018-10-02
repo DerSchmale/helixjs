@@ -20,6 +20,8 @@ import {Endian} from "../utils/Endian";
  * Yields a {@linkcode TextureCube} object.</li>
  * <li>cubeSize: An optional size for the cube map size.</li>
  * <li>generateMipmaps: This will cause mipmaps to be generated. Defaults to true.</li>
+ * <li>ldr: Indicated the image should be loaded as low dynamic range (32bpp).</li>
+ * <li>exposure: The amount of stops to apply to the image. Positive values make the image brighter, negative darker.</li>
  * </ul>
  *
  * @constructor
@@ -54,14 +56,13 @@ HDR.prototype.parse = function(data, target)
 
 	this._generateMips = this.options.generateMipmaps === undefined? true : this.options.generateMipmaps;
 
-	// TODO: upload data:
-	this._parseHeader();
-	this._parseData();
-
 	this._flipY = false;
 	this._gamma = 1.0;
-	this._exposure = 1.0;
+	this._exposure = Math.pow(2, this.options.exposure || 0);
 	this._colorCorr = new Color(1, 1, 1);
+
+	this._parseHeader();
+	this._parseData();
 
 	if (this.options.equiToCube)
 		EquirectangularTexture.toCube(tex2D, this.options.cubeSize, this._generateMips, target);
@@ -87,7 +88,7 @@ HDR.prototype._parseHeader = function()
 				console.assert(parts[1] === "32-bit_rle_rgbe" || parts[1] === "32-bit_rle_xyze", "Incorrect format!");
 				break;
 			case "EXPOSURE":
-				this._exposure = parseFloat(parts[1]);
+				this._exposure *= parseFloat(parts[1]);
 				break;
 			case "COLORCORR":
 				var p = parts[1].replace(/^\s+|\s+$/g, "").split(" ");
@@ -148,7 +149,7 @@ HDR.prototype._parseData = function()
 
 HDR.prototype._parseNewRLE = function()
 {
-	var hdr = capabilities.HDR_DATA_TYPE !== DataType.UNSIGNED_BYTE;
+	var hdr = !this.options.ldr && capabilities.HDR_DATA_TYPE !== DataType.UNSIGNED_BYTE;
 	var numPixels = this._width * this._height;
 	var w = this._width;
 	var data = new (hdr? Float32Array : Uint8Array)(numPixels * 3);
@@ -192,14 +193,14 @@ HDR.prototype._parseNewRLE = function()
 			e = e? Math.pow(2.0, e - 136) : 0;
 
 			// encode in gamma space
-			r = Math.sqrt(r * e);
-			g = Math.sqrt(g * e);
-			b = Math.sqrt(b * e);
+			r = Math.sqrt(r * e * this._exposure * this._colorCorr.r);
+			g = Math.sqrt(g * e * this._exposure * this._colorCorr.g);
+			b = Math.sqrt(b * e * this._exposure * this._colorCorr.b);
 
 			if (!hdr) {
-				r *= 0xff;
-				g *= 0xff;
-				b *= 0xff;
+				r = Math.min(r * 0xff, 0xff);
+				g = Math.min(g * 0xff, 0xff);
+				b = Math.min(b * 0xff, 0xff);
 			}
 
 			data[i++] = r;
@@ -207,8 +208,6 @@ HDR.prototype._parseNewRLE = function()
 			data[i++] = b;
 		}
 	}
-
-	console.log(data);
 
 	return data;
 };

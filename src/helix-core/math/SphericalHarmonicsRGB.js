@@ -1,24 +1,25 @@
 import {Color} from "../core/Color";
 
-var sh_1_4 = Math.sqrt(1.0 / (4.0 * Math.PI));
-var sh_1_3 = Math.sqrt(1.0 / (3.0 * Math.PI));
-var sh_15_64 = Math.sqrt(15.0 / (64.0 * Math.PI));
-var sh_5_256 = Math.sqrt(5.0 / (256.0 * Math.PI));
-var sh_15_256 = Math.sqrt(15.0 / (256.0 * Math.PI));
-var sh_15_128 = Math.sqrt(5.0 / (128.0 * Math.PI));
+// https://en.wikipedia.org/wiki/Table_of_spherical_harmonics#Real_spherical_harmonics
+// with irradiance normalization applied
+var l0 = 0.5 * Math.sqrt(1.0 / Math.PI);
+var l1 = 0.5 * Math.sqrt(3.0 / Math.PI) * 2 / 3;
+var l2_1 = 0.5 * Math.sqrt(15.0 / Math.PI) / 4;
+var l2_2 = 0.25 * Math.sqrt(5.0 / Math.PI) / 4;
+var l2_3 = 0.25 * Math.sqrt(15.0 / Math.PI) / 4;
 
 var shConstants = [
-	sh_1_4,
+	l0,
 
-	-sh_1_3,
-	sh_1_3,
-	-sh_1_3,
+	l1,
+	l1,
+	l1,
 
-	sh_15_64,
-	-sh_15_64,
-	sh_5_256,
-	-sh_15_128,
-	sh_15_256
+	l2_1,
+	l2_1,
+	l2_2,
+	l2_1,
+	l2_3
 ];
 
 /**
@@ -51,9 +52,9 @@ SphericalHarmonicsRGB.prototype = {
 	{
 		var i = this._getCoeffIndex(level, index);
 		var i3 = i * 3;
-		this._coefficients[i3] = shConstants[i] * value.x;
-		this._coefficients[i3 + 1] = shConstants[i] * value.y;
-		this._coefficients[i3 + 2] = shConstants[i] * value.z;
+		this._coefficients[i3] = shConstants[i] * value.x / Math.PI;
+		this._coefficients[i3 + 1] = shConstants[i] * value.y / Math.PI;
+		this._coefficients[i3 + 2] = shConstants[i] * value.z / Math.PI;
 	},
 
 	/**

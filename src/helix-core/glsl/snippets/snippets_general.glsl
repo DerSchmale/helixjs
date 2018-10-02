@@ -228,14 +228,13 @@ vec4 hx_sampleDefaultDither(sampler2D ditherTexture, vec2 uv)
 
 vec3 hx_evaluateSH(vec3 sh[9], vec3 dir)
 {
-    dir = vec3(dir.x, -dir.z, dir.y);
-    vec3 sq = dir * dir;
-
+    dir = dir.xzy;
     vec3 col =  sh[0] +
                 sh[1] * dir.y + sh[2] * dir.z + sh[3] * dir.x +
-                sh[4] * dir.x * dir.y + sh[5] * dir.y * dir.z + sh[6] * (3.0 * sq.z - 1.0) +
-                sh[7] * dir.x * dir.z + sh[8] * (sq.x - sq.y);
+                sh[4] * dir.x * dir.y + sh[5] * dir.y * dir.z + sh[6] * (3.0 * dir.z * dir.z - 1.0) +
+                sh[7] * dir.z * dir.x + sh[8] * (dir.x * dir.x - dir.y * dir.y);
 
+    col = max(col, vec3(0.0));
     return col;
 }
 

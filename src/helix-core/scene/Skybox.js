@@ -4,14 +4,17 @@ import {BoxPrimitive} from "../mesh/primitives/BoxPrimitive";
 import {BoundingVolume} from "../scene/BoundingVolume";
 import {Entity} from "../entity/Entity";
 import {MeshInstance} from "../mesh/MeshInstance";
+import {SphericalHarmonicsRGB} from "../math/SphericalHarmonicsRGB";
+import {SkyboxSHMaterial} from "../material/SkyboxSHMaterial";
 
 
 /**
  * @classdesc
  * Skybox provides a backdrop "at infinity" for the scene.
  *
- * @param materialOrTexture Either a {@linkcode TextureCube} or a {@linkcode Material} used to render the skybox. If a
- * texture is passed, {@linkcode SkyboxMaterial} is used as material.
+ * @param materialOrTexture Either a {@linkcode TextureCube}, a {@linkcode Material} or a {@linkcode SphericalHarmonicsRGB}
+ * used to render the skybox. If a texture is passed, {@linkcode SkyboxMaterial} is used as material. When passing in
+ * spherical harmonics, {@linkcode SkyboxSHMaterial}
  * @constructor
  *
  * @property material The material used by the texture.
@@ -22,8 +25,12 @@ function Skybox(materialOrTexture)
 {
     Entity.call(this);
 
-    if (!(materialOrTexture instanceof Material))
-        materialOrTexture = new SkyboxMaterial(materialOrTexture);
+    if (!(materialOrTexture instanceof Material)) {
+    	if (materialOrTexture instanceof SphericalHarmonicsRGB)
+        	materialOrTexture = new SkyboxSHMaterial(materialOrTexture);
+    	else
+        	materialOrTexture = new SkyboxMaterial(materialOrTexture);
+	}
 
     //var model = new HX.PlanePrimitive({alignment: HX.PlanePrimitive.ALIGN_XY, width: 2, height: 2});
     var mesh = new BoxPrimitive({width: 1, invert: true});

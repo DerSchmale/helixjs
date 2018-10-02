@@ -163,6 +163,7 @@ export {MaterialPass} from "./material/MaterialPass";
 export {Material} from "./material/Material";
 export {BasicMaterial} from "./material/BasicMaterial";
 export {SkyboxMaterial} from "./material/SkyboxMaterial";
+export {SkyboxSHMaterial} from "./material/SkyboxSHMaterial";
 
 export {Mesh} from "./mesh/Mesh";
 export {MeshInstance} from "./mesh/MeshInstance";

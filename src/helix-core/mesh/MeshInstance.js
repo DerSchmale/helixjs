@@ -92,8 +92,9 @@ Component.create(MeshInstance, {
 		},
 
 		set: function(value) {
-			if (this._morphPose)
-				this._morphPose.onChange.unbind(this._onMorphChanged);
+			var oldPose = this._morphPose;
+			if (oldPose)
+				oldPose.onChange.unbind(this._onMorphChanged);
 
 			this._morphPose = value;
 
@@ -101,7 +102,7 @@ Component.create(MeshInstance, {
 				this._morphPose.onChange.bind(this._onMorphChanged, this);
 				this._onMorphChanged();
 			}
-			else
+			else if (oldPose)
 				this._clearMorph();
 		}
 	},

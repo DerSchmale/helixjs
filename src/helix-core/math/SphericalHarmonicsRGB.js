@@ -1,12 +1,11 @@
 import {Color} from "../core/Color";
 
 // https://en.wikipedia.org/wiki/Table_of_spherical_harmonics#Real_spherical_harmonics
-// with irradiance normalization applied
 var l0 = 0.5 * Math.sqrt(1.0 / Math.PI);
-var l1 = 0.5 * Math.sqrt(3.0 / Math.PI) * 2 / 3;
-var l2_1 = 0.5 * Math.sqrt(15.0 / Math.PI) / 4;
-var l2_2 = 0.25 * Math.sqrt(5.0 / Math.PI) / 4;
-var l2_3 = 0.25 * Math.sqrt(15.0 / Math.PI) / 4;
+var l1 = 0.5 * Math.sqrt(3.0 / Math.PI);
+var l2_1 = 0.5 * Math.sqrt(15.0 / Math.PI);
+var l2_2 = 0.25 * Math.sqrt(5.0 / Math.PI);
+var l2_3 = 0.25 * Math.sqrt(15.0 / Math.PI);
 
 var shConstants = [
 	l0,

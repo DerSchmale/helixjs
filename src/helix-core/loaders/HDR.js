@@ -74,7 +74,7 @@ HDR.prototype._parseHeader = function()
 {
 	var line = this._readLine();
 
-	console.assert(line === "#?RADIANCE", "Incorrect file format!");
+	console.assert(line === "#?RADIANCE" || line === "#?RGBE", "Incorrect file format!");
 
 	while (line !== "") {
 		// empty line means there's only 1 line left, containing size info:

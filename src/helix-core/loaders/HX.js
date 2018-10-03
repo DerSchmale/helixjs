@@ -47,6 +47,7 @@ import {MorphAnimation} from "../animation/morph/MorphAnimation";
 import {FileUtils} from "./FileUtils";
 import {DDS} from "./DDS";
 import {HDR} from "./HDR";
+import {SphericalHarmonicsRGB} from "../math/SphericalHarmonicsRGB";
 
 /**
  * The data provided by the HX loader
@@ -130,7 +131,8 @@ var ObjectTypes = {
 	SKYBOX: 23,
 	ENTITY_PROXY: 24,
 	MORPH_TARGET: 25,
-	MORPH_ANIMATION: 26
+	MORPH_ANIMATION: 26,
+	SPERICAL_HARMONICS: 27
 };
 
 var ObjectTypeMap = {
@@ -154,7 +156,8 @@ var ObjectTypeMap = {
 	23: Skybox,
 	24: EntityProxy,
 	25: MorphTarget,
-	26: MorphAnimation
+	26: MorphAnimation,
+	27: SphericalHarmonicsRGB
 };
 
 // most ommitted properties take on their default value in Helix.
@@ -197,6 +200,7 @@ var PropertyTypes = {
 	INTENSITY: 40,						// float32
 	RADIUS: 41,							// float32
 	SPOT_ANGLES: 42,					// 2 float32: inner and outer angle
+	SH_WEIGHTS: 43,						// 1 uint8 (level), followed by (2 * level + 1) float32 triplets containing the weights for rgb
 
 	// texture data
 	WRAP_MODE: 50,						// uint8: 0 = clamp, 1 = wrap
@@ -610,6 +614,15 @@ HX.prototype._readProperties = function(data, target)
 			case PropertyTypes.SPOT_ANGLES:
 				target.innerAngle = data.getFloat32();
 				target.outerAngle = data.getFloat32();
+				break;
+			case PropertyTypes.SH_WEIGHTS:
+				var l = data.getInt8();
+
+				for (var m = -l; m <= l; ++m) {
+					var w = new Float4(data.getFloat32(), data.getFloat32(), data.getFloat32());
+					target.setWeight(l, m, w);
+				}
+
 				break;
 			case PropertyTypes.WRAP_MODE:
 				target.wrapMode = data.getUint8()? TextureWrapMode.REPEAT : TextureWrapMode.CLAMP;
@@ -1043,13 +1056,13 @@ function linkToSkyBox(probe, child)
     skybox.setTexture(child);
 }
 
-function linkToLightProbe(probe, child, meta)
+function linkToLightProbe(probe, child)
 {
 	if (child instanceof Texture2D)
         child = EquirectangularTexture.toCube(child, child.height, true);
 
-	if (meta === 0)
-		parent.diffuseTexture = child;
+	if (child instanceof SphericalHarmonicsRGB)
+		parent.diffuseSH = child;
 	else
 		parent.specularTexture = child;
 }

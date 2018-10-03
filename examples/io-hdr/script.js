@@ -26,7 +26,8 @@ project.onInit = function()
 {
     var orbitController = new OrbitController();
     orbitController.minRadius = .02;
-    orbitController.radius = 3.0;
+    orbitController.radius = 30.0;
+    orbitController.azimuth = -1.0;
     this.camera.addComponent(orbitController);
 
     var skyboxTexture = this.assetLibrary.get("skybox");
@@ -42,7 +43,9 @@ project.onInit = function()
 	var hx = this.assetLibrary.get("scene");
 	var mesh = hx.meshes["Suzanne"];
 	var meshInstance = new HX.MeshInstance(mesh, material);
-	this.scene.attach(new HX.Entity(meshInstance));
+	var entity = new HX.Entity(meshInstance);
+	entity.euler.z = 1.0;
+	this.scene.attach(entity);
 
     // use the same texture as environment map
     var lightProbe = new HX.LightProbe(irradianceSH, skyboxTexture);

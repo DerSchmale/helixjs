@@ -15,10 +15,8 @@ window.onload = function ()
 
 project.queueAssets = function(assetLibrary)
 {
-	assetLibrary.queueAsset("skybox", "skyboxes/cape_hill_2k/cape_hill_2k.hdr", HX.AssetLibrary.Type.ASSET, HX.HDR, {equiToCube: true});
-	assetLibrary.queueAsset("irradiance", "skyboxes/cape_hill_2k/cape_hill_2k_sh_irrad.ash", HX.AssetLibrary.Type.ASSET, HX.ASH);
-	// assetLibrary.queueAsset("skybox", "skyboxes/studio-small/specular.dds", HX.AssetLibrary.Type.ASSET, HX.DDS);
-	// assetLibrary.queueAsset("irradiance", "skyboxes/studio-small/irradiance_sh.ash", HX.AssetLibrary.Type.ASSET, HX.ASH);
+	assetLibrary.queueAsset("skybox", "skyboxes/studio-small/radiance.hdr", HX.AssetLibrary.Type.ASSET, HX.HDR, {equiToCube: true});
+	assetLibrary.queueAsset("irradiance", "skyboxes/studio-small/irradiance_sh.ash", HX.AssetLibrary.Type.ASSET, HX.ASH);
 };
 
 project.onInit = function()
@@ -36,7 +34,7 @@ project.onInit = function()
     this.scene.skybox = skybox;
 
     var material = new HX.BasicMaterial();
-    // material.color = 0x808080;
+    material.color = 0x808080;
     material.roughness = .01;
     var primitive = new HX.SpherePrimitive({
 		numSegmentsW: 32,
@@ -47,7 +45,6 @@ project.onInit = function()
 
     // use the same texture as environment map
     var lightProbe = new HX.LightProbe(irradianceSH, skyboxTexture);
-	lightProbe.intensity = .3;
     this.scene.attach(new HX.Entity(lightProbe));
 
     // var toneMap = new HX.ReinhardToneMapping();

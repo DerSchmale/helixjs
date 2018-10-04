@@ -608,6 +608,8 @@ export function init(canvas, options)
     if (!gl) throw new Error("WebGL not supported");
     GL._setGL(gl);
 
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+
     META.INITIALIZED = true;
 
     var glExtensions = gl.getSupportedExtensions();

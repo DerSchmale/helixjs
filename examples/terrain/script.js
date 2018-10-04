@@ -113,7 +113,7 @@ function initCamera(camera)
 
 	var fog = new HX.Fog(0.001, new HX.Color(0x1155ff), 0.005, 0);
 	var toneMap = new HX.FilmicToneMapping();
-	toneMap.exposure = -.5;
+	toneMap.exposure = 0.0;
 	camera.addComponents([fog, toneMap]);
 }
 

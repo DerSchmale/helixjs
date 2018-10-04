@@ -35,7 +35,7 @@ export var EquirectangularTexture =
      */
     toCube: function(source, size, generateMipmaps, target)
     {
-        generateMipmaps = generateMipmaps || true;
+        generateMipmaps = generateMipmaps === undefined? true : generateMipmaps;
         size = size || source.height;
 
         if (!toCubeShader)
@@ -90,7 +90,7 @@ export var EquirectangularTexture =
 
     fromCube: function(source, width, generateMipmaps, target)
     {
-        generateMipmaps = generateMipmaps || true;
+        generateMipmaps = generateMipmaps === undefined? true : generateMipmaps;
         width = width || (source.size << 1);
         var height = width >> 1;
 
@@ -105,6 +105,7 @@ export var EquirectangularTexture =
         fbo.init();
 
         GL.setRenderTarget(fbo);
+        GL.clear();
 
         fromCubeShader.execute(RectMesh.DEFAULT, source);
 
@@ -112,6 +113,8 @@ export var EquirectangularTexture =
 
         if (generateMipmaps)
             target.generateMipmap();
+
+        return target;
     }
 };
 

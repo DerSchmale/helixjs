@@ -79,11 +79,11 @@ function BasicMaterial(options)
 	this._doubleSided = !!options.doubleSided;
 	this._specularMapMode = options.specularMapMode || BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY;
 
-	this._colorMap = options.colorMap || null;
-	this._normalMap = options.normalMap || null;
-	this._specularMap = options.specularMap || null;
-	this._maskMap = options.maskMap || null;
-	this._occlusionMap = options.occlusionMap || null;
+	this.colorMap = options.colorMap || null;
+	this.normalMap = options.normalMap || null;
+	this.specularMap = options.specularMap || null;
+	this.maskMap = options.maskMap || null;
+	this.occlusionMap = options.occlusionMap || null;
 	this._colorMapScale = null;
 	this._colorMapOffset = null;
 	this._normalMapScale = null;

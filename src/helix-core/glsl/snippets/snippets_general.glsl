@@ -1,4 +1,5 @@
 #define HX_LOG_10 2.302585093
+#define HX_PI 3.1415926
 
 #ifdef HX_GLSL_300_ES
 // replace some outdated function names

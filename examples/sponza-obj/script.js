@@ -1,7 +1,6 @@
 /**
  * @author derschmale <http://www.derschmale.com>
  */
-
 var project = new DemoProject();
 var sponza;
 
@@ -73,7 +72,7 @@ function initScene(scene, assetLibrary)
     scene.attach(dirLight);
 
     var skyboxSpecularTexture = assetLibrary.get("skybox-specular");
-    var skyboxIrradianceTexture = assetLibrary.get("skybox-irradiance");
+    var skyboxIrradianceSH = assetLibrary.get("skybox-irradiance");
 
     // top level of specular texture is the original skybox texture
     var skybox = new HX.Skybox(skyboxSpecularTexture);
@@ -85,8 +84,9 @@ function initScene(scene, assetLibrary)
 
 	processMaterials();
 
-    var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, skyboxSpecularTexture);
-    scene.attach(new HX.Entity(lightProbe));
+    var lightProbe = new HX.LightProbe(skyboxIrradianceSH, skyboxSpecularTexture);
+    var probe = new HX.Entity(lightProbe);
+    scene.attach(probe);
 }
 
 function processMaterials()

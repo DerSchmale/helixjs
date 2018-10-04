@@ -40,13 +40,13 @@ OmniShadowCasterCollector.prototype.setLightBounds = function(value)
     this._lightBounds = value;
 };
 
-OmniShadowCasterCollector.prototype.collect = function(cameras, scene)
+OmniShadowCasterCollector.prototype.collect = function(camera, scene)
 {
     this.reset();
-    this._cameras = cameras;
+    this._camera = camera;
     this._renderLists = [];
 
-    var pos = this._cameraPos = cameras[0].position;
+    var pos = this._cameraPos = camera.position;
 
     for (var i = 0; i < 6; ++i) {
         var plane = this._octantPlanes[i];
@@ -64,7 +64,7 @@ OmniShadowCasterCollector.prototype.collect = function(cameras, scene)
 
 OmniShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
 {
-	if (!meshInstance.castShadows || !meshInstance.enabled || meshInstance._lodVisible) return;
+	if (!meshInstance.castShadows || !meshInstance.enabled || !meshInstance._lodVisible) return;
 
 	var entity = meshInstance.entity;
 	var worldBounds = this.getProxiedBounds(entity);

@@ -147,6 +147,7 @@ FixedLightsSystem.prototype._queueOrAssign = function(entity)
 
 function assignLights(material, lights)
 {
+	console.log(lights);
 	material.fixedLights = lights;
 	material.init();
 }

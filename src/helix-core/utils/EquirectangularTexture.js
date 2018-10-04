@@ -6,8 +6,12 @@ import {FrameBuffer} from "../texture/FrameBuffer";
 import {capabilities, CubeFace, TextureFilter} from "../Helix";
 import {VertexBuffer} from "../core/VertexBuffer";
 import {IndexBuffer} from "../core/IndexBuffer";
+import {CustomCopyShader} from "../render/UtilShaders";
+import {Texture2D} from "../texture/Texture2D";
+import {RectMesh} from "../mesh/RectMesh";
 
 var toCubeShader;
+var fromCubeShader;
 var toCubeVertices;
 var toCubeIndices;
 
@@ -38,7 +42,7 @@ export var EquirectangularTexture =
             toCubeShader = new Shader(ShaderLibrary.get("2d_to_cube_vertex.glsl"), ShaderLibrary.get("equirectangular_to_cube_fragment.glsl"));
 
         if (!toCubeVertices)
-            this._createRenderCubeGeometry();
+            createRenderCubeGeometry();
 
         var gl = GL.gl;
         target = target || new TextureCube();
@@ -84,62 +88,88 @@ export var EquirectangularTexture =
         return target;
     },
 
-    _createRenderCubeGeometry: function()
+    fromCube: function(source, width, generateMipmaps, target)
     {
-        var vertices = [
-            [
-                // pos X
-                1.0, 1.0, 1.0, -1.0, -1.0,
-                -1.0, 1.0, 1.0, -1.0, 1.0,
-                -1.0, -1.0, 1.0, 1.0, 1.0,
-                1.0, -1.0, 1.0, 1.0, -1.0
-            ],
-            [
-                // neg X
-                1.0, 1.0, -1.0, -1.0, 1.0,
-                -1.0, 1.0, -1.0, -1.0, -1.0,
-                -1.0, -1.0, -1.0, 1.0, -1.0,
-                1.0, -1.0, -1.0, 1.0, 1.0,
-            ],
-            [
-                // pos Y
-                1.0, 1.0, 1.0, -1.0, 1.0,
-                -1.0, 1.0, -1.0, -1.0, 1.0,
-                -1.0, -1.0, -1.0, 1.0, 1.0,
-                1.0, -1.0, 1.0, 1.0, 1.0,
-            ],
-            [
+        generateMipmaps = generateMipmaps || true;
+        width = width || (source.size << 1);
+        var height = width >> 1;
+
+        target = target || new Texture2D();
+        target.initEmpty(width, height, source.format, source.dataType);
+
+        if (!fromCubeShader)
+            fromCubeShader = new CustomCopyShader(ShaderLibrary.get("equirectangular_from_cube_fragment.glsl"));
+
+        var old = GL.getCurrentRenderTarget();
+        var fbo = new FrameBuffer(target);
+        fbo.init();
+
+        GL.setRenderTarget(fbo);
+
+        fromCubeShader.execute(RectMesh.DEFAULT, source);
+
+        GL.setRenderTarget(old);
+
+        if (generateMipmaps)
+            target.generateMipmap();
+    }
+};
+
+function createRenderCubeGeometry()
+{
+    var vertices = [
+        [
+            // pos X
+            1.0, 1.0, 1.0, -1.0, -1.0,
+            -1.0, 1.0, 1.0, -1.0, 1.0,
+            -1.0, -1.0, 1.0, 1.0, 1.0,
+            1.0, -1.0, 1.0, 1.0, -1.0
+        ],
+        [
+            // neg X
+            1.0, 1.0, -1.0, -1.0, 1.0,
+            -1.0, 1.0, -1.0, -1.0, -1.0,
+            -1.0, -1.0, -1.0, 1.0, -1.0,
+            1.0, -1.0, -1.0, 1.0, 1.0,
+        ],
+        [
+            // pos Y
+            1.0, 1.0, 1.0, -1.0, 1.0,
+            -1.0, 1.0, -1.0, -1.0, 1.0,
+            -1.0, -1.0, -1.0, 1.0, 1.0,
+            1.0, -1.0, 1.0, 1.0, 1.0,
+        ],
+        [
             // neg Y
             1.0, 1.0, -1.0, -1.0, -1.0,
             -1.0, 1.0, 1.0, -1.0, -1.0,
             -1.0, -1.0, 1.0, 1.0, -1.0,
             1.0, -1.0, -1.0, 1.0, -1.0,
-            ],
-            [
+        ],
+        [
             // pos Z
             -1.0, -1.0, -1.0, 1.0, -1.0,
             1.0, -1.0, 1.0, 1.0, -1.0,
             1.0, 1.0, 1.0, 1.0, 1.0,
             -1.0, 1.0, -1.0, 1.0, 1.0,
-            ],
-            [
+        ],
+        [
             // neg Z
             -1.0, -1.0, -1.0, -1.0, 1.0,
             1.0, -1.0, 1.0, -1.0, 1.0,
             1.0, 1.0, 1.0, -1.0, -1.0,
             -1.0, 1.0, -1.0, -1.0, -1.0
-            ]
-        ];
-        var indices = [
-            0, 1, 2, 0, 2, 3
-        ];
-        toCubeVertices = [];
-        for (var i = 0; i < 6; ++i) {
-            toCubeVertices[i] = new VertexBuffer();
-            toCubeVertices[i].uploadData(new Float32Array(vertices[i]));
-        }
-
-        toCubeIndices = new IndexBuffer();
-        toCubeIndices.uploadData(new Uint16Array(indices));
+        ]
+    ];
+    var indices = [
+        0, 1, 2, 0, 2, 3
+    ];
+    toCubeVertices = [];
+    for (var i = 0; i < 6; ++i) {
+        toCubeVertices[i] = new VertexBuffer();
+        toCubeVertices[i].uploadData(new Float32Array(vertices[i]));
     }
-};
+
+    toCubeIndices = new IndexBuffer();
+    toCubeIndices.uploadData(new Uint16Array(indices));
+}

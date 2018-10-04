@@ -99,6 +99,7 @@ export {AudioEmitter} from "./audio/AudioEmitter";
 export {AudioListener} from "./audio/AudioListener";
 
 export {Camera} from "./camera/Camera";
+export {CubeCamera} from "./camera/CubeCamera";
 export {Frustum} from "./camera/Frustum";
 export {PerspectiveCamera} from "./camera/PerspectiveCamera";
 export {OrthographicCamera} from "./camera/OrthographicCamera";
@@ -179,6 +180,7 @@ export {WireBoxPrimitive} from "./mesh/primitives/WireBoxPrimitive";
 export {WirePlanePrimitive} from "./mesh/primitives/WirePlanePrimitive";
 
 export {BlendState} from "./render/BlendState";
+export {CubeRenderer} from "./render/CubeRenderer";
 export {Renderer} from "./render/Renderer";
 export {VRRenderer} from "./render/VRRenderer";
 export {LightingModel} from "./render/LightingModel";

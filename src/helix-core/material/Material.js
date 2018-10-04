@@ -14,6 +14,7 @@ import {NormalDepthPass} from "./passes/NormalDepthPass";
 import {RenderPath} from "../render/RenderPath";
 import {PointShadowPass} from "./passes/PointShadowPass";
 import {DynamicLitBaseProbesPass} from "./passes/DynamicLitBaseProbesPass";
+import {ArrayUtils} from "../utils/ArrayUtils";
 
 /**
  * @ignore
@@ -183,10 +184,6 @@ Material.prototype =
 
     set fixedLights(value)
     {
-        // passed the same array again
-        if (this._fixedLights === value)
-            return;
-
         this._fixedLights = value;
         this._invalidate();
     },

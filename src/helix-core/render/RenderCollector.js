@@ -65,7 +65,7 @@ RenderCollector.prototype.collect = function(camera, scene)
 	this.specularProbes.sort(RenderSortFunctions.sortProbes);
     this.shadowCasters.sort(RenderSortFunctions.sortShadowCasters);
 
-	// add camera effects at the end
+	// add only active camera effects at the end
 	this._camera.acceptVisitorPost(this);
 };
 

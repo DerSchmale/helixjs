@@ -4,6 +4,61 @@
     (factory((global.HX_IO = {}),global.HX));
 }(this, (function (exports,HX) { 'use strict';
 
+    /**
+     * Exporter forms a base class for exporters.
+     *
+     * @property onComplete A Signal called when exporting is finished. A Blob is passed as the payload.
+     * @property onProgress A Signal called when exporting makes progress. A float ratio between 0 - 1 is passed as the payload.
+     */
+    function Exporter()
+    {
+        this.onComplete = new Signal(/*Blob*/);
+        this.onProgress = new Signal(/*ratio*/);
+    }
+
+    Exporter.prototype = {
+        /**
+         * Exports the object. When done.
+         */
+        export: function(object)
+        {
+
+        }
+    };
+
+    /**
+     * ASH is an exporter for SphericalHarmonicsRGB objects (L2 spherical harmonics).
+     */
+
+    function ASH()
+    {
+        Exporter.call(this);
+    }
+
+    ASH.prototype = Object.create(Exporter.prototype);
+
+    /**
+     * Exports a SphericalHarmonicsRGB object.
+     */
+    Exporter.prototype.export = function(sphericalHarmonics)
+    {
+        var str = "# Generated with Helix\n";
+
+        var sh = sphericalHarmonics._coefficients;
+
+        var n = 0;
+        for (var l = 0; l < 3; ++l) {
+            str += "\nl=" + l + ":\n" ;
+            for (var m = -l; m <= l; ++m) {
+                str += "m=" + m + ": ";
+                str += sh[n].r + " " + sh[n].g + " " + sh[n].b + "\n";
+                ++n;
+            }
+        }
+
+        this.onComplete.dispatch(new Blob([str], {type: "text/plain;charset=utf-8"}));
+    };
+
     // https://www.khronos.org/files/gltf20-reference-guide.pdf
 
     /**
@@ -937,7 +992,7 @@
      *
      * @author derschmale <http://www.derschmale.com>
      */
-    function Signal()
+    function Signal$1()
     {
         this._listeners = [];
         this._lookUp = {};
@@ -946,7 +1001,7 @@
     /**
      * Signals keep "this" of the caller, because having this refer to the signal itself would be silly
      */
-    Signal.prototype =
+    Signal$1.prototype =
     {
         /**
          * Binds a function as a listener to the Signal
@@ -1017,8 +1072,8 @@
      */
     function AsyncTaskQueue()
     {
-        this.onComplete = new Signal();
-        this.onProgress = new Signal();
+        this.onComplete = new Signal$1();
+        this.onProgress = new Signal$1();
         this._queue = [];
         this._childQueues = [];
         this._currentIndex = 0;
@@ -1697,6 +1752,7 @@
 
     // could we make things switchable based on a config file, so people can generate a file with only the importers they
 
+    exports.ASH = ASH;
     exports.GLTF = GLTF;
     exports.GLTFData = GLTFData;
     exports.OBJ = OBJ;

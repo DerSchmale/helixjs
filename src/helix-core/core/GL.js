@@ -70,14 +70,14 @@ var GL = {
      * Draws elements for the current index buffer bound.
      * @param elementType One of {@linkcode ElementType}.
      * @param numIndices The amount of indices in the index buffer
-     * @param offset The first index to start drawing from.
-     * @param [indexType] The data type of the index buffer/
+     * @param [offset] The first index to start drawing from.
+     * @param [indexType] The data type of the index buffer.
      */
     drawElements: function (elementType, numIndices, offset, indexType)
     {
         indexType = indexType || gl.UNSIGNED_SHORT;
         ++_glStats.numDrawCalls;
-        gl.drawElements(elementType, numIndices, indexType, offset * 2);
+        gl.drawElements(elementType, numIndices, indexType, (offset || 0) * 2);
     },
 
     setShader: function(shader)

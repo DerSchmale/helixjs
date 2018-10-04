@@ -3573,6 +3573,12 @@
 	    }
 	};
 
+	ShaderLibrary._files['lighting_blinn_phong.glsl'] = '/*// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}*/\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*pow(cosAngle, 5.0);\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
+
+	ShaderLibrary._files['lighting_debug.glsl'] = 'void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	diffuseColor = vec3(0.0);\n	specularColor = vec3(0.0);\n}';
+
+	ShaderLibrary._files['lighting_ggx.glsl'] = '#ifdef HX_VISIBILITY_TERM\nfloat hx_geometryTerm(vec3 normal, vec3 dir, float k)\n{\n    float d = max(-dot(normal, dir), 0.0);\n    return d / (d * (1.0 - k) + k);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness)\n{\n	float k = roughness + 1.0;\n	k = k * k * .125;\n	return hx_geometryTerm(normal, viewDir, k) * hx_geometryTerm(normal, lightDir, k);\n}\n#endif\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n    float mappedRoughness =  geometry.roughness * geometry.roughness;\n\n	float distribution = hx_ggxDistribution(mappedRoughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef HX_VISIBILITY_TERM\n    specularColor *= hx_lightVisibility(geometry.normal, viewDir, lightDir, geometry.roughness);\n#endif\n}';
+
 	ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    int castShadows;\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            if (viewPos.y < light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    vec4 shadowMapCoord = shadowMatrix * vec4(viewPos, 1.0);\n    float shadow = hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n\n    // this can occur when meshInstance.castShadows = false, or using inherited bounds\n    bool isOutside = max(shadowMapCoord.x, shadowMapCoord.y) > 1.0 || min(shadowMapCoord.x, shadowMapCoord.y) < 0.0;\n    if (isOutside) shadow = 1.0;\n\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.y > light.maxShadowDistance));\n}\n#endif';
 
 	ShaderLibrary._files['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_PROBE_K1 .9921\n\nstruct HX_DiffuseProbe\n{\n    vec3 sh[9]; // rotated to be in view space\n    vec3 position;\n    float intensity;\n    float sizeSqr;\n};\n\nstruct HX_SpecularProbe\n{\n    vec3 position;\n    float intensity;\n    float sizeSqr;\n    float numMips;\n};\n\nfloat hx_getProbeWeight(vec3 viewPos, vec3 pos, float sizeSqr)\n{\n    vec3 diff = viewPos - pos;\n    float distSqr = dot(diff, diff);\n    float weight = 1.0 / distSqr;\n\n    if (sizeSqr > 0.0)\n        weight *= saturate(1.0 - distSqr / sizeSqr);\n\n    return weight;\n}\n\n\nfloat hx_getProbeWeight(HX_SpecularProbe probe, vec3 viewPos)\n{\n    return hx_getProbeWeight(viewPos, probe.position, probe.sizeSqr);\n}\n\nfloat hx_getProbeWeight(HX_DiffuseProbe probe, vec3 viewPos)\n{\n    return hx_getProbeWeight(viewPos, probe.position, probe.sizeSqr);\n}\n\nvec3 hx_calculateSpecularProbeLight(HX_SpecularProbe probe, samplerCube texture, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)\n{\n    #if defined(HX_TEXTURE_LOD) || defined (HX_GLSL_300_ES)\n    // knald method:\n        float power = 2.0/(roughness * roughness) - 2.0;\n        float factor = (exp2(-10.0/sqrt(power)) - HX_PROBE_K0)/HX_PROBE_K1;\n        float mipLevel = probe.numMips * (1.0 - clamp(factor, 0.0, 1.0));\n        #ifdef HX_GLSL_300_ES\n        vec4 specProbeSample = textureLod(texture, reflectedViewDir.xzy, mipLevel);\n        #else\n        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir.xzy, mipLevel);\n        #endif\n    #else\n        vec4 specProbeSample = textureCube(texture, reflectedViewDir.xzy);\n    #endif\n	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor * probe.intensity;\n}';
@@ -3581,45 +3587,9 @@
 
 	ShaderLibrary._files['spot_light.glsl'] = 'struct HX_SpotLight\n{\n    vec3 color;\n    vec3 position;\n    vec3 direction;\n    float radius;\n    float rcpRadius;\n\n    vec2 angleData;    // cos(inner), rcp(cos(outer) - cos(inner))\n\n    mat4 shadowMapMatrix;\n    float depthBias;\n    int castShadows;\n\n    vec4 shadowTile;    // xy = scale, zw = offset\n};\n\nvoid hx_calculateLight(HX_SpotLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n\n    float cosAngle = dot(light.direction, direction);\n\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n    attenuation *=  saturate((cosAngle - light.angleData.x) * light.angleData.y);\n\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_SpotLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec4 shadowMapCoord = light.shadowMapMatrix * vec4(viewPos, 1.0);\n    shadowMapCoord /= shadowMapCoord.w;\n    // *.9 --> match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    shadowMapCoord.xy = shadowMapCoord.xy * .95 * light.shadowTile.xy + light.shadowTile.zw;\n    shadowMapCoord.z = length(viewPos - light.position) * light.rcpRadius;\n    return hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
 
-	ShaderLibrary._files['lighting_blinn_phong.glsl'] = '/*// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}*/\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*pow(cosAngle, 5.0);\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
-
-	ShaderLibrary._files['lighting_debug.glsl'] = 'void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	diffuseColor = vec3(0.0);\n	specularColor = vec3(0.0);\n}';
-
-	ShaderLibrary._files['lighting_ggx.glsl'] = '#ifdef HX_VISIBILITY_TERM\nfloat hx_geometryTerm(vec3 normal, vec3 dir, float k)\n{\n    float d = max(-dot(normal, dir), 0.0);\n    return d / (d * (1.0 - k) + k);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness)\n{\n	float k = roughness + 1.0;\n	k = k * k * .125;\n	return hx_geometryTerm(normal, viewDir, k) * hx_geometryTerm(normal, lightDir, k);\n}\n#endif\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n    float mappedRoughness =  geometry.roughness * geometry.roughness;\n\n	float distribution = hx_ggxDistribution(mappedRoughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef HX_VISIBILITY_TERM\n    specularColor *= hx_lightVisibility(geometry.normal, viewDir, lightDir, geometry.roughness);\n#endif\n}';
-
 	ShaderLibrary._files['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    hx_FragColor = color;\n}';
 
 	ShaderLibrary._files['debug_bounds_vertex.glsl'] = '\nvertex_attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
-
-	ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	hx_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
-
-	ShaderLibrary._files['bloom_composite_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['bloom_threshold_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nuniform float threshold;\n\nvoid main()\n{\n        vec4 color = texture2D(hx_backbuffer, uv);\n        float originalLuminance = .05 + hx_luminance(color);\n        float targetLuminance = max(originalLuminance - threshold, 0.0);\n        hx_FragColor = color * targetLuminance / originalLuminance;\n}\n';
-
-	ShaderLibrary._files['default_post_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['fog_fragment.glsl'] = 'varying_in vec2 uv;\nvarying_in vec3 viewDir;\n\nuniform vec3 tint;\nuniform float density;\nuniform float startDistance;\nuniform float heightFallOff;\n\nuniform float hx_cameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\nuniform vec3 hx_cameraWorldPosition;\n\nuniform sampler2D hx_normalDepthBuffer;\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n    vec4 normalDepth = texture2D(hx_normalDepthBuffer, uv);\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float depth = hx_decodeLinearDepth(normalDepth);\n	// do not fog up skybox\n	if (normalDepth.z == 1.0 && normalDepth.w == 1.0) depth = 0.0;\n	float absViewY = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n	vec3 viewVec = viewDir * absViewY;\n	float fogFactor = max(length(viewVec) - startDistance, 0.0);// * exp(-heightFallOff * hx_cameraWorldPosition.y);\n//    if( abs( viewVec.y ) > 0.1 )\n//	{\n		float t = heightFallOff * (viewVec.z + hx_cameraWorldPosition.z);\n		fogFactor *= saturate(( 1.0 - exp( -t ) ) / t);\n//	}\n\n	float fog = clamp(exp(-fogFactor * density), 0.0, 1.0);\n	color.xyz = mix(tint, color.xyz, fog);\n	hx_FragColor = color;\n}';
-
-	ShaderLibrary._files['fog_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\nvarying_out vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\nuniform mat4 hx_cameraWorldMatrix;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    viewDir = mat3(hx_cameraWorldMatrix) * hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['fxaa_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\nuniform vec2 hx_rcpRenderTargetResolution;\nuniform float edgeThreshold;\nuniform float edgeThresholdMin;\nuniform float edgeSharpness;\n\nfloat luminanceHint(vec4 color)\n{\n	return .30/.59 * color.r + color.g;\n}\n\nvoid main()\n{\n	vec4 center = texture2D(hx_backbuffer, uv);\n	vec2 halfRes = vec2(hx_rcpRenderTargetResolution.x, hx_rcpRenderTargetResolution.y) * .5;\n	float topLeftLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(-halfRes.x, halfRes.y)));\n	float bottomLeftLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(-halfRes.x, -halfRes.y)));\n	float topRightLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(halfRes.x, halfRes.y)));\n	float bottomRightLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(halfRes.x, -halfRes.y)));\n\n	float centerLum = luminanceHint(center);\n	float minLum = min(min(topLeftLum, bottomLeftLum), min(topRightLum, bottomRightLum));\n	float maxLum = max(max(topLeftLum, bottomLeftLum), max(topRightLum, bottomRightLum));\n	float range = max(centerLum, maxLum) - min(centerLum, minLum);\n	float threshold = max(edgeThresholdMin, maxLum * edgeThreshold);\n	float applyFXAA = range < threshold? 0.0 : 1.0;\n\n	float diagDiff1 = bottomLeftLum - topRightLum;\n	float diagDiff2 = bottomRightLum - topLeftLum;\n	vec2 dir1 = normalize(vec2(diagDiff1 + diagDiff2, diagDiff1 - diagDiff2));\n	vec4 sampleNeg1 = texture2D(hx_backbuffer, uv - halfRes * dir1);\n	vec4 samplePos1 = texture2D(hx_backbuffer, uv + halfRes * dir1);\n\n	float minComp = min(abs(dir1.x), abs(dir1.y)) * edgeSharpness;\n	vec2 dir2 = clamp(dir1.xy / minComp, -2.0, 2.0) * 2.0;\n	vec4 sampleNeg2 = texture2D(hx_backbuffer, uv - hx_rcpRenderTargetResolution * dir2);\n	vec4 samplePos2 = texture2D(hx_backbuffer, uv + hx_rcpRenderTargetResolution * dir2);\n	vec4 tap1 = sampleNeg1 + samplePos1;\n	vec4 fxaa = (tap1 + sampleNeg2 + samplePos2) * .25;\n	float fxaaLum = luminanceHint(fxaa);\n	if ((fxaaLum < minLum) || (fxaaLum > maxLum))\n		fxaa = tap1 * .5;\n	hx_FragColor = mix(center, fxaa, applyFXAA);\n}';
-
-	ShaderLibrary._files['gaussian_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sourceTexture;\n\nuniform vec2 stepSize;\n\nuniform float gaussianWeights[NUM_WEIGHTS];\n\nvoid main()\n{\n	vec4 total = texture2D(sourceTexture, uv) * gaussianWeights[0];\n    vec2 offset = vec2(0.0);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n		offset += stepSize;\n	    vec4 s = texture2D(sourceTexture, uv + offset) + texture2D(sourceTexture, uv - offset);\n		total += s * gaussianWeights[i];\n	}\n\n	hx_FragColor = total;\n}';
-
-	ShaderLibrary._files['gaussian_blur_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['post_viewpos_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\nvarying_out vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['ssr_fragment.glsl'] = '#derivatives\n\n// TODO: This won\'t work anymore\nuniform sampler2D hx_gbufferColor;\nuniform sampler2D hx_gbufferNormals;\nuniform sampler2D hx_gbufferSpecular;\nuniform sampler2D hx_gbufferDepth;\nuniform sampler2D hx_dither2D;\nuniform vec2 hx_renderTargetResolution;\n\nuniform sampler2D hx_frontbuffer;\n\nvarying_in vec2 uv;\nvarying_in vec3 viewDir;\n\nuniform vec2 ditherTextureScale;\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\nuniform float hx_rcpCameraFrustumRange;\nuniform mat4 hx_projectionMatrix;\n\nuniform float maxDistance;\nuniform float stepSize;\nuniform float maxRoughness;\n\n// all in viewspace\n// 0 is start, 1 is end\nfloat raytrace(in vec3 ray0, in vec3 rayDir, out float hitZ, out vec2 hitUV)\n{\n    vec4 dither = hx_sampleDefaultDither(hx_dither2D, uv * ditherTextureScale);\n    // Clip to the near plane\n	float rayLength = ((ray0.z + rayDir.z * maxDistance) > -hx_cameraNearPlaneDistance) ?\n						(-hx_cameraNearPlaneDistance - ray0.z) / rayDir.z : maxDistance;\n\n    vec3 ray1 = ray0 + rayDir * rayLength;\n\n    // only need the w component for perspective correct interpolation\n    // need to get adjusted ray end\'s uv value\n    vec4 hom0 = hx_projectionMatrix * vec4(ray0, 1.0);\n    vec4 hom1 = hx_projectionMatrix * vec4(ray1, 1.0);\n    float rcpW0 = 1.0 / hom0.w;\n    float rcpW1 = 1.0 / hom1.w;\n\n    hom0 *= rcpW0;\n    hom1 *= rcpW1;\n\n    // expressed in pixels, so we can snap to 1\n    // need to figure out the ratio between 1 pixel and the entire line \"width\" (if primarily vertical, it\'s actually height)\n\n    // line dimensions in pixels:\n\n    vec2 pixelSize = (hom1.xy - hom0.xy) * hx_renderTargetResolution * .5;\n\n    // line-\"width\" = max(abs(pixelSize.x), abs(pixelSize.y))\n    // ratio pixel/width = 1 / max(abs(pixelSize.x), abs(pixelSize.y))\n\n    float stepRatio = 1.0 / max(abs(pixelSize.x), abs(pixelSize.y)) * stepSize;\n\n    vec2 uvEnd = hom1.xy * .5 + .5;\n\n    vec2 dUV = (uvEnd - uv) * stepRatio;\n    hitUV = uv;\n\n    // linear depth\n    float rayDepth = (-ray0.z - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange;\n    float rayPerspDepth0 = rayDepth * rcpW0;\n    float rayPerspDepth1 = (-ray1.z - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange * rcpW1;\n    float rayPerspDepth = rayPerspDepth0;\n    // could probably optimize this:\n    float dRayD = (rayPerspDepth1 - rayPerspDepth0) * stepRatio;\n\n    float rcpW = rcpW0;\n    float dRcpW = (rcpW1 - rcpW0) * stepRatio;\n    float sceneDepth = rayDepth;\n\n    float amount = 0.0;\n\n    hitUV += dUV * dither.z;\n    rayPerspDepth += dRayD * dither.z;\n    rcpW += dRcpW * dither.z;\n\n    float sampleCount;\n    for (int i = 0; i < NUM_SAMPLES; ++i) {\n        rayDepth = rayPerspDepth / rcpW;\n\n        sceneDepth = hx_sampleLinearDepth(hx_gbufferDepth, hitUV);\n\n        if (rayDepth > sceneDepth + .001) {\n            amount = float(sceneDepth < 1.0);\n            sampleCount = float(i);\n            break;\n        }\n\n        hitUV += dUV;\n        rayPerspDepth += dRayD;\n        rcpW += dRcpW;\n    }\n\n    hitZ = -hx_cameraNearPlaneDistance - sceneDepth * hx_cameraFrustumRange;\n\n    amount *= clamp((1.0 - (sampleCount - float(NUM_SAMPLES)) / float(NUM_SAMPLES)) * 5.0, 0.0, 1.0);\n    return amount;\n}\n\nvoid main()\n{\n    vec4 colorSample = hx_gammaToLinear(texture2D(hx_gbufferColor, uv));\n    vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n    float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n    vec3 normalSpecularReflectance;\n    float roughness;\n    float metallicness;\n    hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness, metallicness);\n    vec3 normal = hx_decodeNormal(texture2D(hx_gbufferNormals, uv));\n    vec3 reflDir = reflect(normalize(viewDir), normal);\n\n    vec3 fresnel = hx_fresnel(normalSpecularReflectance, reflDir, normal);\n    // not physically correct, but attenuation is required to look good\n\n    // step for every pixel\n\n    float absViewY = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n    vec3 viewSpacePos = absViewY * viewDir;\n\n    float hitY = 0.0;\n    vec2 hitUV;\n    float amount = raytrace(viewSpacePos, reflDir, hitY, hitUV);\n    float fadeFactor = 1.0 - clamp(reflDir.z * 2.0, 0.0, 1.0);\n\n    vec2 borderFactors = abs(hitUV * 2.0 - 1.0);\n    borderFactors = (1.0 - borderFactors) * 10.0;\n    fadeFactor *= clamp(borderFactors.x, 0.0, 1.0) * clamp(borderFactors.y, 0.0, 1.0);\n\n    float diff = viewSpacePos.y - hitY;\n    fadeFactor *= hx_linearStep(-1.0, 0.0, diff);\n    fadeFactor *= hx_linearStep(maxRoughness, 0.0, roughness);\n\n    vec4 reflColor = texture2D(hx_frontbuffer, hitUV);\n\n    float amountUsed = amount * fadeFactor;\n    hx_FragColor = vec4(fresnel * reflColor.xyz, amountUsed);\n}\n\n';
-
-	ShaderLibrary._files['ssr_stencil_fragment.glsl'] = 'uniform sampler2D hx_gbufferSpecular;\n\nvarying_in vec2 uv;\n\nuniform float maxRoughness;\n\nvoid main()\n{\n    vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n    if (specularSample.x > maxRoughness)\n        discard;\n}\n\n';
-
-	ShaderLibrary._files['tonemap_filmic_fragment.glsl'] = 'void main()\n{\n	vec3 x = hx_getToneMapScaledColor().xyz * 16.0;\n\n    // Uncharted 2 tonemapping (http://filmicworlds.com/blog/filmic-tonemapping-operators/)\n\n	float A = 0.15;\n    float B = 0.50;\n    float C = 0.10;\n    float D = 0.20;\n    float E = 0.02;\n    float F = 0.30;\n    float W = 11.2;\n\n    hx_FragColor.xyz = hx_gammaToLinear(((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F);\n    hx_FragColor.w = 1.0;\n}';
-
-	ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	hx_FragColor = vec4(l, l, l, 1.0);\n}';
-
-	ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	hx_FragColor = color / (1.0 + lum);\n}';
 
 	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
 
@@ -3692,6 +3662,36 @@
 	ShaderLibrary._files['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
 
 	ShaderLibrary._files['sh_skybox_fragment.glsl'] = 'varying_in vec3 viewWorldDir;\n\nuniform vec3 hx_sh[9];\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n    data.color = vec4(hx_evaluateSH(hx_sh, normalize(viewWorldDir.xzy)), 1.0);\n    data.emission = vec3(0.0);\n    return data;\n}';
+
+	ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	hx_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
+
+	ShaderLibrary._files['bloom_composite_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['bloom_threshold_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nuniform float threshold;\n\nvoid main()\n{\n        vec4 color = texture2D(hx_backbuffer, uv);\n        float originalLuminance = .05 + hx_luminance(color);\n        float targetLuminance = max(originalLuminance - threshold, 0.0);\n        hx_FragColor = color * targetLuminance / originalLuminance;\n}\n';
+
+	ShaderLibrary._files['default_post_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['fog_fragment.glsl'] = 'varying_in vec2 uv;\nvarying_in vec3 viewDir;\n\nuniform vec3 tint;\nuniform float density;\nuniform float startDistance;\nuniform float heightFallOff;\n\nuniform float hx_cameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\nuniform vec3 hx_cameraWorldPosition;\n\nuniform sampler2D hx_normalDepthBuffer;\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n    vec4 normalDepth = texture2D(hx_normalDepthBuffer, uv);\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float depth = hx_decodeLinearDepth(normalDepth);\n	// do not fog up skybox\n	if (normalDepth.z == 1.0 && normalDepth.w == 1.0) depth = 0.0;\n	float absViewY = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n	vec3 viewVec = viewDir * absViewY;\n	float fogFactor = max(length(viewVec) - startDistance, 0.0);// * exp(-heightFallOff * hx_cameraWorldPosition.y);\n//    if( abs( viewVec.y ) > 0.1 )\n//	{\n		float t = heightFallOff * (viewVec.z + hx_cameraWorldPosition.z);\n		fogFactor *= saturate(( 1.0 - exp( -t ) ) / t);\n//	}\n\n	float fog = clamp(exp(-fogFactor * density), 0.0, 1.0);\n	color.xyz = mix(tint, color.xyz, fog);\n	hx_FragColor = color;\n}';
+
+	ShaderLibrary._files['fog_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\nvarying_out vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\nuniform mat4 hx_cameraWorldMatrix;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    viewDir = mat3(hx_cameraWorldMatrix) * hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n    gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['fxaa_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\nuniform vec2 hx_rcpRenderTargetResolution;\nuniform float edgeThreshold;\nuniform float edgeThresholdMin;\nuniform float edgeSharpness;\n\nfloat luminanceHint(vec4 color)\n{\n	return .30/.59 * color.r + color.g;\n}\n\nvoid main()\n{\n	vec4 center = texture2D(hx_backbuffer, uv);\n	vec2 halfRes = vec2(hx_rcpRenderTargetResolution.x, hx_rcpRenderTargetResolution.y) * .5;\n	float topLeftLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(-halfRes.x, halfRes.y)));\n	float bottomLeftLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(-halfRes.x, -halfRes.y)));\n	float topRightLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(halfRes.x, halfRes.y)));\n	float bottomRightLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(halfRes.x, -halfRes.y)));\n\n	float centerLum = luminanceHint(center);\n	float minLum = min(min(topLeftLum, bottomLeftLum), min(topRightLum, bottomRightLum));\n	float maxLum = max(max(topLeftLum, bottomLeftLum), max(topRightLum, bottomRightLum));\n	float range = max(centerLum, maxLum) - min(centerLum, minLum);\n	float threshold = max(edgeThresholdMin, maxLum * edgeThreshold);\n	float applyFXAA = range < threshold? 0.0 : 1.0;\n\n	float diagDiff1 = bottomLeftLum - topRightLum;\n	float diagDiff2 = bottomRightLum - topLeftLum;\n	vec2 dir1 = normalize(vec2(diagDiff1 + diagDiff2, diagDiff1 - diagDiff2));\n	vec4 sampleNeg1 = texture2D(hx_backbuffer, uv - halfRes * dir1);\n	vec4 samplePos1 = texture2D(hx_backbuffer, uv + halfRes * dir1);\n\n	float minComp = min(abs(dir1.x), abs(dir1.y)) * edgeSharpness;\n	vec2 dir2 = clamp(dir1.xy / minComp, -2.0, 2.0) * 2.0;\n	vec4 sampleNeg2 = texture2D(hx_backbuffer, uv - hx_rcpRenderTargetResolution * dir2);\n	vec4 samplePos2 = texture2D(hx_backbuffer, uv + hx_rcpRenderTargetResolution * dir2);\n	vec4 tap1 = sampleNeg1 + samplePos1;\n	vec4 fxaa = (tap1 + sampleNeg2 + samplePos2) * .25;\n	float fxaaLum = luminanceHint(fxaa);\n	if ((fxaaLum < minLum) || (fxaaLum > maxLum))\n		fxaa = tap1 * .5;\n	hx_FragColor = mix(center, fxaa, applyFXAA);\n}';
+
+	ShaderLibrary._files['gaussian_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sourceTexture;\n\nuniform vec2 stepSize;\n\nuniform float gaussianWeights[NUM_WEIGHTS];\n\nvoid main()\n{\n	vec4 total = texture2D(sourceTexture, uv) * gaussianWeights[0];\n    vec2 offset = vec2(0.0);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n		offset += stepSize;\n	    vec4 s = texture2D(sourceTexture, uv + offset) + texture2D(sourceTexture, uv - offset);\n		total += s * gaussianWeights[i];\n	}\n\n	hx_FragColor = total;\n}';
+
+	ShaderLibrary._files['gaussian_blur_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['post_viewpos_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\nvarying_out vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n    gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['ssr_fragment.glsl'] = '#derivatives\n\n// TODO: This won\'t work anymore\nuniform sampler2D hx_gbufferColor;\nuniform sampler2D hx_gbufferNormals;\nuniform sampler2D hx_gbufferSpecular;\nuniform sampler2D hx_gbufferDepth;\nuniform sampler2D hx_dither2D;\nuniform vec2 hx_renderTargetResolution;\n\nuniform sampler2D hx_frontbuffer;\n\nvarying_in vec2 uv;\nvarying_in vec3 viewDir;\n\nuniform vec2 ditherTextureScale;\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\nuniform float hx_rcpCameraFrustumRange;\nuniform mat4 hx_projectionMatrix;\n\nuniform float maxDistance;\nuniform float stepSize;\nuniform float maxRoughness;\n\n// all in viewspace\n// 0 is start, 1 is end\nfloat raytrace(in vec3 ray0, in vec3 rayDir, out float hitZ, out vec2 hitUV)\n{\n    vec4 dither = hx_sampleDefaultDither(hx_dither2D, uv * ditherTextureScale);\n    // Clip to the near plane\n	float rayLength = ((ray0.z + rayDir.z * maxDistance) > -hx_cameraNearPlaneDistance) ?\n						(-hx_cameraNearPlaneDistance - ray0.z) / rayDir.z : maxDistance;\n\n    vec3 ray1 = ray0 + rayDir * rayLength;\n\n    // only need the w component for perspective correct interpolation\n    // need to get adjusted ray end\'s uv value\n    vec4 hom0 = hx_projectionMatrix * vec4(ray0, 1.0);\n    vec4 hom1 = hx_projectionMatrix * vec4(ray1, 1.0);\n    float rcpW0 = 1.0 / hom0.w;\n    float rcpW1 = 1.0 / hom1.w;\n\n    hom0 *= rcpW0;\n    hom1 *= rcpW1;\n\n    // expressed in pixels, so we can snap to 1\n    // need to figure out the ratio between 1 pixel and the entire line \"width\" (if primarily vertical, it\'s actually height)\n\n    // line dimensions in pixels:\n\n    vec2 pixelSize = (hom1.xy - hom0.xy) * hx_renderTargetResolution * .5;\n\n    // line-\"width\" = max(abs(pixelSize.x), abs(pixelSize.y))\n    // ratio pixel/width = 1 / max(abs(pixelSize.x), abs(pixelSize.y))\n\n    float stepRatio = 1.0 / max(abs(pixelSize.x), abs(pixelSize.y)) * stepSize;\n\n    vec2 uvEnd = hom1.xy * .5 + .5;\n\n    vec2 dUV = (uvEnd - uv) * stepRatio;\n    hitUV = uv;\n\n    // linear depth\n    float rayDepth = (-ray0.z - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange;\n    float rayPerspDepth0 = rayDepth * rcpW0;\n    float rayPerspDepth1 = (-ray1.z - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange * rcpW1;\n    float rayPerspDepth = rayPerspDepth0;\n    // could probably optimize this:\n    float dRayD = (rayPerspDepth1 - rayPerspDepth0) * stepRatio;\n\n    float rcpW = rcpW0;\n    float dRcpW = (rcpW1 - rcpW0) * stepRatio;\n    float sceneDepth = rayDepth;\n\n    float amount = 0.0;\n\n    hitUV += dUV * dither.z;\n    rayPerspDepth += dRayD * dither.z;\n    rcpW += dRcpW * dither.z;\n\n    float sampleCount;\n    for (int i = 0; i < NUM_SAMPLES; ++i) {\n        rayDepth = rayPerspDepth / rcpW;\n\n        sceneDepth = hx_sampleLinearDepth(hx_gbufferDepth, hitUV);\n\n        if (rayDepth > sceneDepth + .001) {\n            amount = float(sceneDepth < 1.0);\n            sampleCount = float(i);\n            break;\n        }\n\n        hitUV += dUV;\n        rayPerspDepth += dRayD;\n        rcpW += dRcpW;\n    }\n\n    hitZ = -hx_cameraNearPlaneDistance - sceneDepth * hx_cameraFrustumRange;\n\n    amount *= clamp((1.0 - (sampleCount - float(NUM_SAMPLES)) / float(NUM_SAMPLES)) * 5.0, 0.0, 1.0);\n    return amount;\n}\n\nvoid main()\n{\n    vec4 colorSample = hx_gammaToLinear(texture2D(hx_gbufferColor, uv));\n    vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n    float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n    vec3 normalSpecularReflectance;\n    float roughness;\n    float metallicness;\n    hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness, metallicness);\n    vec3 normal = hx_decodeNormal(texture2D(hx_gbufferNormals, uv));\n    vec3 reflDir = reflect(normalize(viewDir), normal);\n\n    vec3 fresnel = hx_fresnel(normalSpecularReflectance, reflDir, normal);\n    // not physically correct, but attenuation is required to look good\n\n    // step for every pixel\n\n    float absViewY = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n    vec3 viewSpacePos = absViewY * viewDir;\n\n    float hitY = 0.0;\n    vec2 hitUV;\n    float amount = raytrace(viewSpacePos, reflDir, hitY, hitUV);\n    float fadeFactor = 1.0 - clamp(reflDir.z * 2.0, 0.0, 1.0);\n\n    vec2 borderFactors = abs(hitUV * 2.0 - 1.0);\n    borderFactors = (1.0 - borderFactors) * 10.0;\n    fadeFactor *= clamp(borderFactors.x, 0.0, 1.0) * clamp(borderFactors.y, 0.0, 1.0);\n\n    float diff = viewSpacePos.y - hitY;\n    fadeFactor *= hx_linearStep(-1.0, 0.0, diff);\n    fadeFactor *= hx_linearStep(maxRoughness, 0.0, roughness);\n\n    vec4 reflColor = texture2D(hx_frontbuffer, hitUV);\n\n    float amountUsed = amount * fadeFactor;\n    hx_FragColor = vec4(fresnel * reflColor.xyz, amountUsed);\n}\n\n';
+
+	ShaderLibrary._files['ssr_stencil_fragment.glsl'] = 'uniform sampler2D hx_gbufferSpecular;\n\nvarying_in vec2 uv;\n\nuniform float maxRoughness;\n\nvoid main()\n{\n    vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n    if (specularSample.x > maxRoughness)\n        discard;\n}\n\n';
+
+	ShaderLibrary._files['tonemap_filmic_fragment.glsl'] = 'void main()\n{\n	vec3 x = hx_getToneMapScaledColor().xyz * 16.0;\n\n    // Uncharted 2 tonemapping (http://filmicworlds.com/blog/filmic-tonemapping-operators/)\n\n	float A = 0.15;\n    float B = 0.50;\n    float C = 0.10;\n    float D = 0.20;\n    float E = 0.02;\n    float F = 0.30;\n    float W = 11.2;\n\n    hx_FragColor.xyz = hx_gammaToLinear(((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F);\n    hx_FragColor.w = 1.0;\n}';
+
+	ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	hx_FragColor = vec4(l, l, l, 1.0);\n}';
+
+	ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	hx_FragColor = color / (1.0 + lum);\n}';
 
 	ShaderLibrary._files['2d_to_cube_vertex.glsl'] = '// position to write to\nvertex_attribute vec4 hx_position;\n\n// the corner of the cube map\nvertex_attribute vec3 corner;\n\nvarying_out vec3 direction;\n\nvoid main()\n{\n    direction = corner;\n    gl_Position = hx_position;\n}\n';
 
@@ -7200,6 +7200,159 @@
 	    }
 	};
 
+	var BlitTexture =
+	{
+	    execute: function(tex)
+	    {
+			DEFAULTS.COPY_SHADER.execute(RectMesh.DEFAULT, tex);
+	    }
+	};
+
+	/**
+	 * @classdesc
+	 * FrameBuffer provides a render target associated with a given texture/textures.
+	 *
+	 * @param colorTextures Either a single texture, or an Array of textures (only if {@linkcode capabilities#EXT_DRAW_BUFFERS} is supported).
+	 * @param depthBuffer An optional depth buffer. This can be a {@linkcode WriteOnlyDepthBuffer} or, if readback is required, a {@linkcode Texture2D} (only available if {@linkcode capabilities#EXT_DEPTH_TEXTURE} is supported).
+	 * @param cubeFace If colorTextures is a {@linkcode TextureCube}, cubeFace should contain the relevant {@linkcode CubeFace}.
+	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function FrameBuffer(colorTextures, depthBuffer, cubeFace)
+	{
+	    if (colorTextures && colorTextures[0] === undefined) colorTextures = [ colorTextures ];
+
+	    this._cubeFace = cubeFace;
+	    this._colorTextures = colorTextures;
+	    this._numColorTextures = this._colorTextures? this._colorTextures.length : 0;
+	    this._depthBuffer = depthBuffer;
+
+	    if (this._colorTextures && this._numColorTextures > 1) {
+
+	        this._drawBuffers = new Array(this._numColorTextures);
+	        for (var i = 0; i < this._numColorTextures; ++i) {
+	            this._drawBuffers[i] = capabilities.EXT_DRAW_BUFFERS.COLOR_ATTACHMENT0_WEBGL + i;
+	        }
+	    }
+	    else {
+	        this._drawBuffers = null;
+	    }
+
+	    this._fbo = GL.gl.createFramebuffer();
+	}
+
+	FrameBuffer.prototype = {
+	    get width() { return this._width; },
+	    get height() { return this._height; },
+
+	    /**
+	     * Initializes the framebuffer object. This needs to be called whenever the Texture2D's are resized using initEmpty.
+	     * @param silent Whether or not warnings should be printed.
+	     */
+	    init: function(silent)
+	    {
+	        var gl = GL.gl;
+	        gl.bindFramebuffer(gl.FRAMEBUFFER, this._fbo);
+
+	        if (this._colorTextures) {
+	            if (this._cubeFace === undefined) {
+	                this._width = this._colorTextures[0]._width;
+	                this._height = this._colorTextures[0]._height;
+	            }
+	            else {
+	                this._height = this._width = this._colorTextures[0].size;
+	            }
+	        }
+	        else  {
+	            this._width = this._depthBuffer._width;
+	            this._height = this._depthBuffer._height;
+	        }
+
+	        var target = this._cubeFace === undefined? gl.TEXTURE_2D : this._cubeFace;
+
+	        if (this._numColorTextures === 1) {
+	            var texture = this._colorTextures[0];
+	            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, target, texture._texture, 0);
+	        }
+	        else if (capabilities.EXT_DRAW_BUFFERS) {
+	            for (var i = 0; i < this._numColorTextures; ++i) {
+	                texture = this._colorTextures[i];
+	                gl.framebufferTexture2D(gl.FRAMEBUFFER, capabilities.EXT_DRAW_BUFFERS.COLOR_ATTACHMENT0_WEBGL + i, target, texture._texture, 0);
+	            }
+	        }
+	        else
+	            throw new Error("Trying to bind multiple render targets without EXT_DRAW_BUFFERS support!");
+
+
+	        if (this._depthBuffer) {
+	            var attachment = this._depthBuffer.format === gl.DEPTH_STENCIL? gl.DEPTH_STENCIL_ATTACHMENT : gl.DEPTH_ATTACHMENT;
+
+	            if (this._depthBuffer instanceof Texture2D)
+	                gl.framebufferTexture2D(gl.FRAMEBUFFER, attachment, gl.TEXTURE_2D, this._depthBuffer._texture, 0);
+	            else
+	                gl.framebufferRenderbuffer(gl.FRAMEBUFFER, attachment, gl.RENDERBUFFER, this._depthBuffer._renderBuffer);
+	        }
+
+	        var status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+
+	        switch (status && !silent) {
+	            case gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+	                console.warn("Failed to initialize FBO: FRAMEBUFFER_INCOMPLETE_ATTACHMENT");
+	                break;
+	            case gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+	                console.warn("Failed to initialize FBO: FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT");
+	                break;
+	            case gl.FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
+	                console.warn("Failed to initialize FBO: FRAMEBUFFER_INCOMPLETE_DIMENSIONS");
+	                break;
+	            case gl.FRAMEBUFFER_UNSUPPORTED:
+	                console.warn("Failed to initialize FBO: FRAMEBUFFER_UNSUPPORTED");
+	                break;
+	            default:
+	                // nothing
+	        }
+
+	        return status === gl.FRAMEBUFFER_COMPLETE;
+	    },
+
+		/**
+	     * Retrieves pixel data from this FBO. Not recommended, as it can be slow.
+		 */
+		readPixels: function()
+	    {
+			var gl = GL.gl;
+			var texture = this._colorTextures[0];
+			gl.bindFramebuffer(gl.FRAMEBUFFER, this._fbo);
+
+			var numComponents;
+			var pixels;
+			switch(texture.format) {
+	            case TextureFormat.RGB:
+					numComponents = 3;
+					break;
+	            case TextureFormat.RGBA:
+					numComponents = 4;
+					break;
+			}
+
+			var len = this.width * this.height * numComponents;
+			switch(texture.dataType) {
+	            case DataType.FLOAT:
+	            case DataType.HALF_FLOAT:
+					pixels = new Float32Array(len);
+	                break;
+	            case DataType.UNSIGNED_BYTE:
+					pixels = new Uint8Array(len);
+					break;
+	        }
+			gl.readPixels(0, 0, this.width, this.height, texture.format, texture.dataType, pixels);
+			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+	        return pixels;
+	    }
+
+	};
+
 	/**
 	 * @ignore
 	 * @author derschmale <http://www.derschmale.com>
@@ -7295,6 +7448,43 @@
 	            arr[i] = encFun(float32Array[i]);
 	        }
 	        return new Uint16Array(arr);
+	    },
+
+	    /**
+	     * Returns the raw image data from a texture. This can be very slow, so use with care.
+	     */
+	    getData: function(texture)
+	    {
+	        var w = texture.width;
+	        var h = texture.height;
+	        var dataType = texture.dataType;
+
+	        if (dataType === DataType.HALF_FLOAT || dataType === DataType.FLOAT)
+	            dataType = DataType.FLOAT;
+	        else
+	            dataType = DataType.UNSIGNED_BYTE;
+
+	        var tex = new Texture2D();
+	        tex.initEmpty(w, h, TextureFormat.RGBA, dataType);
+
+	        var fbo = new FrameBuffer(tex);
+	        fbo.init();
+
+	        GL.setRenderTarget(fbo);
+	        GL.clear();
+	        BlitTexture.execute(texture);
+
+	        var len = w * h * 4;
+
+	        var data;
+	        if (dataType === DataType.FLOAT)
+	            data = new Float32Array(len);
+	        else if (dataType === DataType.UNSIGNED_BYTE)
+	            data = new Uint8Array(len);
+
+	        GL.gl.readPixels(0, 0, w, h, TextureFormat.RGBA, dataType, data);
+
+	        return data;
 	    }
 	};
 
@@ -8686,151 +8876,6 @@
 
 	        return true;
 	    }
-	};
-
-	/**
-	 * @classdesc
-	 * FrameBuffer provides a render target associated with a given texture/textures.
-	 *
-	 * @param colorTextures Either a single texture, or an Array of textures (only if {@linkcode capabilities#EXT_DRAW_BUFFERS} is supported).
-	 * @param depthBuffer An optional depth buffer. This can be a {@linkcode WriteOnlyDepthBuffer} or, if readback is required, a {@linkcode Texture2D} (only available if {@linkcode capabilities#EXT_DEPTH_TEXTURE} is supported).
-	 * @param cubeFace If colorTextures is a {@linkcode TextureCube}, cubeFace should contain the relevant {@linkcode CubeFace}.
-	 * @constructor
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function FrameBuffer(colorTextures, depthBuffer, cubeFace)
-	{
-	    if (colorTextures && colorTextures[0] === undefined) colorTextures = [ colorTextures ];
-
-	    this._cubeFace = cubeFace;
-	    this._colorTextures = colorTextures;
-	    this._numColorTextures = this._colorTextures? this._colorTextures.length : 0;
-	    this._depthBuffer = depthBuffer;
-
-	    if (this._colorTextures && this._numColorTextures > 1) {
-
-	        this._drawBuffers = new Array(this._numColorTextures);
-	        for (var i = 0; i < this._numColorTextures; ++i) {
-	            this._drawBuffers[i] = capabilities.EXT_DRAW_BUFFERS.COLOR_ATTACHMENT0_WEBGL + i;
-	        }
-	    }
-	    else {
-	        this._drawBuffers = null;
-	    }
-
-	    this._fbo = GL.gl.createFramebuffer();
-	}
-
-	FrameBuffer.prototype = {
-	    get width() { return this._width; },
-	    get height() { return this._height; },
-
-	    /**
-	     * Initializes the framebuffer object. This needs to be called whenever the Texture2D's are resized using initEmpty.
-	     * @param silent Whether or not warnings should be printed.
-	     */
-	    init: function(silent)
-	    {
-	        var gl = GL.gl;
-	        gl.bindFramebuffer(gl.FRAMEBUFFER, this._fbo);
-
-	        if (this._colorTextures) {
-	            if (this._cubeFace === undefined) {
-	                this._width = this._colorTextures[0]._width;
-	                this._height = this._colorTextures[0]._height;
-	            }
-	            else {
-	                this._height = this._width = this._colorTextures[0].size;
-	            }
-	        }
-	        else  {
-	            this._width = this._depthBuffer._width;
-	            this._height = this._depthBuffer._height;
-	        }
-
-	        var target = this._cubeFace === undefined? gl.TEXTURE_2D : this._cubeFace;
-
-	        if (this._numColorTextures === 1) {
-	            var texture = this._colorTextures[0];
-	            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, target, texture._texture, 0);
-	        }
-	        else if (capabilities.EXT_DRAW_BUFFERS) {
-	            for (var i = 0; i < this._numColorTextures; ++i) {
-	                texture = this._colorTextures[i];
-	                gl.framebufferTexture2D(gl.FRAMEBUFFER, capabilities.EXT_DRAW_BUFFERS.COLOR_ATTACHMENT0_WEBGL + i, target, texture._texture, 0);
-	            }
-	        }
-	        else
-	            throw new Error("Trying to bind multiple render targets without EXT_DRAW_BUFFERS support!");
-
-
-	        if (this._depthBuffer) {
-	            var attachment = this._depthBuffer.format === gl.DEPTH_STENCIL? gl.DEPTH_STENCIL_ATTACHMENT : gl.DEPTH_ATTACHMENT;
-
-	            if (this._depthBuffer instanceof Texture2D)
-	                gl.framebufferTexture2D(gl.FRAMEBUFFER, attachment, gl.TEXTURE_2D, this._depthBuffer._texture, 0);
-	            else
-	                gl.framebufferRenderbuffer(gl.FRAMEBUFFER, attachment, gl.RENDERBUFFER, this._depthBuffer._renderBuffer);
-	        }
-
-	        var status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
-
-	        switch (status && !silent) {
-	            case gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
-	                console.warn("Failed to initialize FBO: FRAMEBUFFER_INCOMPLETE_ATTACHMENT");
-	                break;
-	            case gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
-	                console.warn("Failed to initialize FBO: FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT");
-	                break;
-	            case gl.FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
-	                console.warn("Failed to initialize FBO: FRAMEBUFFER_INCOMPLETE_DIMENSIONS");
-	                break;
-	            case gl.FRAMEBUFFER_UNSUPPORTED:
-	                console.warn("Failed to initialize FBO: FRAMEBUFFER_UNSUPPORTED");
-	                break;
-	            default:
-	                // nothing
-	        }
-
-	        return status === gl.FRAMEBUFFER_COMPLETE;
-	    },
-
-		/**
-	     * Retrieves pixel data from this FBO. Not recommended, as it can be slow.
-		 */
-		readPixels: function()
-	    {
-			var gl = GL.gl;
-			var texture = this._colorTextures[0];
-			gl.bindFramebuffer(gl.FRAMEBUFFER, this._fbo);
-
-			var numComponents;
-			var pixels;
-			switch(texture.format) {
-	            case TextureFormat.RGB:
-					numComponents = 3;
-					break;
-	            case TextureFormat.RGBA:
-					numComponents = 4;
-					break;
-			}
-
-			var len = this.width * this.height * numComponents;
-			switch(texture.dataType) {
-	            case DataType.FLOAT:
-	            case DataType.HALF_FLOAT:
-					pixels = new Float32Array(len);
-	                break;
-	            case DataType.UNSIGNED_BYTE:
-					pixels = new Uint8Array(len);
-					break;
-	        }
-			gl.readPixels(0, 0, this.width, this.height, texture.format, texture.dataType, pixels);
-			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-	        return pixels;
-	    }
-
 	};
 
 	/**
@@ -33423,14 +33468,6 @@
 	    this.readMask = readMask === undefined || readMask === null? 0xffffffff : readMask;
 	    this.writeMask = writeMask === undefined || writeMask === null? 0xffffffff: writeMask;
 	}
-
-	var BlitTexture =
-	{
-	    execute: function(tex)
-	    {
-			DEFAULTS.COPY_SHADER.execute(RectMesh.DEFAULT, tex);
-	    }
-	};
 
 	/**
 	 * ImageData provides some utilities for images.

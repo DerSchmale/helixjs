@@ -1,6 +1,9 @@
 import {GL} from "../core/GL";
-import {DEFAULTS} from "../Helix";
+import {DataType, DEFAULTS, TextureFormat} from "../Helix";
 import {RectMesh} from "../mesh/RectMesh";
+import {BlitTexture} from "../utils/BlitTexture";
+import {Texture2D} from "./Texture2D";
+import {FrameBuffer} from "./FrameBuffer";
 
 /**
  * @ignore
@@ -97,5 +100,42 @@ export var TextureUtils =
             arr[i] = encFun(float32Array[i]);
         }
         return new Uint16Array(arr);
+    },
+
+    /**
+     * Returns the raw image data from a texture. This can be very slow, so use with care.
+     */
+    getData: function(texture)
+    {
+        var w = texture.width;
+        var h = texture.height;
+        var dataType = texture.dataType;
+
+        if (dataType === DataType.HALF_FLOAT || dataType === DataType.FLOAT)
+            dataType = DataType.FLOAT;
+        else
+            dataType = DataType.UNSIGNED_BYTE;
+
+        var tex = new Texture2D();
+        tex.initEmpty(w, h, TextureFormat.RGBA, dataType);
+
+        var fbo = new FrameBuffer(tex);
+        fbo.init();
+
+        GL.setRenderTarget(fbo);
+        GL.clear();
+        BlitTexture.execute(texture);
+
+        var len = w * h * 4;
+
+        var data;
+        if (dataType === DataType.FLOAT)
+            data = new Float32Array(len);
+        else if (dataType === DataType.UNSIGNED_BYTE)
+            data = new Uint8Array(len);
+
+        GL.gl.readPixels(0, 0, w, h, TextureFormat.RGBA, dataType, data);
+
+        return data;
     }
 };

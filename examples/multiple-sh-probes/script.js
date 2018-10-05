@@ -88,23 +88,23 @@ function initScene(scene, assetLibrary)
     scene.attach(backWall);
 
     var box1 = new HX.Entity(new HX.MeshInstance(cube, materialWhite));
-    box1.scale.set(.25, .25, .4);
-    box1.position.x = -.3;
+    box1.scale.set(.2, .2, .4);
+    box1.position.x = -.25;
     box1.position.y = -.1;
     box1.position.z = -0.5 + .2;
     box1.euler.z = .2;
     scene.attach(box1);
 
     var box2 = new HX.Entity(new HX.MeshInstance(cube, materialWhite));
-    box2.scale.set(.3, .3, .6);
+    box2.scale.set(.25, .25, .6);
     box2.position.x = .2;
     box2.position.y = .1;
     box2.position.z = -0.5 + .3;
-    box2.euler.z = -.2;
+    box2.euler.z = -.3;
     scene.attach(box2);
 
 
-    // this is how the hdr maps were made before generating sh maps
+    // this is how the hdr maps were made before processing them into sh maps
     // main specular map:
     // generateHDR(scene, 0.0, 0.0, 0.0);
     // Near Left

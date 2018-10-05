@@ -130,6 +130,7 @@ export var capabilities =
 
         DEFAULT_TEXTURE_MAX_ANISOTROPY: 0,
         HDR_DATA_TYPE: 0,
+        CAN_UPLOAD_HALF_FLOAT: false,
 
         VR_CAN_PRESENT: false
     };
@@ -660,6 +661,7 @@ export function init(canvas, options)
     if (capabilities.EXT_HALF_FLOAT_TEXTURES) {
         defines += "#define HX_HALF_FLOAT_TEXTURES\n";
         DataType.HALF_FLOAT = capabilities.WEBGL_2? gl.HALF_FLOAT : capabilities.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES;
+        capabilities.CAN_UPLOAD_HALF_FLOAT = _tryHalfFloatTexUpload(DataType.HALF_FLOAT);
     }
 
     if (capabilities.WEBGL_2 || capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR)
@@ -885,6 +887,14 @@ function _initGLProperties()
     TextureFormat.RGB = gl.RGB;
     TextureFormat.RG = gl.RG;   	// only assigned if available (WebGL 2)
     TextureFormat.RED = gl.RED;   	// only assigned if available (WebGL 2)
+}
+
+function _tryHalfFloatTexUpload()
+{
+    var tex = new Texture2D();
+    var data = new Uint16Array([0xff, 0xff, 0xff]);
+    tex.uploadData(data, 1, 1, false, TextureFormat.RGB, DataType.HALF_FLOAT, 0);
+    return GL.gl.getError() === 0;
 }
 
 function _tryFBO(dataType)

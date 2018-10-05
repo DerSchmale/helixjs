@@ -20,7 +20,7 @@ window.onload = function ()
 
 project.queueAssets = function(assetLibrary)
 {
-	// assetLibrary.queueAsset("skybox", "skyboxes/cape_hill_2k/cape_hill_2k.hdr", HX.AssetLibrary.Type.ASSET, HX.HDR, {equiToCube: true});
+	assetLibrary.queueAsset("skybox", "skyboxes/cape_hill_2k/cape_hill_2k.hdr", HX.AssetLibrary.Type.ASSET, HX.HDR, {equiToCube: true});
 	assetLibrary.queueAsset("irradiance", "skyboxes/cape_hill_2k/cape_hill_2k_sh_irrad.ash", HX.AssetLibrary.Type.ASSET, HX.ASH);
 	// assetLibrary.queueAsset("skybox", "skyboxes/studio-small/radiance.hdr", HX.AssetLibrary.Type.ASSET, HX.HDR, {equiToCube: true});
 	// assetLibrary.queueAsset("irradiance", "skyboxes/studio-small/irradiance_sh.ash", HX.AssetLibrary.Type.ASSET, HX.ASH);
@@ -35,12 +35,12 @@ project.onInit = function()
     orbitController.azimuth = -1.0;
     this.camera.addComponent(orbitController);
 
-    // var skyboxTexture = this.assetLibrary.get("skybox");
+    var skyboxTexture = this.assetLibrary.get("skybox");
     var irradianceSH = this.assetLibrary.get("irradiance");
 
     // use it as skybox
-    // var skybox = new HX.Skybox(skyboxTexture);
-    // this.scene.skybox = skybox;
+    var skybox = new HX.Skybox(skyboxTexture);
+    this.scene.skybox = skybox;
 
     var material = new HX.BasicMaterial();
     material.roughness = .2;

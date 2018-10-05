@@ -239,6 +239,7 @@ vec3 hx_evaluateSH(vec3 sh[9], vec3 dir)
     return col;
 }
 
+// I'm keeping this for reference, even tho it doesn't work in iOS
 void hx_sumSH(in vec3 a[9], in float weight, inout vec3 b[9])
 {
     // have to manually unroll this, on some platforms the loop is weirdly slow

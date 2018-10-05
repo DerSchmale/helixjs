@@ -66,7 +66,16 @@ void main()
 
     for (int i = 0; i < HX_NUM_DIFFUSE_PROBES; ++i) {
         float weight = hx_getProbeWeight(hx_diffuseProbes[i], hx_viewPosition);
-        hx_sumSH(hx_diffuseProbes[i].sh, weight * hx_diffuseProbes[i].intensity, sh);
+        float w = weight * hx_diffuseProbes[i].intensity;
+        sh[0] += hx_diffuseProbes[i].sh[0] * w;
+        sh[1] += hx_diffuseProbes[i].sh[1] * w;
+        sh[2] += hx_diffuseProbes[i].sh[2] * w;
+        sh[3] += hx_diffuseProbes[i].sh[3] * w;
+        sh[4] += hx_diffuseProbes[i].sh[4] * w;
+        sh[5] += hx_diffuseProbes[i].sh[5] * w;
+        sh[6] += hx_diffuseProbes[i].sh[6] * w;
+        sh[7] += hx_diffuseProbes[i].sh[7] * w;
+        sh[8] += hx_diffuseProbes[i].sh[8] * w;
         diffuseWeightSum += weight;
     }
 

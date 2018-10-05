@@ -145,7 +145,10 @@ HDR.prototype._parseData = function()
         return;
 	}
 
-	this._texture.uploadData(data, this._width, this._height, this._generateMips, TextureFormat.RGB, capabilities.HDR_DATA_TYPE);
+	var type = capabilities.HDR_DATA_TYPE;
+	if (type === DataType.HALF_FLOAT && !capabilities.CAN_UPLOAD_HALF_FLOAT)
+		type = DataType.FLOAT;
+	this._texture.uploadData(data, this._width, this._height, this._generateMips, TextureFormat.RGB, type);
 };
 
 HDR.prototype._parseNewRLE = function()

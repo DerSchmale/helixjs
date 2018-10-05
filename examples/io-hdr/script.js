@@ -14,7 +14,7 @@ window.onload = function ()
     var options = new HX.InitOptions();
     // options.hdr = true;
     // options.debug = true;
-    // options.defaultLightingModel = HX.LightingModel.GGX_FULL;
+    options.defaultLightingModel = HX.LightingModel.GGX_FULL;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -53,8 +53,8 @@ project.onInit = function()
 	this.scene.attach(entity);
 
     // use the same texture as environment map
-    // var lightProbe = new HX.LightProbe(irradianceSH/*, skyboxTexture*/);
-    // this.scene.attach(new HX.Entity(lightProbe));
+    var lightProbe = new HX.LightProbe(irradianceSH/*, skyboxTexture*/);
+    this.scene.attach(new HX.Entity(lightProbe));
 
     // var toneMap = new HX.ReinhardToneMapping();
     // this.camera.addComponent(toneMap);*/

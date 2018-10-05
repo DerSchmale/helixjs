@@ -33,6 +33,10 @@ void main()
         vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;
 
         vec3 sh[9];
+
+        for (int i = 0; i < 9; ++i)
+            sh[i] = vec3(0.0);
+
         for (int i = 0; i < HX_NUM_DIFFUSE_PROBES; ++i) {
             float weight = hx_getProbeWeight(hx_diffuseProbes[i], hx_viewPosition);
             hx_sumSH(hx_diffuseProbes[i].sh, weight * hx_diffuseProbes[i].intensity, sh);

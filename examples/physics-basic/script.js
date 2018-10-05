@@ -11,7 +11,9 @@ project.queueAssets = function(assetLibrary)
     assetLibrary.queueAsset("floor-albedo", "crytek-sponza/textures_pbr/Sponza_Ceiling_diffuse.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
     assetLibrary.queueAsset("floor-normals", "crytek-sponza/textures_pbr/Sponza_Ceiling_normal.png", HX.AssetLibrary.Type.ASSET, HX.JPG);
     assetLibrary.queueAsset("floor-specular", "crytek-sponza/textures_pbr/Sponza_Ceiling_roughness.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("collision-sound", "sound/collision.wav", HX.AssetLibrary.Type.ASSET, HX.AudioFile);
+
+    if (HX.META.AUDIO_CONTEXT)
+        assetLibrary.queueAsset("collision-sound", "sound/collision.wav", HX.AssetLibrary.Type.ASSET, HX.AudioFile);
 };
 
 project.onInit = function()
@@ -37,7 +39,9 @@ function initCamera(camera)
 {
     camera.nearDistance = .3;
     camera.farDistance = 100.0;
-    camera.addComponent(new HX.AudioListener());
+
+    if (HX.META.AUDIO_CONTEXT)
+        camera.addComponent(new HX.AudioListener());
 
     var orbitController = new OrbitController();
     orbitController.lookAtTarget.y = 1.2;
@@ -112,11 +116,13 @@ function initScene(scene, assetLibrary)
                 rigidBody.angularDamping = .2;
                 entity.addComponent(rigidBody);
 
-                var audioEmitter = new HX.AudioEmitter(assetLibrary.get("collision-sound"));
-                // set the name of the sound because it's used to trigger the sound from onHit
-                audioEmitter.name = "collision";
-                audioEmitter.panningModel = HX.AudioPanningModel.HRTF;
-                entity.addComponent(audioEmitter);
+                if (HX.META.AUDIO_CONTEXT) {
+                    var audioEmitter = new HX.AudioEmitter(assetLibrary.get("collision-sound"));
+                    // set the name of the sound because it's used to trigger the sound from onHit
+                    audioEmitter.name = "collision";
+                    audioEmitter.panningModel = HX.AudioPanningModel.HRTF;
+                    entity.addComponent(audioEmitter);
+                }
 
                 // bind a function to the collision message, provide entity as "this" param
                 entity.messenger.bind(HX_PHYS.RigidBody.COLLISION_MESSAGE, onHit, entity);

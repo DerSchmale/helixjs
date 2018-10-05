@@ -56,13 +56,15 @@ HMAT.prototype._applyClass = function(className, target)
             matClass = BasicMaterial;
             break;
         default:
-            throw new Error("Unknown material class!");
+            this._notifyFailure("Unknown material class!");
+            return;
     }
 
     // adds the required properties
     // Object assign does NOT copy getters/setters, just assigns the values returned by the getter!
     // it's a pretty dirty thing to do, but it works and makes the API much friendlier
-    Object.assign(target, matClass.prototype);
+    if (Object.assign)  // not supported by IE
+        Object.assign(target, matClass.prototype);
 
     for (var key in matClass.prototype) {
         if (Object.prototype.hasOwnProperty.call(matClass.prototype, key)) {
@@ -195,8 +197,10 @@ HMAT.prototype._applyProperties = function(data, material)
             material[key] = new Color(value[0], value[1]);
         else if (material[key] instanceof Float4)
             material[key] = new Float4(value[0], value[1], value[2], value[3]);
-        else
-            throw new Error("Unsupport property format!");
+        else {
+            this._notifyFailure("Unsupport property format!");
+            return;
+        }
     }
 };
 

@@ -104,8 +104,10 @@ GLTF.prototype.parse = function(file, target)
 
     if (asset.hasOwnProperty("version")) {
         var version = asset.version.split(".");
-        if (version[0] !== "2")
-            throw new Error("Unsupported glTF version!");
+        if (version[0] !== "2") {
+            this._notifyFailure("Unsupported glTF version!");
+            return;
+        }
     }
 
     this._assetLibrary = new HX.AssetLibrary();
@@ -481,7 +483,8 @@ GLTF.prototype._readVertexData = function(target, offset, accessor, numComponent
             elmSize = 1;
         }
         else {
-            throw new Error("Unknown data type " + accessor.dataType)
+            this._notifyFailure("Unknown data type " + accessor.dataType);
+            return;
         }
 
 
@@ -581,8 +584,10 @@ GLTF.prototype._readIndices = function(accessor)
     else if (accessor.dataType === HX.DataType.UNSIGNED_INT) {
 		return new Uint32Array(src.buffer, o, len);
     }
-    else
-        throw new Error("Unknown data type for indices!");
+    else {
+        this._notifyFailure("Unknown data type for indices!");
+        return;
+    }
 };
 
 GLTF.prototype._parseSkin = function(nodeDef, target)
@@ -619,7 +624,8 @@ GLTF.prototype._parseSkin = function(nodeDef, target)
 
         var node = this._nodes[nodeIndex];
         if (node._jointIndex !== undefined) {
-            throw new Error("Adding one node to multiple skeletons!");
+            this._notifyFailure("Adding one node to multiple skeletons!");
+            return;
         }
 
         // we use this to keep a mapping when assigning target animations
@@ -811,7 +817,8 @@ GLTF.prototype._parseAnimationSampler = function(samplerDef, flipCoords, duratio
                 }
                 break;
             default:
-                throw new Error("Unsupported animation sampler type");
+                this._notifyFailure("Unsupported animation sampler type");
+                return;
         }
 
         var time = readFloat(timeSrc, t) * 1000.0;
@@ -905,7 +912,8 @@ GLTF.prototype._parseAnimationChannel = function(channelDef, samplers, duration)
 
             break;
         default:
-            throw new Error("Unknown channel path!");
+            this._notifyFailure("Unknown channel path!");
+            return;
     }
     return layers;
 };

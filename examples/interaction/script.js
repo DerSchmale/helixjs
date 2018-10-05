@@ -5,9 +5,14 @@
 var project = new DemoProject();
 var indicator;
 
+project.queueAssets = function(assetLibrary)
+{
+    assetLibrary.queueAsset("albedo", "textures/brick_wall/diffuse.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+};
+
 project.onInit = function()
 {
-    initScene(this.scene);
+    initScene(this.scene, this.assetLibrary);
 
     this.camera.addComponent(new OrbitController());
 
@@ -23,10 +28,11 @@ window.onload = function ()
     project.init(document.getElementById('webglContainer'));
 };
 
-function initScene(scene)
+function initScene(scene, assetLibrary)
 {
-    var material = new HX.BasicMaterial();
-    material.color = 0xff0000;
+    var material = new HX.BasicMaterial({
+        colorMap: assetLibrary.get("albedo")
+    });
 
     var primitive = new HX.BoxPrimitive(
         {

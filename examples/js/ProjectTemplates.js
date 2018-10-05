@@ -216,11 +216,16 @@ VRProject.prototype.init = function(canvas, initOptions)
 
 VRProject.prototype._initRenderers = function()
 {
-    this._renderer = new HX.Renderer();
-    this._vrRenderer = new HX.VRRenderer();
+    try {
+        this._renderer = new HX.Renderer();
+        this._vrRenderer = new HX.VRRenderer();
 
-    this._vrCamera = new HX.VRCamera();
-    this._scene.attach(this._vrCamera);
+        this._vrCamera = new HX.VRCamera();
+        this._scene.attach(this._vrCamera);
+    }
+    catch(err) {
+        this.showError("WebVR is not supported in your browser");
+    }
 };
 
 VRProject.prototype._update = function(dt)

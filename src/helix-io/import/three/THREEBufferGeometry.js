@@ -20,7 +20,10 @@ THREEBufferGeometry.prototype.parse = function(data, target)
 {
     target = target || new HX.Mesh();
     var json = JSON.parse(data);
-    if (json.type !== "BufferGeometry") throw new Error("JSON does not contain correct BufferGeometry data! (type property is not BufferGeometry)");
+    if (json.type !== "BufferGeometry") {
+        this._notifyFailure("JSON does not contain correct BufferGeometry data! (type property is not BufferGeometry)");
+        return;
+    }
     HX.Mesh.createDefaultEmpty(target);
 
     this.parseAttributes(json.data.attributes, target);
@@ -52,8 +55,9 @@ THREEBufferGeometry.prototype.parseAttributes = function(attributes, mesh)
         if (!attributes.hasOwnProperty(name)) continue;
         if (!map.hasOwnProperty(name)) {
             mesh.addVertexAttribute(name, attributes[name].itemSize);
-            if (attributes[name].type !== "Float32Array")
-                throw new Error("Unsupported vertex attribute data type!");
+            if (attributes[name].type !== "Float32Array") {
+                this._notifyFailure("Unsupported vertex attribute data type!");
+            }
         }
     }
 
@@ -106,7 +110,7 @@ THREEBufferGeometry.prototype.parseIndices = function(indexData, mesh)
             indices = new Uint32Array(indexData.array);
             break;
         default:
-            throw new Error("Unsupported index type " + indexData.type);
+            this._notifyFailure("Unsupported index type " + indexData.type);
     }
 
     mesh.setIndexData(indices);

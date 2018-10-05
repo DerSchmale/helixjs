@@ -80,19 +80,25 @@ DDS.prototype._parseHeader = function()
 	this._dataType = null;
 
 	// magic + struct of DWORDs shown here: https://docs.microsoft.com/en-gb/windows/desktop/direct3ddds/dds-header
-	if (data[0] !== DDS_CONSTANTS.MAGIC)
-		throw new Error("Not a DDS file!");
+	if (data[0] !== DDS_CONSTANTS.MAGIC) {
+		this._notifyFailure("Not a DDS file!");
+		return;
+    }
 
 	if (data[28] & 0x200) {
-		if (!(data[28] & (0x400 | 0x800 | 0x1000 | 0x2000 | 0x4000 | 0x8000)))
-			throw new Error("All faces must be defined!");
+		if (!(data[28] & (0x400 | 0x800 | 0x1000 | 0x2000 | 0x4000 | 0x8000))) {
+            this._notifyFailure("All faces must be defined.");
+            return;
+        }
 
 		this._type = TextureCube;
 	}
 
 	// TODO: Support other formats in WebGL 2?
-	if (!(data[20] & DDS_PIXEL_FORMAT_FLAGS.DDPF_FOURCC))
-		throw new Error("Unsupported format. Texture must contain RGB data");
+	if (!(data[20] & DDS_PIXEL_FORMAT_FLAGS.DDPF_FOURCC)) {
+        this._notifyFailure("Unsupported format. Texture must contain RGB data.");
+        return;
+    }
 
 	// width and height are swapped!
 	this._height = data[3];
@@ -168,7 +174,8 @@ DDS.prototype._parseInternalFormat = function(fourCC)
 			this._dataType = DataType.FLOAT;
 			return;
 		default:
-			throw new Error("Unsupported format!");
+            this._notifyFailure("Unsupported texture format!");
+            return;
 	}
 };
 
@@ -267,8 +274,6 @@ DDS.prototype._parseUnsupportedFormat = function(dataLength)
 			data = new Float32Array(dataLength);
 			readFunc = this._stream.getFloat16.bind(this._stream);
 			break;
-		default:
-			throw new Error("Impossible");
 	}
 
 	var j = 0;
@@ -304,8 +309,10 @@ DDS.prototype._parseDX10Header = function()
 	if (data[2] & 0x4)
 		this._type = TextureCube;
 
-	if (data[3] !== 1)
-		throw new Error("Texture arrays are not supported!");
+	if (data[3] !== 1) {
+        this._notifyFailure("Texture arrays are not supported!");
+        return;
+    }
 
 	switch (data[0]) {
 		case 6: // DXGI_FORMAT_R32G32B32_FLOAT
@@ -319,7 +326,8 @@ DDS.prototype._parseDX10Header = function()
 			this._dataType = DataType.HALF_FLOAT || "Float16";
 			break;
 		default:
-			throw new Error("Unsupported DX10 format!");
+            this._notifyFailure("Unsupported DX10 format!");
+            return;
 	}
 };
 

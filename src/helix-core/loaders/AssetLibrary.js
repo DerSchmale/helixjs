@@ -240,6 +240,12 @@ AssetLibrary.prototype =
         loader.fileMap = this.fileMap;
         loader.options = options || {};
         loader.options.crossOrigin = this.crossOrigin;
+        loader.onFail.bind(function(message)
+        {
+            console.warn("Error loading " + file + ": " + message);
+            this._onAssetLoaded();
+        }, this);
+
         loader.onComplete.bind(function(asset)
         {
 			this._assets[id] = asset;

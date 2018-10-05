@@ -85,7 +85,7 @@ function initScene(scene, assetLibrary)
     // else
     //     light.setCascadeRatios(.5);
 	var lightEntity = new HX.Entity(light);
-	lightEntity.lookAt(new HX.Float4(0.0, 0.8, -1.0, 0.0));
+	lightEntity.lookAt(new HX.Float4(0.0, -0.8, -1.0, 0.0));
     scene.attach(lightEntity);
 
     var skyboxSpecularTexture = assetLibrary.get("skybox-specular");

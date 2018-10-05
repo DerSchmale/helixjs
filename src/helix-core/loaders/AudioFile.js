@@ -26,7 +26,10 @@ AudioFile.prototype = Object.create(Importer.prototype);
 AudioFile.prototype.parse = function(data, target)
 {
 	target = target || new AudioClip();
-	META.AUDIO_CONTEXT.decodeAudioData(data.buffer, this._onDecoded.bind(this, target), this._onFailed.bind(this));
+	if (META.AUDIO_CONTEXT)
+		META.AUDIO_CONTEXT.decodeAudioData(data.buffer, this._onDecoded.bind(this, target), this._onFailed.bind(this));
+	else
+        this._notifyFailure("Audio not supported");
 };
 
 /**

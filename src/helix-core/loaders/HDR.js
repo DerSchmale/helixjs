@@ -141,7 +141,8 @@ HDR.prototype._parseData = function()
 	if (hash === 0x0202)
 		data = this._parseNewRLE();
 	else {
-		throw new Error("Obsolete HDR file version!");
+        this._notifyFailure("Obsolete HDR file version!");
+        return;
 	}
 
 	this._texture.uploadData(data, this._width, this._height, this._generateMips, TextureFormat.RGB, capabilities.HDR_DATA_TYPE);

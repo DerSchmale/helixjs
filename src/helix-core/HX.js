@@ -1,11 +1,9 @@
 import WebVRPolyfill from "webvr-polyfill";
 import "./polyfill/audio.js";
 
-try {
+if (window.Promise) {
+    // IE11 does not support Promise, used by WebVRPolyfill, so don't create the fill to begin with (VR won't be supported anyway).
     var webvrPolyFill = new WebVRPolyfill();
-}
-catch(err) {
-    // probably IE's lack of Promise, just swallow the error
 }
 
 export {ShaderLibrary} from "./shader/ShaderLibrary";

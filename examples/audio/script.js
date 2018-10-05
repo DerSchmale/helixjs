@@ -22,8 +22,12 @@ project.queueAssets = function(assetLibrary)
 
 project.onInit = function()
 {
-    initCamera(this.camera);
-    initScene(this.scene, this.assetLibrary);
+    if (HX.META.AUDIO_CONTEXT) {
+        initCamera(this.camera);
+        initScene(this.scene, this.assetLibrary);
+    }
+    else
+        this.showError("Audio is not supported in this browser!")
 };
 
 function initCamera(camera)
@@ -90,12 +94,15 @@ function initScene(scene, assetLibrary)
 	ball.position.y = 1.5;
 	ball.addComponent(new HX.MeshInstance(primitive, material));
 
-	var audioEmitter = new HX.AudioEmitter(assetLibrary.get("collision-sound"));
-	// set the name of the sound because it's used to trigger the sound from BounceComponent
-    audioEmitter.name = "collision";
-    audioEmitter.panningModel = HX.AudioPanningModel.HRTF;
+	var clip = assetLibrary.get("collision-sound");
+	if (clip) {
+        var audioEmitter = new HX.AudioEmitter(clip);
+        // set the name of the sound because it's used to trigger the sound from BounceComponent
+        audioEmitter.name = "collision";
+        audioEmitter.panningModel = HX.AudioPanningModel.HRTF;
 
-	ball.addComponent(audioEmitter);
+        ball.addComponent(audioEmitter);
+    }
 	ball.addComponent(new BounceComponent(room.worldBounds));
 	scene.attach(ball);
 }

@@ -163,8 +163,10 @@
 
         if (asset.hasOwnProperty("version")) {
             var version = asset.version.split(".");
-            if (version[0] !== "2")
-                throw new Error("Unsupported glTF version!");
+            if (version[0] !== "2") {
+                this._notifyFailure("Unsupported glTF version!");
+                return;
+            }
         }
 
         this._assetLibrary = new HX.AssetLibrary();
@@ -540,7 +542,8 @@
                 elmSize = 1;
             }
             else {
-                throw new Error("Unknown data type " + accessor.dataType)
+                this._notifyFailure("Unknown data type " + accessor.dataType);
+                return;
             }
 
 
@@ -640,8 +643,10 @@
         else if (accessor.dataType === HX.DataType.UNSIGNED_INT) {
     		return new Uint32Array(src.buffer, o, len);
         }
-        else
-            throw new Error("Unknown data type for indices!");
+        else {
+            this._notifyFailure("Unknown data type for indices!");
+            return;
+        }
     };
 
     GLTF.prototype._parseSkin = function(nodeDef, target)
@@ -678,7 +683,8 @@
 
             var node = this._nodes[nodeIndex];
             if (node._jointIndex !== undefined) {
-                throw new Error("Adding one node to multiple skeletons!");
+                this._notifyFailure("Adding one node to multiple skeletons!");
+                return;
             }
 
             // we use this to keep a mapping when assigning target animations
@@ -870,7 +876,8 @@
                     }
                     break;
                 default:
-                    throw new Error("Unsupported animation sampler type");
+                    this._notifyFailure("Unsupported animation sampler type");
+                    return;
             }
 
             var time = readFloat(timeSrc, t) * 1000.0;
@@ -964,7 +971,8 @@
 
                 break;
             default:
-                throw new Error("Unknown channel path!");
+                this._notifyFailure("Unknown channel path!");
+                return;
         }
         return layers;
     };
@@ -1658,7 +1666,10 @@
     {
         target = target || new HX.Mesh();
         var json = JSON.parse(data);
-        if (json.type !== "BufferGeometry") throw new Error("JSON does not contain correct BufferGeometry data! (type property is not BufferGeometry)");
+        if (json.type !== "BufferGeometry") {
+            this._notifyFailure("JSON does not contain correct BufferGeometry data! (type property is not BufferGeometry)");
+            return;
+        }
         HX.Mesh.createDefaultEmpty(target);
 
         this.parseAttributes(json.data.attributes, target);
@@ -1690,8 +1701,9 @@
             if (!attributes.hasOwnProperty(name)) continue;
             if (!map.hasOwnProperty(name)) {
                 mesh.addVertexAttribute(name, attributes[name].itemSize);
-                if (attributes[name].type !== "Float32Array")
-                    throw new Error("Unsupported vertex attribute data type!");
+                if (attributes[name].type !== "Float32Array") {
+                    this._notifyFailure("Unsupported vertex attribute data type!");
+                }
             }
         }
 
@@ -1744,7 +1756,7 @@
                 indices = new Uint32Array(indexData.array);
                 break;
             default:
-                throw new Error("Unsupported index type " + indexData.type);
+                this._notifyFailure("Unsupported index type " + indexData.type);
         }
 
         mesh.setIndexData(indices);

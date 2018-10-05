@@ -296,8 +296,10 @@ HX.prototype.parse = function(data, target)
 	this._stream = new DataStream(data);
 
 	var hash = this._stream.getString(2);
-	if (hash !== "HX")
-		throw new Error("Invalid file hash!");
+	if (hash !== "HX") {
+        this._notifyFailure("Invalid file hash!");
+        return;
+    }
 
 	this._defaultSceneIndex = 0;
     this._lightingMode = 0;
@@ -377,8 +379,10 @@ HX.prototype._parseHeader = function()
 		}
 	} while (type !== PropertyTypes.NULL);
 
-	if (this._version !== HX.VERSION)
-		throw new Error("Incompatible file version!");
+	if (this._version !== HX.VERSION) {
+        this._notifyFailure("Incompatible file version!");
+        return;
+    }
 };
 
 HX.prototype._parseObjectList = function()
@@ -439,8 +443,9 @@ HX.prototype._parseObjectList = function()
 				var classType = ObjectTypeMap[type];
 				if (classType)
 					object = this._parseObject(classType, data);
-				else
-					throw new Error("Unknown object type " + type + " at 0x" + (data.offset - 4).toString(16));
+				else {
+                    this._notifyFailure("Unknown object type " + type + " at 0x" + (data.offset - 4).toString(16));
+                }
 		}
 
 

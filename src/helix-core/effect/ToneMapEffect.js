@@ -14,6 +14,8 @@ import {GL} from "../core/GL";
  * @classdesc
  * A base class for tone mapping effects.
  *
+ * @property {number} adaptive Indicates whether or not the tone mapping is adaptive. Even if "true" was passed in the
+ * constructor, this can be false if it's not supported.
  * @property {number} exposure The exposure value (in "stops"). Higher values will result in brighter results.
  * @property {number} key The intended average luminosity in the scene. Gives a hint whether the scene should be dark (low-key) or bright (high-key).
  * @property {number} adaptionRate The amount of time in milliseconds for the "lens" to adapt to the scene's brightness.
@@ -34,7 +36,6 @@ function ToneMapEffect(adaptive)
     if (this._adaptive && (!capabilities.EXT_SHADER_TEXTURE_LOD || !capabilities.EXT_COLOR_BUFFER_HALF_FLOAT)) {
         console.log("Warning: adaptive tone mapping not supported, using non-adaptive");
         this._adaptive = false;
-        return;
     }
 
     Effect.call(this);
@@ -61,6 +62,13 @@ function ToneMapEffect(adaptive)
 }
 
 ToneMapEffect.prototype = Object.create(Effect.prototype, {
+    adaptive: {
+        get: function()
+        {
+            return this._adaptive;
+        }
+    },
+
     exposure: {
         get: function()
         {

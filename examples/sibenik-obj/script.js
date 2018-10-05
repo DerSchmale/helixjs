@@ -55,7 +55,7 @@ function initScene(scene, camera, assetLibrary)
 	ambientLight.intensity = .02;
 	var ambientEntity = new HX.Entity(ambientLight);
 
-    spotLight = new HX.PointLight();
+    spotLight = new HX.SpotLight();
     spotLight.castShadows = true;
     spotLight.color = new HX.Color(.6,.8, 1.0);
     spotLight.intensity = 300.0;

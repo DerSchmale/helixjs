@@ -324,6 +324,9 @@ DDS.prototype._parseDX10Header = function()
 			this._blockSize = 4;
 			this._format = TextureFormat.RGBA;
 			this._dataType = DataType.HALF_FLOAT || "Float16";
+			// Safari -_-
+			if (!capabilities.CAN_UPLOAD_HALF_FLOAT)
+                this._dataType = "Float16";
 			break;
 		default:
             this._notifyFailure("Unsupported DX10 format!");

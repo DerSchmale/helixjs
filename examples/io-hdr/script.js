@@ -12,7 +12,7 @@ window.addEventListener("error", function(event) {
 window.onload = function ()
 {
     var options = new HX.InitOptions();
-    // options.hdr = true;
+    options.hdr = true;
     // options.debug = true;
     options.defaultLightingModel = HX.LightingModel.GGX_FULL;
     project.init(document.getElementById('webglContainer'), options);

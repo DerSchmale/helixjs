@@ -197,6 +197,9 @@ Texture2D.prototype =
     {
         var gl = GL.gl;
 
+        if (dataType === DataType.HALF_FLOAT)
+            throw "NOPE";
+
         if (capabilities.EXT_HALF_FLOAT_TEXTURES && dataType === DataType.HALF_FLOAT && !(data instanceof Uint16Array))
             data = TextureUtils.encodeToFloat16Array(data);
 

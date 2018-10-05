@@ -167,7 +167,10 @@ Mouse.prototype.unmap = function(buttonOrAxis)
  */
 Mouse.prototype._onMouseDown = function(event)
 {
-	this._buttonMask = event.buttons;
+	if (event.buttons === undefined)
+        this._buttonMask |= 1 << event.button;
+    else
+		this._buttonMask = event.buttons;
 	var button = BUTTON_MAP[event.button];
 	if (!button) return;
 	this.setValue(button, 1);
@@ -179,7 +182,11 @@ Mouse.prototype._onMouseDown = function(event)
  */
 Mouse.prototype._onMouseUp = function(event)
 {
-	this._buttonMask = event.buttons;
+    if (event.buttons === undefined)
+        this._buttonMask &= ~(1 << event.button);
+    else
+		this._buttonMask = event.buttons;
+
 	var button = BUTTON_MAP[event.button];
 	if (button)
 		this.setValue(button, 0);

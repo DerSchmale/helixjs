@@ -3,7 +3,7 @@ import {ShaderLibrary} from "../shader/ShaderLibrary";
 import {TextureCube} from "../texture/TextureCube";
 import {GL} from "../core/GL";
 import {FrameBuffer} from "../texture/FrameBuffer";
-import {capabilities, CubeFace, TextureFilter} from "../Helix";
+import {capabilities, CubeFace, DataType, TextureFilter} from "../Helix";
 import {VertexBuffer} from "../core/VertexBuffer";
 import {IndexBuffer} from "../core/IndexBuffer";
 import {CustomCopyShader} from "../render/UtilShaders";
@@ -46,7 +46,7 @@ export var EquirectangularTexture =
 
         var gl = GL.gl;
         target = target || new TextureCube();
-        target.initEmpty(size, source.format, source.dataType);
+        target.initEmpty(size, source.format, getDataType(source.dataType));
         var faces = [ CubeFace.POSITIVE_X, CubeFace.NEGATIVE_X, CubeFace.POSITIVE_Y, CubeFace.NEGATIVE_Y, CubeFace.POSITIVE_Z, CubeFace.NEGATIVE_Z ];
 
 		GL.setShader(toCubeShader);
@@ -82,7 +82,9 @@ export var EquirectangularTexture =
             target.generateMipmap();
 
         // TODO: for some reason, if EXT_shader_texture_lod is not supported, mipmapping of rendered-to cubemaps does not work
-        if (!capabilities.EXT_SHADER_TEXTURE_LOD)
+        if (capabilities.EXT_SHADER_TEXTURE_LOD)
+            target.filter = TextureFilter.TRILINEAR;
+        else
             target.filter = TextureFilter.BILINEAR_NOMIP;
 
         return target;
@@ -95,7 +97,7 @@ export var EquirectangularTexture =
         var height = width >> 1;
 
         target = target || new Texture2D();
-        target.initEmpty(width, height, source.format, source.dataType);
+        target.initEmpty(width, height, source.format, getDataType(source.dataType));
 
         if (!fromCubeShader)
             fromCubeShader = new CustomCopyShader(ShaderLibrary.get("equirectangular_from_cube_fragment.glsl"));
@@ -175,4 +177,14 @@ function createRenderCubeGeometry()
 
     toCubeIndices = new IndexBuffer();
     toCubeIndices.uploadData(new Uint16Array(indices));
+}
+
+function getDataType(type)
+{
+    if (type === DataType.HALF_FLOAT && !capabilities.EXT_COLOR_BUFFER_HALF_FLOAT)
+        type = capabilities.EXT_COLOR_BUFFER_FLOAT? DataType.FLOAT : DataType.UNSIGNED_BYTE;
+    else if (type === DataType.FLOAT && !capabilities.EXT_COLOR_BUFFER_FLOAT)
+        type = capabilities.EXT_COLOR_BUFFER_HALF_FLOAT? DataType.HALF_FLOAT : DataType.UNSIGNED_BYTE;
+
+    return type;
 }

@@ -74,7 +74,7 @@ AssetLoader.prototype =
     },
 
 	_fail: function(code) {
-		console.warn("Failed loading " + filename + ". Error code: " + code);
+		console.warn("Failed loading asset. Error code: " + code);
 		if (this.onFail) {
 			if (this.onFail instanceof Signal)
 				this.onFail.dispatch(code);

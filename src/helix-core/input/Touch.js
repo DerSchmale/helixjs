@@ -134,6 +134,10 @@ Touch.prototype._onTouchEnd = function(event)
 
 	var numTouches = event.touches.length;
 	var touch1 = event.touches[0];
+
+	if (numTouches < 2)
+		this.setValue(Touch.PINCH, 0);
+
 	if (numTouches === 0) {
 		this.setValue(Touch.TAP, 0);
 	}

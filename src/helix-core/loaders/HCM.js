@@ -121,10 +121,11 @@ HCM.prototype._loadMipChain = function(urls, target)
         for (var i = 1; i < numMips; ++i) {
             for (var j = 0; j < 6; ++j) {
                 realURLs.push(urls[j].replace("%m", i.toString()));
-                progressRatios.push(r);
+                progressRatios.push(totalRatio);
                 totalRatio += r;
             }
-            r *= .5;
+            // the actual size is 1/4th, but this seems to give nicer progress
+            r *= .75;
         }
 
         var onError = function ()
@@ -140,6 +141,8 @@ HCM.prototype._loadMipChain = function(urls, target)
 
         var onLoadLast = function ()
         {
+			self._notifyProgress(progressRatios[this.nextID] / totalRatio);
+
             for (var m = 0; m < numMips; ++m)
                 target.uploadImages(images.slice(m * 6, m * 6 + 6), false, undefined, undefined, m);
 

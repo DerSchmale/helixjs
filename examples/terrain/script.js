@@ -163,7 +163,7 @@ function initScene(scene, camera, assetLibrary)
 	waterMaterial.fixedLights = lights;
 
     var terrain = new HX.Entity();
-	terrain.addComponent(new HX.Terrain(camera.farDistance * 2.5, minHeight, maxHeight, 4, terrainMaterial, 64));
+	terrain.addComponent(new HX.Terrain(camera.farDistance * 2.5, minHeight, maxHeight, 4, terrainMaterial, 32));
 
 	// this is definitely overkill:
 	var plane = new HX.PlanePrimitive({width: 8000, height: 8000, numSegmentsW: 40, numSegmentsH: 40});

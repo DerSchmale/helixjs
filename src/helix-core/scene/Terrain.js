@@ -246,11 +246,12 @@ Terrain.prototype._addMesh = function(x, y, level, rotation, mode)
  */
 Terrain.prototype._subDivide = function(x, y, subX, subY, level, size)
 {
+    var isMaxLevel = level === this._numLevels - 1;
     size *= .5;
 
     for (var yi = -1; yi <= 1; yi += 2) {
         for (var xi = -1; xi <= 1; xi += 2) {
-            if((xi !== subX || yi !== subY) || level === this._numLevels - 1) {
+            if((xi !== subX || yi !== subY) || isMaxLevel) {
                 var rotation = 0;
                 var mode = "corner";
                 // messy, I know
@@ -303,12 +304,15 @@ Terrain.prototype._subDivide = function(x, y, subX, subY, level, size)
                         rotation = -1;
                 }
 
+                if (isMaxLevel)
+                    rotation = 0;
+
                 this._addMesh(x + size * xi, y + size * yi, level, rotation, mode);
             }
         }
     }
 
-    if (level < this._numLevels - 1)
+    if (!isMaxLevel)
         this._subDivide(x + size * subX, y + size * subY, subX, subY, level + 1, size);
 };
 

@@ -40,7 +40,7 @@ function Terrain(terrainSize, minElevation, maxElevation, numLevels, material, d
     this._detail = detail || 32;
 
     // will be defined when we're generating meshes
-    this._snapSize = undefined;
+    // this._snapSize = undefined;
 
     this._material = material;
     material.setUniform("hx_elevationOffset", minElevation);
@@ -161,7 +161,7 @@ Terrain.prototype._initMeshes = function(gridSize)
                 edge: mesh,
                 corner: mesh
             };
-            this._snapSize = meshSize / gridSize;
+            // this._snapSize = meshSize / gridSize;
         }
         else {
             this._meshes[level] = {
@@ -325,8 +325,10 @@ Terrain.prototype.acceptVisitor = function(visitor, isMainCollector)
 		var cameraPos = visitor._camera.position;
 		var containerPos = this._container.position;
 		var entityPosition = this.entity.position;
-		containerPos.x = Math.round(cameraPos.x / this._snapSize) * this._snapSize - entityPosition.x;
-		containerPos.y = Math.round(cameraPos.y / this._snapSize) * this._snapSize - entityPosition.y;
+		containerPos.x = cameraPos.x - entityPosition.x;
+		containerPos.y = cameraPos.y - entityPosition.y;
+		// containerPos.x = Math.round(cameraPos.x / this._snapSize) * this._snapSize - entityPosition.x;
+		// containerPos.y = Math.round(cameraPos.y / this._snapSize) * this._snapSize - entityPosition.y;
     }
 };
 

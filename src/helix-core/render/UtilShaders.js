@@ -43,9 +43,7 @@ CustomCopyShader.prototype.execute = function(rect, texture)
     gl.vertexAttribPointer(this._positionAttributeLocation, 2, gl.FLOAT, false, 16, 0);
     gl.vertexAttribPointer(this._texCoordAttributeLocation, 2, gl.FLOAT, false, 16, 8);
 
-    GL.enableAttributes(2);
-
-    GL.drawElements(ElementType.TRIANGLES, 6, 0);
+    GL.drawElements(ElementType.TRIANGLES, 6);
 };
 
 

@@ -757,8 +757,14 @@ Renderer.prototype =
         pass.updatePassRenderState(this._activeCamera, this, data);
         pass.updateInstanceRenderState(this._activeCamera, renderItem, data);
 		meshInstance.updateRenderState(passType);
-        var mesh = meshInstance._mesh;
-        GL.drawElements(mesh.elementType, mesh._numIndices, 0, mesh._indexType);
+
+		var mesh = meshInstance._mesh;
+		var numInstances = meshInstance.numInstances;
+
+		if (numInstances === undefined)
+        	GL.drawElements(mesh.elementType, mesh._numIndices, mesh._indexType, 0);
+		else
+			GL.drawElementsInstanced(mesh.elementType, mesh._numIndices, mesh._indexType, 0, numInstances);
     },
 
     /**

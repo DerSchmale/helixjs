@@ -127,6 +127,7 @@ export var capabilities =
         EXT_COLOR_BUFFER_FLOAT: null,
         EXT_COLOR_BUFFER_HALF_FLOAT: null,
 		EXT_COMPRESSED_TEXTURE_S3TC: null,
+		EXT_INSTANCED_ARRAYS: null,
 
         DEFAULT_TEXTURE_MAX_ANISOTROPY: 0,
         HDR_DATA_TYPE: 0,
@@ -648,6 +649,7 @@ export function init(canvas, options)
     capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC = _getExtension("EXT_texture_filter_anisotropic");
     capabilities.EXT_ELEMENT_INDEX_UINT = _getExtension("OES_element_index_uint");
     capabilities.EXT_COMPRESSED_TEXTURE_S3TC = _getExtension("WEBKIT_WEBGL_compressed_texture_s3tc") || _getExtension("WEBGL_compressed_texture_s3tc");
+    capabilities.EXT_INSTANCED_ARRAYS = _getExtension("ANGLE_instanced_arrays");
     capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY = capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC ? gl.getParameter(capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 0;
 
     if (capabilities.EXT_FLOAT_TEXTURES)

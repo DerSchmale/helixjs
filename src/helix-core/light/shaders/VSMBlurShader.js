@@ -31,7 +31,7 @@ function VSMBlurShader(blurRadius)
 
     gl.useProgram(this.program);
     gl.uniform1i(this._textureLocation, 0);
-};
+}
 
 VSMBlurShader.prototype = Object.create(Shader.prototype);
 
@@ -51,11 +51,9 @@ VSMBlurShader.prototype.execute = function (rect, texture, dirX, dirY)
     gl.vertexAttribPointer(this._positionAttributeLocation, 2, DataType.FLOAT, false, 16, 0);
     gl.vertexAttribPointer(this._texCoordAttributeLocation, 2, DataType.FLOAT, false, 16, 8);
 
-    GL.enableAttributes(2);
-
     gl.uniform2f(this._directionLocation, dirX, dirY);
 
-    GL.drawElements(gl.TRIANGLES, 6, 0);
+    GL.drawElements(gl.TRIANGLES, 6);
 };
 
 

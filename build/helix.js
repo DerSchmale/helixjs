@@ -3615,7 +3615,7 @@
 
 	ShaderLibrary._files['default_geometry_fragment.glsl'] = 'uniform vec3 color;\nuniform vec3 emissiveColor;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(METALLIC_ROUGHNESS_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\n    varying_in vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\n    uniform sampler2D colorMap;\n\n    #ifdef COLOR_MAP_SCALE_OFFSET\n        uniform vec2 colorMapScale;\n        uniform vec2 colorMapOffset;\n    #endif\n#endif\n\n#ifdef OCCLUSION_MAP\n    uniform sampler2D occlusionMap;\n#endif\n\n#ifdef EMISSION_MAP\n    uniform sampler2D emissionMap;\n\n    #ifdef EMISSION_MAP_SCALE_OFFSET\n        uniform vec2 emissionMapScale;\n        uniform vec2 emissionMapOffset;\n    #endif\n#endif\n\n#ifdef MASK_MAP\n    uniform sampler2D maskMap;\n\n    #ifdef MASK_MAP_SCALE_OFFSET\n        uniform vec2 maskMapScale;\n        uniform vec2 maskMapOffset;\n    #endif\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    varying_in vec3 normal;\n\n    #ifdef NORMAL_MAP\n        varying_in vec3 tangent;\n        varying_in vec3 bitangent;\n\n        uniform sampler2D normalMap;\n\n        #ifdef NORMAL_MAP_SCALE_OFFSET\n            uniform vec2 normalMapScale;\n            uniform vec2 normalMapOffset;\n        #endif\n\n    #endif\n#endif\n\n#ifndef HX_SKIP_SPECULAR\n    uniform float roughness;\n    uniform float roughnessRange;\n    uniform float normalSpecularReflectance;\n    uniform float metallicness;\n\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\n        uniform sampler2D specularMap;\n\n        #ifdef SPECULAR_MAP_SCALE_OFFSET\n            uniform vec2 specularMapScale;\n            uniform vec2 specularMapOffset;\n        #endif\n    #endif\n#endif\n\n#if defined(ALPHA_THRESHOLD)\n    uniform float alphaThreshold;\n#endif\n\n#ifdef VERTEX_COLORS\n    varying_in vec3 vertexColor;\n#endif\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    vec2 uv;\n\n    #ifdef COLOR_MAP\n        uv = texCoords;\n        #ifdef COLOR_MAP_SCALE_OFFSET\n            uv = uv * colorMapScale + colorMapOffset;\n        #endif\n        #ifdef COLOR_MAP_ADD\n            outputColor += texture2D(colorMap, uv);\n        #else\n            outputColor *= texture2D(colorMap, uv);\n        #endif\n    #endif\n\n    #ifdef MASK_MAP\n        uv = texCoords;\n        #ifdef MASK_MAP_SCALE_OFFSET\n            uv = uv * maskMapScale + maskMapOffset;\n        #endif\n        outputColor.w *= texture2D(maskMap, uv).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    data.color = hx_gammaToLinear(outputColor);\n\n#ifndef HX_SKIP_SPECULAR\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = normalSpecularReflectance;\n    float roughnessOut = roughness;\n#endif\n\n#if defined(HX_SKIP_NORMALS) && defined(NORMAL_ROUGHNESS_MAP) && !defined(HX_SKIP_SPECULAR)\n    uv = texCoords;\n    #ifdef NORMAL_MAP_SCALE_OFFSET\n        uv = uv * normalMapScale + normalMapOffset;\n    #endif\n    vec4 normalSample = texture2D(normalMap, uv);\n    roughnessOut -= roughnessRange * (normalSample.w - .5);\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    vec3 fragNormal = normal;\n\n    #ifdef NORMAL_MAP\n        uv = texCoords;\n        #ifdef NORMAL_MAP_SCALE_OFFSET\n            uv = uv * normalMapScale + normalMapOffset;\n        #endif\n        vec4 normalSample = texture2D(normalMap, uv);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz - .5);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (normalSample.w - .5);\n        #endif\n    #endif\n\n    #ifdef DOUBLE_SIDED\n        fragNormal *= gl_FrontFacing? 1.0 : -1.0;\n    #endif\n    data.normal = normalize(fragNormal);\n#endif\n\n#ifndef HX_SKIP_SPECULAR\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\n        uv = texCoords;\n        #ifdef SPECULAR_MAP_SCALE_OFFSET\n            uv = uv * specularMapScale + specularMapOffset;\n        #endif\n        vec4 specSample = texture2D(specularMap, uv);\n\n        #ifdef METALLIC_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (specSample.y - .5);\n            metallicnessOut *= specSample.z;\n\n        #else\n            roughnessOut -= roughnessRange * (specSample.x - .5);\n\n        #ifdef SPECULAR_MAP\n            specNormalReflOut *= specSample.y;\n            metallicnessOut *= specSample.z;\n        #endif\n    #endif\n#endif\n\n    data.metallicness = metallicnessOut;\n    data.normalSpecularReflectance = specNormalReflOut;\n    data.roughness = roughnessOut;\n#endif\n\n    data.occlusion = 1.0;\n\n#ifdef OCCLUSION_MAP\n    data.occlusion = texture2D(occlusionMap, texCoords).x;\n#endif\n\n    vec3 emission = emissiveColor;\n#ifdef EMISSION_MAP\n    uv = texCoords;\n    #ifdef EMISSION_MAP_SCALE_OFFSET\n        uv = uv * emissionMapScale + emissionMapOffset;\n    #endif\n    emission *= texture2D(emissionMap, uv).xyz;\n#endif\n\n    data.emission = hx_gammaToLinear(emission);\n    return data;\n}';
 
-	ShaderLibrary._files['default_geometry_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\n// morph positions are offsets re the base position!\n#ifdef HX_USE_MORPHING\nvertex_attribute vec3 hx_morphPosition0;\nvertex_attribute vec3 hx_morphPosition1;\nvertex_attribute vec3 hx_morphPosition2;\nvertex_attribute vec3 hx_morphPosition3;\n\n#ifdef HX_USE_NORMAL_MORPHING\n    #ifndef HX_SKIP_NORMALS\n    vertex_attribute vec3 hx_morphNormal0;\n    vertex_attribute vec3 hx_morphNormal1;\n    vertex_attribute vec3 hx_morphNormal2;\n    vertex_attribute vec3 hx_morphNormal3;\n    #endif\n\nuniform float hx_morphWeights[4];\nuniform float hx_morphModes[4];\n#else\nvertex_attribute vec3 hx_morphPosition4;\nvertex_attribute vec3 hx_morphPosition5;\nvertex_attribute vec3 hx_morphPosition6;\nvertex_attribute vec3 hx_morphPosition7;\n\nuniform float hx_morphWeights[8];\nuniform float hx_morphModes[8];\n#endif\n\n#endif\n\n#ifdef HX_USE_SKINNING\nvertex_attribute vec4 hx_jointIndices;\nvertex_attribute vec4 hx_jointWeights;\n\nuniform mat4 hx_bindShapeMatrix;\nuniform mat4 hx_bindShapeMatrixInverse;\n\n// WebGL doesn\'t support mat4x3 and I don\'t want to split the uniform either\n#ifdef HX_USE_SKINNING_TEXTURE\nuniform sampler2D hx_skinningTexture;\n#else\nuniform vec4 hx_skinningMatrices[HX_MAX_SKELETON_JOINTS * 3];\n#endif\n#endif\n\nuniform mat4 hx_wvpMatrix;\nuniform mat4 hx_worldViewMatrix;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\nvertex_attribute vec2 hx_texCoord;\nvarying_out vec2 texCoords;\n#endif\n\n#ifdef VERTEX_COLORS\nvertex_attribute vec3 hx_vertexColor;\nvarying_out vec3 vertexColor;\n#endif\n\n#ifndef HX_SKIP_NORMALS\nvertex_attribute vec3 hx_normal;\nvarying_out vec3 normal;\n\nuniform mat3 hx_normalWorldViewMatrix;\n#ifdef NORMAL_MAP\nvertex_attribute vec4 hx_tangent;\n\nvarying_out vec3 tangent;\nvarying_out vec3 bitangent;\n#endif\n#endif\n\nvoid hx_geometry()\n{\n    vec4 morphedPosition = hx_position;\n\n    #ifndef HX_SKIP_NORMALS\n    vec3 morphedNormal = hx_normal;\n    #endif\n\n// TODO: Abstract this in functions for easier reuse in other materials\n#ifdef HX_USE_MORPHING\n    morphedPosition.xyz += hx_morphPosition0 * hx_morphWeights[0];\n    morphedPosition.xyz += hx_morphPosition1 * hx_morphWeights[1];\n    morphedPosition.xyz += hx_morphPosition2 * hx_morphWeights[2];\n    morphedPosition.xyz += hx_morphPosition3 * hx_morphWeights[3];\n    #ifdef HX_USE_NORMAL_MORPHING\n        #ifndef HX_SKIP_NORMALS\n        morphedNormal += hx_morphNormal0 * hx_morphWeights[0];\n        morphedNormal += hx_morphNormal1 * hx_morphWeights[1];\n        morphedNormal += hx_morphNormal2 * hx_morphWeights[2];\n        morphedNormal += hx_morphNormal3 * hx_morphWeights[3];\n        #endif\n    #else\n        morphedPosition.xyz += hx_morphPosition4 * hx_morphWeights[4];\n        morphedPosition.xyz += hx_morphPosition5 * hx_morphWeights[5];\n        morphedPosition.xyz += hx_morphPosition6 * hx_morphWeights[6];\n        morphedPosition.xyz += hx_morphPosition7 * hx_morphWeights[7];\n    #endif\n#endif\n\n#ifdef HX_USE_SKINNING\n    mat4 skinningMatrix = hx_getSkinningMatrix(0);\n\n    // first transform to armature space\n    // then apply skinning in skeleton space\n    // then transform back to object space\n    vec4 animPosition = hx_bindShapeMatrixInverse * ((hx_bindShapeMatrix * morphedPosition) * skinningMatrix);\n\n    #ifndef HX_SKIP_NORMALS\n        vec3 animNormal = morphedNormal * mat3(skinningMatrix);\n\n        #ifdef NORMAL_MAP\n        vec3 animTangent = hx_tangent.xyz * mat3(skinningMatrix);\n        #endif\n    #endif\n#else\n    vec4 animPosition = morphedPosition;\n\n    #ifndef HX_SKIP_NORMALS\n        vec3 animNormal = morphedNormal;\n\n        #ifdef NORMAL_MAP\n        vec3 animTangent = hx_tangent.xyz;\n        #endif\n    #endif\n#endif\n\n    // TODO: Should gl_position be handled by the shaders if we only return local position?\n    gl_Position = hx_wvpMatrix * animPosition;\n\n#ifndef HX_SKIP_NORMALS\n    normal = normalize(hx_normalWorldViewMatrix * animNormal);\n\n    #ifdef NORMAL_MAP\n        tangent = mat3(hx_worldViewMatrix) * animTangent;\n        bitangent = cross(tangent, normal) * hx_tangent.w;\n    #endif\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\n    texCoords = hx_texCoord;\n#endif\n\n#ifdef VERTEX_COLORS\n    vertexColor = hx_vertexColor;\n#endif\n}';
+	ShaderLibrary._files['default_geometry_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\n// morph positions are offsets re the base position!\n#ifdef HX_USE_MORPHING\nvertex_attribute vec3 hx_morphPosition0;\nvertex_attribute vec3 hx_morphPosition1;\nvertex_attribute vec3 hx_morphPosition2;\nvertex_attribute vec3 hx_morphPosition3;\n\n#ifdef HX_USE_NORMAL_MORPHING\n    #ifndef HX_SKIP_NORMALS\n    vertex_attribute vec3 hx_morphNormal0;\n    vertex_attribute vec3 hx_morphNormal1;\n    vertex_attribute vec3 hx_morphNormal2;\n    vertex_attribute vec3 hx_morphNormal3;\n    #endif\n\nuniform float hx_morphWeights[4];\nuniform float hx_morphModes[4];\n#else\nvertex_attribute vec3 hx_morphPosition4;\nvertex_attribute vec3 hx_morphPosition5;\nvertex_attribute vec3 hx_morphPosition6;\nvertex_attribute vec3 hx_morphPosition7;\n\nuniform float hx_morphWeights[8];\nuniform float hx_morphModes[8];\n#endif\n\n#endif\n\n#ifdef HX_USE_SKINNING\nvertex_attribute vec4 hx_jointIndices;\nvertex_attribute vec4 hx_jointWeights;\n\nuniform mat4 hx_bindShapeMatrix;\nuniform mat4 hx_bindShapeMatrixInverse;\n\n// WebGL doesn\'t support mat4x3 and I don\'t want to split the uniform either\n#ifdef HX_USE_SKINNING_TEXTURE\nuniform sampler2D hx_skinningTexture;\n#else\nuniform vec4 hx_skinningMatrices[HX_MAX_SKELETON_JOINTS * 3];\n#endif\n#endif\n\n#ifdef HX_USE_INSTANCING\n// these are the matrix ROWS\nvertex_attribute vec4 hx_instanceMatrix0;\nvertex_attribute vec4 hx_instanceMatrix1;\nvertex_attribute vec4 hx_instanceMatrix2;\n#endif\n\nuniform mat4 hx_wvpMatrix;\nuniform mat4 hx_worldViewMatrix;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\nvertex_attribute vec2 hx_texCoord;\nvarying_out vec2 texCoords;\n#endif\n\n#ifdef VERTEX_COLORS\nvertex_attribute vec3 hx_vertexColor;\nvarying_out vec3 vertexColor;\n#endif\n\n#ifndef HX_SKIP_NORMALS\nvertex_attribute vec3 hx_normal;\nvarying_out vec3 normal;\n\nuniform mat3 hx_normalWorldViewMatrix;\n#ifdef NORMAL_MAP\nvertex_attribute vec4 hx_tangent;\n\nvarying_out vec3 tangent;\nvarying_out vec3 bitangent;\n#endif\n#endif\n\nvoid hx_geometry()\n{\n    vec4 morphedPosition = hx_position;\n\n    #ifndef HX_SKIP_NORMALS\n    vec3 morphedNormal = hx_normal;\n    #endif\n\n// TODO: Abstract this in functions for easier reuse in other materials\n#ifdef HX_USE_MORPHING\n    morphedPosition.xyz += hx_morphPosition0 * hx_morphWeights[0];\n    morphedPosition.xyz += hx_morphPosition1 * hx_morphWeights[1];\n    morphedPosition.xyz += hx_morphPosition2 * hx_morphWeights[2];\n    morphedPosition.xyz += hx_morphPosition3 * hx_morphWeights[3];\n    #ifdef HX_USE_NORMAL_MORPHING\n        #ifndef HX_SKIP_NORMALS\n        morphedNormal += hx_morphNormal0 * hx_morphWeights[0];\n        morphedNormal += hx_morphNormal1 * hx_morphWeights[1];\n        morphedNormal += hx_morphNormal2 * hx_morphWeights[2];\n        morphedNormal += hx_morphNormal3 * hx_morphWeights[3];\n        #endif\n    #else\n        morphedPosition.xyz += hx_morphPosition4 * hx_morphWeights[4];\n        morphedPosition.xyz += hx_morphPosition5 * hx_morphWeights[5];\n        morphedPosition.xyz += hx_morphPosition6 * hx_morphWeights[6];\n        morphedPosition.xyz += hx_morphPosition7 * hx_morphWeights[7];\n    #endif\n#endif\n\n#ifdef HX_USE_SKINNING\n    mat4 skinningMatrix = hx_getSkinningMatrix(0);\n\n    // first transform to armature space\n    // then apply skinning in skeleton space\n    // then transform back to object space\n    vec4 animPosition = hx_bindShapeMatrixInverse * ((hx_bindShapeMatrix * morphedPosition) * skinningMatrix);\n\n    #ifndef HX_SKIP_NORMALS\n        vec3 animNormal = morphedNormal * mat3(skinningMatrix);\n\n        #ifdef NORMAL_MAP\n        vec3 animTangent = hx_tangent.xyz * mat3(skinningMatrix);\n        #endif\n    #endif\n#else\n    vec4 animPosition = morphedPosition;\n\n    #ifndef HX_SKIP_NORMALS\n        vec3 animNormal = morphedNormal;\n\n        #ifdef NORMAL_MAP\n        vec3 animTangent = hx_tangent.xyz;\n        #endif\n    #endif\n#endif\n\n#ifdef HX_USE_INSTANCING\n    // column major initialized by rows, so be post-multiply\n    mat4 instanceMatrix = mat4(hx_instanceMatrix0, hx_instanceMatrix1, hx_instanceMatrix2, vec4(0.0, 0.0, 0.0, 1.0));\n    animPosition = animPosition * instanceMatrix;\n\n    #ifndef HX_SKIP_NORMALS\n        mat3 instanceNormalMatrix = mat3(instanceMatrix);\n        animNormal = animNormal * instanceNormalMatrix;\n        #ifdef NORMAL_MAP\n            animTangent = animTangent * instanceNormalMatrix;\n        #endif\n    #endif\n#endif\n\n    // TODO: Should gl_position be handled by the shaders if we only return local position?\n    gl_Position = hx_wvpMatrix * animPosition;\n\n#ifndef HX_SKIP_NORMALS\n    normal = normalize(hx_normalWorldViewMatrix * animNormal);\n\n    #ifdef NORMAL_MAP\n        tangent = mat3(hx_worldViewMatrix) * animTangent;\n        bitangent = cross(tangent, normal) * hx_tangent.w;\n    #endif\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\n    texCoords = hx_texCoord;\n#endif\n\n#ifdef VERTEX_COLORS\n    vertexColor = hx_vertexColor;\n#endif\n}';
 
 	ShaderLibrary._files['default_skybox_fragment.glsl'] = 'varying_in vec3 viewWorldDir;\n\nuniform samplerCube hx_skybox;\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n    data.color = textureCube(hx_skybox, viewWorldDir.xzy);\n    data.emission = vec3(0.0);\n    data.color = hx_gammaToLinear(data.color);\n    return data;\n}';
 
@@ -3661,18 +3661,6 @@
 
 	ShaderLibrary._files['sh_skybox_fragment.glsl'] = 'varying_in vec3 viewWorldDir;\n\nuniform vec3 hx_sh[9];\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n    data.color = vec4(hx_evaluateSH(hx_sh, normalize(viewWorldDir.xzy)), 1.0);\n    data.emission = vec3(0.0);\n    return data;\n}';
 
-	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
-
-	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
-
-	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
-
-	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
-
-	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
-
 	ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	hx_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
 	ShaderLibrary._files['bloom_composite_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
@@ -3702,6 +3690,18 @@
 	ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	hx_FragColor = vec4(l, l, l, 1.0);\n}';
 
 	ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	hx_FragColor = color / (1.0 + lum);\n}';
+
+	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
+
+	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
+
+	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
+
+	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
+
+	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
 
 	ShaderLibrary._files['esm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readValue(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readValue(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValue(uv + offset) + readValue(uv - offset);\n	}\n\n//	hx_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	hx_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
 
@@ -4470,6 +4470,7 @@
 	var _blendState = null;
 	var _renderTarget = null;
 	var _shader = null;
+	var _instanceDivisors = [];
 
 	// this is so that effects can push states on the stack
 	// the renderer at the root just pushes one single state and invalidates that constantly
@@ -4521,18 +4522,47 @@
 	        ++_glStats.numClears;
 	    },
 
+		vertexAttribDivisor: function(index, divisor)
+		{
+			if (capabilities.WEBGL_2)
+				gl.vertexAttribDivisor(index, divisor);
+			else
+				capabilities.EXT_INSTANCED_ARRAYS.vertexAttribDivisorANGLE(index, divisor);
+
+			_instanceDivisors[index] = divisor;
+		},
+
 	    /**
 	     * Draws elements for the current index buffer bound.
 	     * @param elementType One of {@linkcode ElementType}.
 	     * @param numIndices The amount of indices in the index buffer
-	     * @param [offset] The first index to start drawing from.
 	     * @param [indexType] The data type of the index buffer.
+	     * @param [offset] The first index to start drawing from.
 	     */
-	    drawElements: function (elementType, numIndices, offset, indexType)
+	    drawElements: function (elementType, numIndices, indexType, offset)
 	    {
 	        indexType = indexType || gl.UNSIGNED_SHORT;
 	        ++_glStats.numDrawCalls;
-	        gl.drawElements(elementType, numIndices, indexType, (offset || 0) * 2);
+	        gl.drawElements(elementType, numIndices, indexType, (offset || 0) << 1);
+	    },
+
+	    /**
+	     * Draws multiple instances for the current index buffer bound.
+	     * @param elementType One of {@linkcode ElementType}.
+	     * @param numIndices The amount of indices in the index buffer
+	     * @param offset The first index to start drawing from.
+	     * @param indexType The data type of the index buffer.
+	     * @param numInstances The amount of instances to draw
+	     */
+	    drawElementsInstanced: function (elementType, numIndices, indexType, offset, numInstances)
+	    {
+	        if (numInstances === 0) return;
+	        indexType = indexType || gl.UNSIGNED_SHORT;
+	        ++_glStats.numDrawCalls;
+	        if (capabilities.WEBGL_2)
+	            gl.drawElementsInstanced(elementType, numIndices, indexType, (offset || 0) << 1, numInstances);
+	        else
+			    capabilities.EXT_INSTANCED_ARRAYS.drawElementsInstancedANGLE(elementType, numIndices, indexType, (offset || 0) << 1, numInstances);
 	    },
 
 	    setShader: function(shader)
@@ -4546,6 +4576,8 @@
 
 			// let the cache know that we're still using the program in this frame
 			shader._cachedProgram.frameMark = META.CURRENT_FRAME_MARK;
+
+			GL.enableAttributes(shader._numAttributes, shader._attributeFlags);
 	    },
 
 	    /**
@@ -4629,19 +4661,22 @@
 	    /**
 	     * Enables a given count of vertex attributes.
 	     */
-	    enableAttributes: function (count)
+	    enableAttributes: function (count, flags)
 	    {
 	        var numActiveAttribs = _numActiveAttributes;
-	        var i;
 
-	        if (numActiveAttribs < count) {
-	            for (i = numActiveAttribs; i < count; ++i)
+			for (var i = 0; i < count; ++i) {
+			    // clear instanced settings
+			    if (_instanceDivisors[i])
+					GL.vertexAttribDivisor(i, 0);
+
+	            if (flags & (1 << i))
 	                gl.enableVertexAttribArray(i);
+	            else
+	                gl.disableVertexAttribArray(i);
 	        }
-	        else if (numActiveAttribs > count) {
-	            // bug in WebGL/ANGLE? When rendering to a render target, disabling vertex attrib array 1 causes errors when using only up to the index below o_O
-	            // so for now + 1
-	            count += 1;
+
+	        if (numActiveAttribs > count) {
 	            for (i = count; i < numActiveAttribs; ++i) {
 	                gl.disableVertexAttribArray(i);
 	            }
@@ -5138,6 +5173,7 @@
 		this.program = null;
 		this.renderOrderHint = -1;
 		this._uniforms = null;
+		this._numAttributes = 0;
 		this._textureUniforms = null;
 		this._uniformBlocks = null;
 		this._ready = false;
@@ -5163,6 +5199,7 @@
 			this.renderOrderHint = this._cachedProgram.renderOrderHint;
 
 			this._storeUniforms();
+			this._storeAttributes();
 
 			this._ready = true;
 		},
@@ -5188,6 +5225,21 @@
 		getAttributeLocation: function(name)
 		{
 			return GL.gl.getAttribLocation(this.program, name);
+		},
+
+		_storeAttributes: function()
+		{
+			var gl = GL.gl;
+
+			this._attributeFlags = 0;
+			this._numAttributes = 0;
+			var len = gl.getProgramParameter(this.program, gl.ACTIVE_ATTRIBUTES);
+			for (var i = 0; i < len; ++i) {
+				var attrib = gl.getActiveAttrib(this.program, i);
+				var loc = gl.getAttribLocation(this.program, attrib.name);
+				this._attributeFlags |= 1 << loc;
+				this._numAttributes = Math.max(loc + 1, this._numAttributes);
+			}
 		},
 
 		_storeUniforms: function()
@@ -5329,9 +5381,7 @@
 	    gl.vertexAttribPointer(this._positionAttributeLocation, 2, gl.FLOAT, false, 16, 0);
 	    gl.vertexAttribPointer(this._texCoordAttributeLocation, 2, gl.FLOAT, false, 16, 8);
 
-	    GL.enableAttributes(2);
-
-	    GL.drawElements(ElementType.TRIANGLES, 6, 0);
+	    GL.drawElements(ElementType.TRIANGLES, 6);
 	};
 
 
@@ -13061,6 +13111,7 @@
 	        EXT_COLOR_BUFFER_FLOAT: null,
 	        EXT_COLOR_BUFFER_HALF_FLOAT: null,
 			EXT_COMPRESSED_TEXTURE_S3TC: null,
+			EXT_INSTANCED_ARRAYS: null,
 
 	        DEFAULT_TEXTURE_MAX_ANISOTROPY: 0,
 	        HDR_DATA_TYPE: 0,
@@ -13582,6 +13633,7 @@
 	    capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC = _getExtension("EXT_texture_filter_anisotropic");
 	    capabilities.EXT_ELEMENT_INDEX_UINT = _getExtension("OES_element_index_uint");
 	    capabilities.EXT_COMPRESSED_TEXTURE_S3TC = _getExtension("WEBKIT_WEBGL_compressed_texture_s3tc") || _getExtension("WEBGL_compressed_texture_s3tc");
+	    capabilities.EXT_INSTANCED_ARRAYS = _getExtension("ANGLE_instanced_arrays");
 	    capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY = capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC ? gl.getParameter(capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 0;
 
 	    if (capabilities.EXT_FLOAT_TEXTURES)
@@ -15756,7 +15808,13 @@
 	            normalized: attribute.normalized
 	        };
 
+			// so in some cases, it occurs that - when attributes are optimized out by the driver - the indices don't change,
+			// but those unused become -1, leaving gaps. This keeps the gaps so we can take care of them
+			this.attributes[index] = attrib;
+			this._numAttributes = Math.max(this._numAttributes, index + 1);
+
 	        // morph attributes are handled differently because their associated vertex buffers change dynamically
+	        // their state is uploaded by MeshInstance itself
 	        if (attribute.name.indexOf("hx_morphPosition") === 0) {
 	            this.morphPositionAttributes.push(attrib);
 	            attrib.external = true;
@@ -15766,13 +15824,15 @@
 	            this.morphNormalAttributes.push(attrib);
 	            attrib.external = true;
 	        }
-
-	        // so in some cases, it occurs that - when attributes are optimized out by the driver - the indices don't change,
-	        // but those unused become -1, leaving gaps. This keeps the gaps so we can take care of them
-	        this.attributes[index] = attrib;
-
-	        this._numAttributes = Math.max(this._numAttributes, index + 1);
 	    }
+
+	    // any instanced attribs that isn't managed by vertex layout
+	    var builtIn = ["hx_instanceMatrix0", "hx_instanceMatrix1", "hx_instanceMatrix2"];
+	    for (var i = 0; i < 3; ++i) {
+	        index = shader.getAttributeLocation(builtIn[i]);
+			this._numAttributes = Math.max(this._numAttributes, index + 1);
+	    }
+
 	}
 
 	/**
@@ -15967,8 +16027,8 @@
 	 * @property {number} lodRangeEnd The maximum distance to render this MeshInstance. Can be used with other
 	 * MeshInstances to enable LOD support, or singly for pop-in or impostors.
 	 *
-	 * @param mesh The {@linkcode Mesh} providing the geometry for this instance.
-	 * @param material The {@linkcode Material} to use to render the given Mesh.
+	 * @param {Mesh} mesh The {@linkcode Mesh} providing the geometry for this instance.
+	 * @param {Material} material The {@linkcode Material} to use to render the given Mesh.
 	 * @constructor
 	 *
 	 * @author derschmale <http://www.derschmale.com>
@@ -15995,7 +16055,6 @@
 		this._skeleton = null;
 		this.mesh = mesh;
 		this.material = material;
-
 	}
 
 	Component.create(MeshInstance, {
@@ -16153,8 +16212,6 @@
 		var attributes = layout.attributes;
 		len = layout._numAttributes;
 
-		GL.enableAttributes(layout._numAttributes);
-
 		for (i = 0; i < len; ++i) {
 			attribute = attributes[i];
 
@@ -16164,12 +16221,6 @@
 					vertexBuffers[attribute.streamIndex].bind();
 					gl.vertexAttribPointer(i, attribute.numComponents, gl.FLOAT, false, attribute.stride, attribute.offset);
 				}
-			}
-			else {
-				GL.gl.disableVertexAttribArray(i);
-				// there seem to be some bugs in ANGLE with disabling vertex attribute arrays, so bind a dummy instead
-				// vertexBuffers[0].bind();
-				// gl.vertexAttribPointer(i, 1, gl.FLOAT, false, 4, 0);
 			}
 		}
 	};
@@ -18602,6 +18653,7 @@
 	    this._useMorphing = false;
 	    this._useNormalMorphing = false;
 	    this._useSkinning = false;
+	    this._useInstancing = false;
 
 	    this._geometryVertexShader = geometryVertexShader;
 	    this._geometryFragmentShader = geometryFragmentShader;
@@ -18637,6 +18689,9 @@
 
 	        if (this._useSkinning)
 	            vertex = "#define HX_USE_SKINNING\n" + vertex;
+
+	        if (this._useInstancing)
+	            vertex = "#define HX_USE_INSTANCING\n" + vertex;
 
 	        if (this._useMorphing) {
 	            vertex = "#define HX_USE_MORPHING\n" + vertex;
@@ -18972,6 +19027,17 @@
 	            this._invalidate();
 
 	        this._useSkinning = value;
+	    },
+
+	    /**
+	     * @ignore
+	     */
+	    _setUseInstancing: function(value)
+	    {
+	        if (this._useInstancing !== value)
+	            this._invalidate();
+
+	        this._useInstancing = value;
 	    },
 
 	    /**
@@ -24752,7 +24818,7 @@
 	EffectPass.prototype.draw = function(renderer)
 	{
 		this.updateRenderState(renderer);
-		GL.drawElements(GL.gl.TRIANGLES, 6, 0);
+		GL.drawElements(GL.gl.TRIANGLES, 6);
 	};
 
 	/**
@@ -24775,8 +24841,6 @@
 			var attribute = attributes[i];
 			GL.gl.vertexAttribPointer(attribute.index, attribute.numComponents, GL.gl.FLOAT, false, attribute.stride, attribute.offset);
 		}
-
-		GL.enableAttributes(layout._numAttributes);
 	};
 
 	/**
@@ -28172,7 +28236,6 @@
 
 	        toCubeIndices.bind();
 
-	        GL.enableAttributes(2);
 	        var old = GL.getCurrentRenderTarget();
 
 	        for (var i = 0; i < 6; ++i) {
@@ -30343,11 +30406,9 @@
 	    gl.vertexAttribPointer(this._positionAttributeLocation, 2, gl.FLOAT, false, 16, 0);
 	    gl.vertexAttribPointer(this._texCoordAttributeLocation, 2, gl.FLOAT, false, 16, 8);
 
-	    GL.enableAttributes(2);
-
 	    gl.uniform2f(this._directionLocation, dirX, dirY);
 
-	    GL.drawElements(ElementType.TRIANGLES, 6, 0);
+	    GL.drawElements(ElementType.TRIANGLES, 6);
 	};
 
 	/**
@@ -30379,6 +30440,7 @@
 	    gl.useProgram(this.program);
 	    gl.uniform1i(this._textureLocation, 0);
 	}
+
 	VSMBlurShader.prototype = Object.create(Shader.prototype);
 
 	VSMBlurShader.prototype.execute = function (rect, texture, dirX, dirY)
@@ -30397,11 +30459,9 @@
 	    gl.vertexAttribPointer(this._positionAttributeLocation, 2, DataType.FLOAT, false, 16, 0);
 	    gl.vertexAttribPointer(this._texCoordAttributeLocation, 2, DataType.FLOAT, false, 16, 8);
 
-	    GL.enableAttributes(2);
-
 	    gl.uniform2f(this._directionLocation, dirX, dirY);
 
-	    GL.drawElements(gl.TRIANGLES, 6, 0);
+	    GL.drawElements(gl.TRIANGLES, 6);
 	};
 
 	/**
@@ -30664,6 +30724,359 @@
 
 	    return ShaderLibrary.get("shadow_pcf.glsl", defines);
 	};
+
+	// The hardest part is deferring the creation/deletion of the objects while still making the interface behave as if it's
+	// done
+	// indices can be updated later, since we're dealing with IDs
+
+	/**
+	 * @classdesc
+	 *
+	 * MeshBatch allows bundling a {@linkcode Mesh} with a {@linkcode Material} similar to {@linkcode MeshInstance}, but
+	 * allows rendering multiple instances in a single draw call.
+	 *
+	 * @property {number} numInstances The amount of instances that will be drawn.
+	 *
+	 * @param {Mesh} mesh The {@linkcode Mesh} providing the geometry for this instance.
+	 * @param {Material} material The {@linkcode Material} to use to render the given Mesh.
+	 * @param {Boolean} dynamic Whether or not the generated geometry is dynamic. If so, updating the instance transforms
+	 * often can be faster, but it removes frustum culling for this batch unless bounds are explicitly assigned. Defaults to false.
+	 * @constructor
+	 *
+	 * @extends MeshInstance
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function MeshBatch(mesh, material, dynamic)
+	{
+		MeshInstance.call(this, mesh, material);
+		material._setUseInstancing(true);
+		this._dynamic = dynamic || false;
+
+		this._idCounter = 0;
+		this._bufferSizeInvalid = false;
+		this._instanceTransformData = new Float32Array([]);		// contains 3 vec4 objects forming an affine matrix
+		this._numInstances = 0;
+
+		// cannot update bounds constantly if dynamic, so always draw
+		this._bounds.clear(dynamic? BoundingVolume.EXPANSE_INFINITE : BoundingVolume.EXPANSE_EMPTY);
+		this._boundsInvalid = false;
+		this._vertexBuffer = new VertexBuffer();
+		this._vertexBufferInvalid = false;
+
+		this._addQueue = [];
+		this._deleteQueue = [];
+		this._idToIndex = {};
+		this._indexToID = [];
+
+		this._MI_updateRenderState = MeshInstance.prototype.updateRenderState;
+	}
+
+	MeshBatch.prototype = Object.create(MeshInstance.prototype, {
+		dynamic: {
+			get: function()
+			{
+				return this._dynamic;
+			}
+		},
+
+		numInstances: {
+			get: function()
+			{
+				return this._numInstances;
+			}
+		}
+	});
+
+	/**
+	 * Adds an instance.
+	 * @param transform A {@linkcode Matrix4x4} or a {@linkcode Transform} containing the transformation for the instance.
+	 * @returns {number} An ID representing the instance. Use this to set the transform in {@linkcode MeshBatch#setTransform}
+	 * and {@linkcode MeshBatch#destroyInstance].
+	 */
+	MeshBatch.prototype.createInstance = function(transform)
+	{
+		var id = ++this._idCounter;
+
+		var matrix;
+		if (transform instanceof Matrix4x4)
+			matrix = transform;
+		else
+			matrix  = transform.matrix;
+
+		this._addQueue.push({
+			id: id,
+			matrix: matrix.clone()	// need to clone so that we could use the same object multiple times
+		});
+
+		var bound = this._mesh.bounds.clone();
+		bound.transformFrom(bound, matrix);
+
+		if (!this._dynamic)
+			this._bounds.growToIncludeBound(bound);
+
+		++this._numInstances;
+
+		this._vertexBufferInvalid = true;
+
+		return id;
+	};
+
+	/**
+	 * Changes the transform for an instance. This is only allowed if dynamic is set to true;
+	 * @param instanceID The instance ID as returned by {@linkcode MeshBatch#createInstance}
+	 * @param transform A {@linkcode Matrix4x4} or {@linkcode Transform} object.
+	 */
+	MeshBatch.prototype.setTransform = function(instanceID, transform)
+	{
+		var matrix;
+		if (transform instanceof Matrix4x4)
+			matrix = transform;
+		else
+			matrix  = transform.matrix;
+
+		// not added yet, keep in
+		var index = this._idToIndex[instanceID];
+		if (index === undefined) {
+			index = this._getAddQueueIndex(instanceID);
+			this._addQueue[index].matrix.copyFrom(matrix);
+		}
+		else {
+			this._writeMatrix(index, matrix);
+			this._vertexBufferInvalid = true;
+		}
+
+		if (!this._dynamic)
+			this.invalidateBounds();
+	};
+
+	MeshBatch.prototype.destroyInstance = function(instanceID)
+	{
+		// if no link to index is present it's still in the add queue, just need to remove it:
+		if (this._idToIndex[instanceID] === undefined) {
+			var index = this._getAddQueueIndex(instanceID);
+			this._addQueue.splice(index, 1);
+		}
+		else {
+			this._deleteQueue.push(instanceID);
+			this._vertexBufferInvalid = true;
+		}
+
+		--this._numInstances;
+	};
+
+	MeshBatch.prototype._getAddQueueIndex = function(instanceID)
+	{
+		for (var i = 0, len = this._addQueue.length; i < len; ++i) {
+			var a = this._addQueue[i];
+			if (a.id === instanceID)
+				return i;
+		}
+		return -1;
+	};
+
+	var m = new Matrix4x4();
+	MeshBatch.prototype._updateBounds = function()
+	{
+		// this only happens when changing static MeshBatch, hence it's a bit slower but more precise.
+		var meshBounds = this._mesh.bounds;
+		var bounds = this._bounds;
+		var b = meshBounds.clone();
+
+		for (var i = 0, len = this._numInstances; i < len; ++i) {
+			this._readMatrix(i, m);
+			b.transformFrom(meshBounds, m);
+			bounds.growToIncludeBound(b);
+		}
+
+		for (i = 0, len = this._addQueue.length; i < len; ++i) {
+			b.transformFrom(meshBounds, this._addQueue[i].matrix);
+			bounds.growToIncludeBound(b);
+		}
+	};
+
+	/**
+	 * @inheritDoc
+	 */
+	MeshBatch.prototype.updateRenderState = function(passType)
+	{
+		if (this._vertexBufferInvalid)
+			this._updateVertexBuffer();
+
+		this._MI_updateRenderState(passType);
+
+		var gl = GL.gl;
+		var attribLocs = this._attribLocations[passType];
+
+		this._vertexBuffer.bind();
+
+		var offs = 0;
+		for (var r = 0; r < 3; ++r) {
+			var loc = attribLocs[r];
+			gl.vertexAttribPointer(loc, 4, gl.FLOAT, false, 48, offs);
+			GL.vertexAttribDivisor(loc, 1);
+			offs += 16;
+		}
+	};
+
+	/**
+	 * @ignore
+	 * @private
+	 */
+	MeshBatch.prototype._updateVertexBuffer = function()
+	{
+		if (this._deleteQueue.length || this._addQueue.length)
+			this._recreateVertexBuffer();
+
+		this._vertexBuffer.uploadData(this._instanceTransformData, this._dynamic? BufferUsage.DYNAMIC_DRAW : BufferUsage.STATIC_DRAW);
+		this._vertexBufferInvalid = false;
+	};
+
+	/**
+	 * @ignore
+	 * @private
+	 */
+	MeshBatch.prototype._recreateVertexBuffer = function()
+	{
+		var numInstances = this._numInstances;
+		var oldData = this._instanceTransformData;
+		var newLen = numInstances * 12;
+
+		// if length didn't change, no need to create new instance
+		// the update algorithm works in place, since it only writes to elements that it no longer needs to read (newIndex <= oldIndex)
+		var newData = newLen === oldData.length? oldData : new Float32Array(newLen);
+
+		var deleteCount = this._deleteQueue.length;
+
+		if (deleteCount)
+			this._processDeletes(oldData, newData);
+		else if (oldData !== newData)
+			// simply copy of nothing was deleted
+			newData.set(oldData);
+
+		this._instanceTransformData = newData;
+
+		var addCount = this._addQueue.length;
+		var offset = numInstances - addCount;
+		for (var i = 0; i < addCount; ++i) {
+			var elm = this._addQueue[i];
+			var index = i + offset;
+			this._writeMatrix(index, elm.matrix);
+			this._indexToID[index] = elm.id;
+			this._idToIndex[elm.id] = index;
+		}
+
+		this._indexToID.length = numInstances;
+		this._addQueue.length = 0;
+	};
+
+	MeshBatch.prototype._processDeletes = function(oldData, newData)
+	{
+		// sort so we can keep grabbing the top of the stack to find the first deleted instance
+		// this works because: id(a) > id(b) <=> index(a) > index(b)
+		this._deleteQueue.sort(sortDeletes);
+
+		var deletedID = this._deleteQueue.pop();
+		var oldLen = oldData.length;
+		var oldInstances = oldLen / 12;
+
+		// copy the old data while removing the deleted objects (must ignore the added amount)
+		for (var newI = 0, oldI = 0; oldI < oldInstances; ++newI, ++oldI) {
+			var id = this._indexToID[oldI];
+
+			// this is better than splicing on delete
+			this._indexToID[newI] = id;
+
+			if (id === deletedID) {
+				delete this._idToIndex[id];
+				// do not update new index
+				--newI;
+				deletedID = this._deleteQueue.pop();
+			}
+			else {
+				// store new index
+				this._idToIndex[id] = newI;
+
+				// copy the data
+				var start$$1 = newI * 12;
+				var end = start$$1 + 12;
+				for (var i = start$$1, o = oldI * 12; i < end; ++i, ++o)
+					newData[i] = oldData[o];
+			}
+		}
+
+		// test to see algo behaves as expected
+		console.assert(this._deleteQueue.length === 0, "Delete queue not empty.");
+	};
+
+	/**
+	 * @inheritDoc
+	 * @private
+	 */
+	MeshBatch.prototype._initVertexLayouts = function()
+	{
+		MeshInstance.prototype._initVertexLayouts.call(this);
+
+		this._attribLocations = [];
+		for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
+			var shader = this._material.getPass(i);
+			var arr = [
+				shader.getAttributeLocation("hx_instanceMatrix0"),
+				shader.getAttributeLocation("hx_instanceMatrix1"),
+				shader.getAttributeLocation("hx_instanceMatrix2")
+			];
+
+			if (arr[0] < 0 || arr[1] < 0 || arr[2] < 0)
+				throw new Error("Trying to draw MeshBatch with an incompatible shader. Make sure hx_instanceMatrix0, hx_instanceMatrix1 and hx_instanceMatrix2 are available in the shader.");
+
+			this._attribLocations[i] = arr;
+		}
+	};
+
+	/**
+	 * @private
+	 * @ignore
+	 */
+	MeshBatch.prototype._readMatrix = function (index, matrix)
+	{
+		var m = matrix._m;
+		var i = index * 12;
+		var data = this._instanceTransformData;
+
+		for (var r = 0; r < 3; ++r) {
+			// so we can store 3 vec4 objects, we transpose the matrix. This is handled in the shader by post-multiplying
+			// the matrix to the position vector.
+			m[r] = data[i++];
+			m[r + 4] = data[i++];
+			m[r + 8] = data[i++];
+			m[r + 12] = data[i++];
+		}
+	};
+
+	/**
+	 * @private
+	 * @ignore
+	 */
+	MeshBatch.prototype._writeMatrix = function (index, matrix)
+	{
+		var m = matrix._m;
+		var i = index * 12;
+		var data = this._instanceTransformData;
+
+		for (var r = 0; r < 3; ++r) {
+			// so we can store 3 vec4 objects, we transpose the matrix. This is handled in the shader by post-multiplying
+			// the matrix to the position vector.
+			data[i++] = m[r];
+			data[i++] = m[r + 4];
+			data[i++] = m[r + 8];
+			data[i++] = m[r + 12];
+		}
+	};
+
+	function sortDeletes(a, b)
+	{
+		return b - a;
+	}
 
 	/**
 	 * @classdesc
@@ -31366,7 +31779,10 @@
 	    var bucket = (material.blendState || material.needsBackbuffer)? transparentList : opaqueLists[path];
 	    bucket.push(renderItem);
 
-		_glStats.numTriangles += meshInstance.mesh.numIndices / 3;
+	    var numTris = meshInstance.mesh.numIndices / 3;
+	    if (meshInstance.numInstances !== undefined)
+	    	numTris *= meshInstance.numInstances;
+		_glStats.numTriangles += numTris;
 	};
 
 	RenderCollector.prototype.visitAmbientLight = function(light)
@@ -31469,7 +31885,12 @@
 	        }
 
 	        var mesh = meshInstance._mesh;
-	        GL.drawElements(mesh.elementType, mesh._numIndices, 0, mesh._indexType);
+	        var numInstances = meshInstance.numInstances;
+
+	        if (numInstances === undefined)
+	            GL.drawElements(mesh.elementType, mesh._numIndices, mesh._indexType, 0);
+	        else
+				GL.drawElementsInstanced(mesh.elementType, mesh._numIndices, mesh._indexType, 0, numInstances);
 	    }
 
 	    GL.setBlendState(null);
@@ -33055,8 +33476,14 @@
 	        pass.updatePassRenderState(this._activeCamera, this, data);
 	        pass.updateInstanceRenderState(this._activeCamera, renderItem, data);
 			meshInstance.updateRenderState(passType);
-	        var mesh = meshInstance._mesh;
-	        GL.drawElements(mesh.elementType, mesh._numIndices, 0, mesh._indexType);
+
+			var mesh = meshInstance._mesh;
+			var numInstances = meshInstance.numInstances;
+
+			if (numInstances === undefined)
+	        	GL.drawElements(mesh.elementType, mesh._numIndices, mesh._indexType, 0);
+			else
+				GL.drawElementsInstanced(mesh.elementType, mesh._numIndices, mesh._indexType, 0, numInstances);
 	    },
 
 	    /**
@@ -34198,6 +34625,7 @@
 	exports.SkyboxSHMaterial = SkyboxSHMaterial;
 	exports.Mesh = Mesh;
 	exports.MeshInstance = MeshInstance;
+	exports.MeshBatch = MeshBatch;
 	exports.SpherePrimitive = SpherePrimitive;
 	exports.BoxPrimitive = BoxPrimitive;
 	exports.Primitive = Primitive;

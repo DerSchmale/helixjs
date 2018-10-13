@@ -44,6 +44,13 @@ uniform vec4 hx_skinningMatrices[HX_MAX_SKELETON_JOINTS * 3];
 #endif
 #endif
 
+#ifdef HX_USE_INSTANCING
+// these are the matrix ROWS
+vertex_attribute vec4 hx_instanceMatrix0;
+vertex_attribute vec4 hx_instanceMatrix1;
+vertex_attribute vec4 hx_instanceMatrix2;
+#endif
+
 uniform mat4 hx_wvpMatrix;
 uniform mat4 hx_worldViewMatrix;
 
@@ -122,6 +129,20 @@ void hx_geometry()
 
         #ifdef NORMAL_MAP
         vec3 animTangent = hx_tangent.xyz;
+        #endif
+    #endif
+#endif
+
+#ifdef HX_USE_INSTANCING
+    // column major initialized by rows, so be post-multiply
+    mat4 instanceMatrix = mat4(hx_instanceMatrix0, hx_instanceMatrix1, hx_instanceMatrix2, vec4(0.0, 0.0, 0.0, 1.0));
+    animPosition = animPosition * instanceMatrix;
+
+    #ifndef HX_SKIP_NORMALS
+        mat3 instanceNormalMatrix = mat3(instanceMatrix);
+        animNormal = animNormal * instanceNormalMatrix;
+        #ifdef NORMAL_MAP
+            animTangent = animTangent * instanceNormalMatrix;
         #endif
     #endif
 #endif

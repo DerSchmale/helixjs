@@ -131,7 +131,10 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance, entity)
     var bucket = (material.blendState || material.needsBackbuffer)? transparentList : opaqueLists[path];
     bucket.push(renderItem);
 
-	_glStats.numTriangles += meshInstance.mesh.numIndices / 3;
+    var numTris = meshInstance.mesh.numIndices / 3;
+    if (meshInstance.numInstances !== undefined)
+    	numTris *= meshInstance.numInstances;
+	_glStats.numTriangles += numTris;
 };
 
 RenderCollector.prototype.visitAmbientLight = function(light)

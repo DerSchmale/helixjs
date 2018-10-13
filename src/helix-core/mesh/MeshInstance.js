@@ -26,8 +26,8 @@ var nameCounter = 0;
  * @property {number} lodRangeEnd The maximum distance to render this MeshInstance. Can be used with other
  * MeshInstances to enable LOD support, or singly for pop-in or impostors.
  *
- * @param mesh The {@linkcode Mesh} providing the geometry for this instance.
- * @param material The {@linkcode Material} to use to render the given Mesh.
+ * @param {Mesh} mesh The {@linkcode Mesh} providing the geometry for this instance.
+ * @param {Material} material The {@linkcode Material} to use to render the given Mesh.
  * @constructor
  *
  * @author derschmale <http://www.derschmale.com>
@@ -54,7 +54,6 @@ function MeshInstance(mesh, material)
 	this._skeleton = null;
 	this.mesh = mesh;
 	this.material = material;
-
 }
 
 Component.create(MeshInstance, {
@@ -212,8 +211,6 @@ MeshInstance.prototype.updateRenderState = function(passType)
 	var attributes = layout.attributes;
 	len = layout._numAttributes;
 
-	GL.enableAttributes(layout._numAttributes);
-
 	for (i = 0; i < len; ++i) {
 		attribute = attributes[i];
 
@@ -223,12 +220,6 @@ MeshInstance.prototype.updateRenderState = function(passType)
 				vertexBuffers[attribute.streamIndex].bind();
 				gl.vertexAttribPointer(i, attribute.numComponents, gl.FLOAT, false, attribute.stride, attribute.offset);
 			}
-		}
-		else {
-			GL.gl.disableVertexAttribArray(i);
-			// there seem to be some bugs in ANGLE with disabling vertex attribute arrays, so bind a dummy instead
-			// vertexBuffers[0].bind();
-			// gl.vertexAttribPointer(i, 1, gl.FLOAT, false, 4, 0);
 		}
 	}
 };

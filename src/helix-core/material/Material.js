@@ -58,6 +58,7 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
     this._useMorphing = false;
     this._useNormalMorphing = false;
     this._useSkinning = false;
+    this._useInstancing = false;
 
     this._geometryVertexShader = geometryVertexShader;
     this._geometryFragmentShader = geometryFragmentShader;
@@ -93,6 +94,9 @@ Material.prototype =
 
         if (this._useSkinning)
             vertex = "#define HX_USE_SKINNING\n" + vertex;
+
+        if (this._useInstancing)
+            vertex = "#define HX_USE_INSTANCING\n" + vertex;
 
         if (this._useMorphing) {
             vertex = "#define HX_USE_MORPHING\n" + vertex;
@@ -428,6 +432,17 @@ Material.prototype =
             this._invalidate();
 
         this._useSkinning = value;
+    },
+
+    /**
+     * @ignore
+     */
+    _setUseInstancing: function(value)
+    {
+        if (this._useInstancing !== value)
+            this._invalidate();
+
+        this._useInstancing = value;
     },
 
     /**

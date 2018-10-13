@@ -60,7 +60,6 @@ export var EquirectangularTexture =
 
         toCubeIndices.bind();
 
-        GL.enableAttributes(2);
         var old = GL.getCurrentRenderTarget();
 
         for (var i = 0; i < 6; ++i) {

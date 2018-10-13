@@ -166,6 +166,7 @@ export {SkyboxSHMaterial} from "./material/SkyboxSHMaterial";
 
 export {Mesh} from "./mesh/Mesh";
 export {MeshInstance} from "./mesh/MeshInstance";
+export {MeshBatch} from "./mesh/MeshBatch";
 
 export {SpherePrimitive} from "./mesh/primitives/SpherePrimitive";
 export {BoxPrimitive} from "./mesh/primitives/BoxPrimitive";

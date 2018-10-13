@@ -15,6 +15,7 @@ var _depthTest = null;
 var _blendState = null;
 var _renderTarget = null;
 var _shader = null;
+var _instanceDivisors = [];
 
 // this is so that effects can push states on the stack
 // the renderer at the root just pushes one single state and invalidates that constantly
@@ -66,18 +67,47 @@ var GL = {
         ++_glStats.numClears;
     },
 
+	vertexAttribDivisor: function(index, divisor)
+	{
+		if (capabilities.WEBGL_2)
+			gl.vertexAttribDivisor(index, divisor);
+		else
+			capabilities.EXT_INSTANCED_ARRAYS.vertexAttribDivisorANGLE(index, divisor);
+
+		_instanceDivisors[index] = divisor;
+	},
+
     /**
      * Draws elements for the current index buffer bound.
      * @param elementType One of {@linkcode ElementType}.
      * @param numIndices The amount of indices in the index buffer
-     * @param [offset] The first index to start drawing from.
      * @param [indexType] The data type of the index buffer.
+     * @param [offset] The first index to start drawing from.
      */
-    drawElements: function (elementType, numIndices, offset, indexType)
+    drawElements: function (elementType, numIndices, indexType, offset)
     {
         indexType = indexType || gl.UNSIGNED_SHORT;
         ++_glStats.numDrawCalls;
-        gl.drawElements(elementType, numIndices, indexType, (offset || 0) * 2);
+        gl.drawElements(elementType, numIndices, indexType, (offset || 0) << 1);
+    },
+
+    /**
+     * Draws multiple instances for the current index buffer bound.
+     * @param elementType One of {@linkcode ElementType}.
+     * @param numIndices The amount of indices in the index buffer
+     * @param offset The first index to start drawing from.
+     * @param indexType The data type of the index buffer.
+     * @param numInstances The amount of instances to draw
+     */
+    drawElementsInstanced: function (elementType, numIndices, indexType, offset, numInstances)
+    {
+        if (numInstances === 0) return;
+        indexType = indexType || gl.UNSIGNED_SHORT;
+        ++_glStats.numDrawCalls;
+        if (capabilities.WEBGL_2)
+            gl.drawElementsInstanced(elementType, numIndices, indexType, (offset || 0) << 1, numInstances);
+        else
+		    capabilities.EXT_INSTANCED_ARRAYS.drawElementsInstancedANGLE(elementType, numIndices, indexType, (offset || 0) << 1, numInstances);
     },
 
     setShader: function(shader)
@@ -91,6 +121,8 @@ var GL = {
 
 		// let the cache know that we're still using the program in this frame
 		shader._cachedProgram.frameMark = META.CURRENT_FRAME_MARK;
+
+		GL.enableAttributes(shader._numAttributes, shader._attributeFlags);
     },
 
     /**
@@ -174,19 +206,22 @@ var GL = {
     /**
      * Enables a given count of vertex attributes.
      */
-    enableAttributes: function (count)
+    enableAttributes: function (count, flags)
     {
         var numActiveAttribs = _numActiveAttributes;
-        var i;
 
-        if (numActiveAttribs < count) {
-            for (i = numActiveAttribs; i < count; ++i)
+		for (var i = 0; i < count; ++i) {
+		    // clear instanced settings
+		    if (_instanceDivisors[i])
+				GL.vertexAttribDivisor(i, 0);
+
+            if (flags & (1 << i))
                 gl.enableVertexAttribArray(i);
+            else
+                gl.disableVertexAttribArray(i);
         }
-        else if (numActiveAttribs > count) {
-            // bug in WebGL/ANGLE? When rendering to a render target, disabling vertex attrib array 1 causes errors when using only up to the index below o_O
-            // so for now + 1
-            count += 1;
+
+        if (numActiveAttribs > count) {
             for (i = count; i < numActiveAttribs; ++i) {
                 gl.disableVertexAttribArray(i);
             }

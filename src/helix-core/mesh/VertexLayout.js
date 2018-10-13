@@ -36,7 +36,13 @@ function VertexLayout(mesh, pass)
             normalized: attribute.normalized
         };
 
+		// so in some cases, it occurs that - when attributes are optimized out by the driver - the indices don't change,
+		// but those unused become -1, leaving gaps. This keeps the gaps so we can take care of them
+		this.attributes[index] = attrib;
+		this._numAttributes = Math.max(this._numAttributes, index + 1);
+
         // morph attributes are handled differently because their associated vertex buffers change dynamically
+        // their state is uploaded by MeshInstance itself
         if (attribute.name.indexOf("hx_morphPosition") === 0) {
             this.morphPositionAttributes.push(attrib);
             attrib.external = true;
@@ -46,13 +52,15 @@ function VertexLayout(mesh, pass)
             this.morphNormalAttributes.push(attrib);
             attrib.external = true;
         }
-
-        // so in some cases, it occurs that - when attributes are optimized out by the driver - the indices don't change,
-        // but those unused become -1, leaving gaps. This keeps the gaps so we can take care of them
-        this.attributes[index] = attrib;
-
-        this._numAttributes = Math.max(this._numAttributes, index + 1);
     }
+
+    // any instanced attribs that isn't managed by vertex layout
+    var builtIn = ["hx_instanceMatrix0", "hx_instanceMatrix1", "hx_instanceMatrix2"];
+    for (var i = 0; i < 3; ++i) {
+        index = shader.getAttributeLocation(builtIn[i]);
+		this._numAttributes = Math.max(this._numAttributes, index + 1);
+    }
+
 }
 
 export { VertexLayout };

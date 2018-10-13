@@ -17,6 +17,7 @@ function Shader(vertexShaderCode, fragmentShaderCode)
 	this.program = null;
 	this.renderOrderHint = -1;
 	this._uniforms = null;
+	this._numAttributes = 0;
 	this._textureUniforms = null;
 	this._uniformBlocks = null;
 	this._ready = false;
@@ -42,6 +43,7 @@ Shader.prototype = {
 		this.renderOrderHint = this._cachedProgram.renderOrderHint;
 
 		this._storeUniforms();
+		this._storeAttributes();
 
 		this._ready = true;
 	},
@@ -67,6 +69,21 @@ Shader.prototype = {
 	getAttributeLocation: function(name)
 	{
 		return GL.gl.getAttribLocation(this.program, name);
+	},
+
+	_storeAttributes: function()
+	{
+		var gl = GL.gl;
+
+		this._attributeFlags = 0;
+		this._numAttributes = 0;
+		var len = gl.getProgramParameter(this.program, gl.ACTIVE_ATTRIBUTES);
+		for (var i = 0; i < len; ++i) {
+			var attrib = gl.getActiveAttrib(this.program, i);
+			var loc = gl.getAttribLocation(this.program, attrib.name);
+			this._attributeFlags |= 1 << loc;
+			this._numAttributes = Math.max(loc + 1, this._numAttributes);
+		}
 	},
 
 	_storeUniforms: function()

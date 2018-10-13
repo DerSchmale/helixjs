@@ -58,7 +58,7 @@ EffectPass.prototype = Object.create(MaterialPass.prototype, {
 EffectPass.prototype.draw = function(renderer)
 {
 	this.updateRenderState(renderer);
-	GL.drawElements(GL.gl.TRIANGLES, 6, 0);
+	GL.drawElements(GL.gl.TRIANGLES, 6);
 };
 
 /**
@@ -81,8 +81,6 @@ EffectPass.prototype.updateRenderState = function(renderer)
 		var attribute = attributes[i];
 		GL.gl.vertexAttribPointer(attribute.index, attribute.numComponents, GL.gl.FLOAT, false, attribute.stride, attribute.offset);
 	}
-
-	GL.enableAttributes(layout._numAttributes);
 };
 
 export {EffectPass};

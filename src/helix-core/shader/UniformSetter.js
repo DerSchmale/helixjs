@@ -51,6 +51,7 @@ export var UniformSetter = {
         UniformSetter._instanceTable.hx_inverseWVPMatrix = InverseWVPSetter;
         UniformSetter._instanceTable.hx_normalWorldMatrix = NormalWorldMatrixSetter;
         UniformSetter._instanceTable.hx_normalWorldViewMatrix = NormalWorldViewMatrixSetter;
+		UniformSetter._instanceTable.hx_lodRange = LODRangeSetter;
         UniformSetter._instanceTable.hx_bindShapeMatrix = BindShapeMatrixSetter;
         UniformSetter._instanceTable.hx_bindShapeMatrixInverse = BindShapeMatrixInverseSetter;
         UniformSetter._instanceTable["hx_skinningMatrices[0]"] = SkinningMatricesSetter;
@@ -70,7 +71,6 @@ export var UniformSetter = {
         UniformSetter._passTable.hx_renderTargetResolution = RenderTargetResolutionSetter;
         UniformSetter._passTable.hx_rcpRenderTargetResolution = RCPRenderTargetResolutionSetter;
         UniformSetter._passTable.hx_dither2DTextureScale = Dither2DTextureScaleSetter;
-        UniformSetter._passTable.hx_ambientColor = AmbientColorSetter;
         UniformSetter._passTable["hx_poissonDisk[0]"] = PoissonDiskSetter;
         UniformSetter._passTable["hx_poissonSphere[0]"] = PoissonSphereSetter;
     }
@@ -229,6 +229,16 @@ NormalWorldViewMatrixSetter.prototype.execute = function() {
     }
 }();
 
+
+
+function LODRangeSetter()
+{
+}
+
+LODRangeSetter.prototype.execute = function (camera, renderItem)
+{
+	GL.gl.uniform2f(this.location, renderItem.lodRangeStart, renderItem.lodRangeEnd);
+};
 
 function CameraWorldPosSetter()
 {

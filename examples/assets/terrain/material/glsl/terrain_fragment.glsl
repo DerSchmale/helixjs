@@ -1,6 +1,11 @@
 #derivatives
 
-uniform sampler2D heightMap;
+uniform sampler2D hx_heightMap;
+uniform float hx_heightMapSize;
+uniform float hx_worldSize;
+uniform float hx_elevationScale;
+uniform mat4 hx_viewMatrix;
+
 uniform sampler2D sandNormals;
 uniform sampler2D terrainMap;
 uniform sampler2D sandTexture;
@@ -9,9 +14,6 @@ uniform sampler2D rockTexture;
 uniform sampler2D rockNormals;
 uniform sampler2D grassDetailNormals;
 uniform sampler2D terrainNormals;
-
-uniform float hx_elevationScale;
-uniform mat4 hx_viewMatrix;
 
 varying_in vec3 viewPosition;
 varying_in vec2 uv;
@@ -23,8 +25,6 @@ uniform float grassScale;
 uniform float grassScaleClose;
 uniform float sandScale;
 uniform float rockScale;
-uniform float heightMapSize;
-uniform float worldSize;
 
 vec3 getSandColor()
 {
@@ -74,13 +74,13 @@ vec3 getSnowNormal()
 HX_GeometryData hx_geometry()
 {
     float detailFactor = smoothstep(detailFadeNear, detailFadeFar, viewPosition.y);
-    float height = texture2D(heightMap, uv).x;
-    float stepSize = max(max(fwidth(uv.x), fwidth(uv.y)), 1.0 / heightMapSize);
-    vec3 tangentX = vec3(stepSize * worldSize, 0.0, 0.0);
-    vec3 tangentY = vec3(0.0, stepSize * worldSize, 0.0);
+    float height = texture2D(hx_heightMap, uv).x;
+    float stepSize = max(max(fwidth(uv.x), fwidth(uv.y)), 1.0 / hx_heightMapSize);
+    vec3 tangentX = vec3(stepSize * hx_worldSize, 0.0, 0.0);
+    vec3 tangentY = vec3(0.0, stepSize * hx_worldSize, 0.0);
 
-    tangentX.z = (texture2D(heightMap, uv + vec2(stepSize, 0.0)).x - height) * hx_elevationScale;
-    tangentY.z = (texture2D(heightMap, uv + vec2(0.0, stepSize)).x - height) * hx_elevationScale;
+    tangentX.z = (texture2D(hx_heightMap, uv + vec2(stepSize, 0.0)).x - height) * hx_elevationScale;
+    tangentY.z = (texture2D(hx_heightMap, uv + vec2(0.0, stepSize)).x - height) * hx_elevationScale;
 
     tangentX = normalize(tangentX);
     tangentY = normalize(tangentY);

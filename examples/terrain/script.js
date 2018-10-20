@@ -153,17 +153,15 @@ function initScene(scene, camera, assetLibrary)
     // blue = snow
     // otherwise, fall back to grass
     terrainMaterial = assetLibrary.get("terrain-material");
-    terrainMaterial.setTexture("heightMap", heightMap);
     terrainMaterial.setTexture("terrainMap", terrainMap);
-    terrainMaterial.setUniform("heightMapSize", heightMap.width);
-    terrainMaterial.setUniform("worldSize", worldSize);
 	terrainMaterial.fixedLights = lights;
 
     waterMaterial = assetLibrary.get("water-material");
 	waterMaterial.fixedLights = lights;
 
     var terrain = new HX.Entity();
-	terrain.addComponent(new HX.Terrain(camera.farDistance * 2.5, minHeight, maxHeight, 4, terrainMaterial, 32));
+    var subdiv = HX.Platform.isMobile? 32 : 128;
+	terrain.addComponent(new HX.Terrain(heightMap, camera.farDistance * 2.5, worldSize, minHeight, maxHeight, terrainMaterial, subdiv));
 
 	// this is definitely overkill:
 	var plane = new HX.PlanePrimitive({width: 8000, height: 8000, numSegmentsW: 40, numSegmentsH: 40});

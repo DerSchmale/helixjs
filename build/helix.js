@@ -3661,6 +3661,18 @@
 
 	ShaderLibrary._files['sh_skybox_fragment.glsl'] = 'varying_in vec3 viewWorldDir;\n\nuniform vec3 hx_sh[9];\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n    data.color = vec4(hx_evaluateSH(hx_sh, normalize(viewWorldDir.xzy)), 1.0);\n    data.emission = vec3(0.0);\n    return data;\n}';
 
+	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
+
+	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
+
+	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
+
+	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
+
+	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
+
 	ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	hx_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
 	ShaderLibrary._files['bloom_composite_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
@@ -3690,18 +3702,6 @@
 	ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	hx_FragColor = vec4(l, l, l, 1.0);\n}';
 
 	ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	hx_FragColor = color / (1.0 + lum);\n}';
-
-	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
-
-	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
-
-	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
-
-	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
-
-	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
 
 	ShaderLibrary._files['esm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readValue(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readValue(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValue(uv + offset) + readValue(uv - offset);\n	}\n\n//	hx_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	hx_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
 
@@ -11525,6 +11525,7 @@
 	        UniformSetter._instanceTable.hx_inverseWVPMatrix = InverseWVPSetter;
 	        UniformSetter._instanceTable.hx_normalWorldMatrix = NormalWorldMatrixSetter;
 	        UniformSetter._instanceTable.hx_normalWorldViewMatrix = NormalWorldViewMatrixSetter;
+			UniformSetter._instanceTable.hx_lodRange = LODRangeSetter;
 	        UniformSetter._instanceTable.hx_bindShapeMatrix = BindShapeMatrixSetter;
 	        UniformSetter._instanceTable.hx_bindShapeMatrixInverse = BindShapeMatrixInverseSetter;
 	        UniformSetter._instanceTable["hx_skinningMatrices[0]"] = SkinningMatricesSetter;
@@ -11544,7 +11545,6 @@
 	        UniformSetter._passTable.hx_renderTargetResolution = RenderTargetResolutionSetter;
 	        UniformSetter._passTable.hx_rcpRenderTargetResolution = RCPRenderTargetResolutionSetter;
 	        UniformSetter._passTable.hx_dither2DTextureScale = Dither2DTextureScaleSetter;
-	        UniformSetter._passTable.hx_ambientColor = AmbientColorSetter;
 	        UniformSetter._passTable["hx_poissonDisk[0]"] = PoissonDiskSetter;
 	        UniformSetter._passTable["hx_poissonSphere[0]"] = PoissonSphereSetter;
 	    }
@@ -11703,6 +11703,16 @@
 	}();
 
 
+
+	function LODRangeSetter()
+	{
+	}
+
+	LODRangeSetter.prototype.execute = function (camera, renderItem)
+	{
+		GL.gl.uniform2f(this.location, renderItem.lodRangeStart, renderItem.lodRangeEnd);
+	};
+
 	function CameraWorldPosSetter()
 	{
 	}
@@ -11775,16 +11785,6 @@
 	RenderTargetResolutionSetter.prototype.execute = function (camera)
 	{
 	    GL.gl.uniform2f(this.location, camera._renderTargetWidth, camera._renderTargetHeight);
-	};
-
-	function AmbientColorSetter()
-	{
-	}
-
-	AmbientColorSetter.prototype.execute = function (camera, renderer)
-	{
-	    var color = renderer._ambientColor;
-	    GL.gl.uniform3f(this.location, color.r, color.g, color.b);
 	};
 
 	function RCPRenderTargetResolutionSetter()
@@ -20794,43 +20794,50 @@
 	 *
 	 * @property {number} terrainSize The world size for the entire terrain.
 	 *
-	 * @param terrainSize The world size for the entire terrain's geometry. Generally smaller than the total world size of the height map.
-	 * @param minElevation The minimum elevation for the terrain (maps to heightmap value 0)
-	 * @param maxElevation The maximum elevation for the terrain (maps to heightmap value 1)
-	 * @param numLevels The amount of levels the page tree should contain. More levels means more(!) triangles.
-	 * @param material The {@linkcode Material} to use when rendering the terrain.
-	 * @param detail The grid size.
+	 * @param {Texture2D} heightMap The height map defining the height of the terrain.
+	 * @param {number} terrainSize The size of the terrain's geometry. Generally smaller than the total world size of the height map.
+	 * @param {number} worldSize The total world size covered by the heightmap.
+	 * @param {number} minElevation The minimum elevation for the terrain (maps to heightmap value 0)
+	 * @param {number} maxElevation The maximum elevation for the terrain (maps to heightmap value 1)
+	 * @param {Material} material The {@linkcode Material} to use when rendering the terrain.
+	 * @param {number} [subdivisions] The amount of subdivisions per patch. Must be divisible by 4. Defaults to 32.
 	 * @constructor
 	 *
 	 * @extends SceneNode
 	 *
 	 * @author derschmale <http://www.derschmale.com>
 	 */
-	function Terrain(terrainSize, minElevation, maxElevation, numLevels, material, detail)
+	function Terrain(heightMap, terrainSize, worldSize, minElevation, maxElevation, material, subdivisions)
 	{
 	    Component.call(this);
 
 	    this._bounds = new BoundingAABB();
 	    this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
-	    this._terrainSize = terrainSize || 512;
+	    this._terrainSize = terrainSize;
 	    this._minElevation = minElevation;
 	    this._maxElevation = maxElevation;
-	    this._numLevels = numLevels || 4;
 	    // this container will move along with the "player"
 	    // we use the extra container so the Terrain.position remains constant, so we can reliably translate and use rigid body components
 	    this._container = new SceneNode();
-	    this._detail = detail || 32;
+	    this._subdivisions = subdivisions || 32;
 
 	    // will be defined when we're generating meshes
 	    // this._snapSize = undefined;
 
+	    this._heightMap = heightMap;
+		// noinspection JSSuspiciousNameCombination
+		this._heightMapSize = heightMap.width;
+	    this._worldSize = worldSize;
 	    this._material = material;
-	    material.setUniform("hx_elevationOffset", minElevation);
+		material.setUniform("hx_worldSize", worldSize);
+		material.setUniform("hx_elevationOffset", minElevation);
 	    material.setUniform("hx_elevationScale", maxElevation - minElevation);
+		material.setUniform("hx_heightMapSize", this._heightMapSize);
+		material.setTexture("hx_heightMap", heightMap);
 
-		var gridSize = Math.ceil(this._detail * .5) * 2.0; // round off to 2
-	    this._initMeshes(gridSize);
-	    this._initTree();
+		console.assert(this._subdivisions % 4 === 0, "subdivisions parameter must be divisible by 4!");
+
+	    this._initPatches();
 	}
 
 	// TODO: Allow setting material
@@ -20858,71 +20865,91 @@
 		this.entity.detach(this._container);
 	};
 
-	/**
-	 * @ignore
-	 * @private
-	 */
-	Terrain.prototype._createMesh = function(size, numSegments, subDiv, lastLevel)
+	Terrain.prototype._createLODMesh = function(patchSize, texelSize, isFinal)
 	{
-	    var rcpNumSegments = 1.0 / numSegments;
+		// patchSize refers to the entire patch size, not the mesh size
+		// subdivisions also refers to the entire patch
+		// this mesh is 3/4 the width of the patch size, and 1/4 the height
+
 	    var mesh = new Mesh();
-	    var cellSize = size * rcpNumSegments;
-	    var halfCellSize = cellSize * .5;
 
 	    mesh.addVertexAttribute("hx_position", 3);
 	    mesh.addVertexAttribute("hx_normal", 3);
 	    mesh.addVertexAttribute("hx_cellSize", 1);
+	    mesh.addVertexAttribute("hx_cellMipLevel", 1);
 
 	    var vertices = [];
+	    var tessVertices = [];
 	    var indices = [];
+	    // final patch is just square subdivs
+		var numY = isFinal? this._subdivisions : this._subdivisions / 4;
+		var numX = isFinal? this._subdivisions : 3.0 * numY;
+		var cellSize = patchSize / this._subdivisions;
+		var halfCellSize = cellSize * .5;
+		var w = numX + 1;
+		var mipLevel = MathX.log2(texelSize);
+		var mipLevelDetail = Math.max(mipLevel - 1, 0);
+		var tessIndex = (numY + 1) * w;	// this is the offset where the tessellated points start;
 
-	    var numZ = subDiv? numSegments - 1: numSegments;
+		// origin at 0, so we can easily rotate and position to the corners of the patches
+	    for (var yi = 0; yi <= numY; ++yi) {
+	        var y = yi * cellSize;
 
-	    var w = numSegments + 1;
+	        for (var xi = 0; xi <= numX; ++xi) {
+	            var x = xi * cellSize;
 
-	    for (var yi = 0; yi <= numZ; ++yi) {
-	        var y = (yi*rcpNumSegments - .5) * size;
+	            // the base index of the bottom right index
+				var base = xi + yi * w;
 
-	        for (var xi = 0; xi <= numSegments; ++xi) {
-	            var x = (xi*rcpNumSegments - .5) * size;
+				// the last row contains a set of points that touch a higher tessellated mesh, so we tessellate the edge
+				// also not required if it's the final mesh
+	            var inTessellated = !isFinal && yi === numY && xi >= numY;
 
-	            // the one corner that attaches to higher resolution neighbours needs to snap like them
-	            var s = !lastLevel && xi === numSegments && yi === numSegments? halfCellSize : cellSize;
-	            vertices.push(x, y, 0, 0, 0, 1, s);
+	            // TODO: Something still wrong at corners!
 
-	            if (xi !== numSegments && yi !== numZ) {
-	                var base = xi + yi * w;
+				if (inTessellated && xi < numX)
+					tessVertices.push(x + halfCellSize, y, 0, 0, 0, 1, halfCellSize, mipLevelDetail);
 
-	                indices.push(base, base + w + 1, base + w);
-	                indices.push(base, base + 1, base + w + 1);
-	            }
+	            if (inTessellated && xi > numY) {
+					vertices.push(x, y, 0, 0, 0, 1, halfCellSize, mipLevelDetail);
+
+					// A slightly different subdivision:
+					// *-----*
+					// *\   /*
+					// * \ / *
+					// *--*--*
+					// (bottom right = base)
+					// we've stored the middle point after all the other points to make it easier, so the outer points still
+					// have grid-based indices, and the tessellation point is simply base + numTess
+					indices.push(base - w - 1, tessIndex, base - 1);
+					indices.push(base - w - 1, base - w, tessIndex);
+					indices.push(base - w, base, tessIndex);
+					++tessIndex;
+				}
+				else {
+	            	if (inTessellated)
+						vertices.push(x, y, 0, 0, 0, 1, halfCellSize, mipLevelDetail);
+					else
+						vertices.push(x, y, 0, 0, 0, 1, cellSize, mipLevel);
+
+					// the standard quad subdivision
+					// *---*
+					// * \ *
+					// *---*
+					// (bottom right = base)
+					if (xi > 0 && yi > 0) {
+						indices.push(base - w - 1, base, base - 1);
+						indices.push(base - w - 1, base - w, base);
+					}
+				}
 	        }
 	    }
 
-	    var highIndexX = vertices.length / 7;
-
-	    if (subDiv) {
-	        y = (numSegments * rcpNumSegments - .5) * size;
-	        for (xi = 0; xi <= numSegments; ++xi) {
-	            x = (xi*rcpNumSegments - .5) * size;
-	            vertices.push(x, y, 0, 0, 0, 1);
-	            vertices.push(halfCellSize);
-
-	            if (xi !== numSegments) {
-	                base = xi + numZ * w;
-	                vertices.push(x + halfCellSize, y, 0, 0, 0, 1, halfCellSize);
-	                indices.push(base, highIndexX + xi * 2 + 1, highIndexX + xi * 2);
-	                indices.push(base + 1, highIndexX + xi * 2 + 1, base);
-	                indices.push(highIndexX + xi * 2 + 2, highIndexX + xi * 2 + 1, base + 1);
-	            }
-	        }
-	    }
-
-	    mesh.setVertexData(vertices, 0);
+	    mesh.setVertexData(vertices.concat(tessVertices), 0);
 	    mesh.setIndexData(indices);
 		mesh.dynamicBounds = false;
 		mesh.bounds.clear();
-		mesh.bounds.growToIncludeMinMax(new Float4(-size, -size, this._minElevation), new Float4(size, size, this._maxElevation));
+		mesh.bounds.growToIncludeMinMax(new Float4(0, 0, this._minElevation), new Float4(numX * cellSize, numY * cellSize, this._maxElevation));
 	    return mesh;
 	};
 
@@ -20930,170 +20957,60 @@
 	 * @ignore
 	 * @private
 	 */
-	Terrain.prototype._initMeshes = function(gridSize)
+	Terrain.prototype._initPatches = function()
 	{
-	    this._meshes = [];
-	    var meshSize = this._terrainSize * .25;
+		// the world size per segment
+	    var gridSize = this._terrainSize / this._subdivisions;
+	    // the amount of texels covered by the cell
+	    var texelSize = gridSize / this._worldSize * this._heightMapSize;
+	    var size = this._worldSize;
 
-	    for (var level = 0; level < this._numLevels; ++level) {
-	        if (level === this._numLevels - 1) {
-	            // do not subdivide max detail
-	            var mesh = this._createMesh(meshSize, gridSize, false, true);
-	            this._meshes[level] = {
-	                edge: mesh,
-	                corner: mesh
-	            };
-	            // this._snapSize = meshSize / gridSize;
-	        }
-	        else {
-	            this._meshes[level] = {
-	                edge: this._createMesh(meshSize, gridSize, true, false),
-	                corner: this._createMesh(meshSize, gridSize, false, false)
-	            };
-	        }
+	    // stop adding meshes if the NEXT one covers 1 texel or less.
+		// that one should just be a simple plane mesh
 
-	        meshSize *= .5;
-	    }
-	};
+		// the lower res ones look sort of like this:
+		// so it's 1 mesh with a higher tessellated edge rotated around the higher detail inner square
+		// the inner square is recursively generated the same until it covers 1 texel per segment, at which point it's filled
+		// in with a simple grid mesh
+		// |-----------|---|
+		// |           |   |
+		// |----*******|   |
+		// |   *       *   |
+		// |   *       *   |
+		// |   |*******----|
+		// |   |           |
+		// |---|-----------|
+		var positions = [
+			[-.5, -.5],
+			[.5, -.5],
+			[.5, .5],
+			[-.5, .5]
+		];
+	    while (texelSize > 1.0) {
+	        var mesh = this._createLODMesh(size, texelSize);
 
-	/**
-	 * @ignore
-	 * @private
-	 */
-	Terrain.prototype._initTree = function()
-	{
-	    var level = 0;
-	    var size = this._terrainSize * .25;
-	    for (var yi = 0; yi < 4; ++yi) {
-	        var y = this._terrainSize * (yi / 4 - .5) + size * .5;
-	        for (var xi = 0; xi < 4; ++xi) {
-	            var x = this._terrainSize * (xi / 4 - .5) + size * .5;
-	            var subX = 0, subY = 0;
+	        for (var i = 0; i < 4; ++i)
+				this._addMesh(mesh, size * positions[i][0], size * positions[i][1], i);
 
-	            if (xi === 1)
-	                subX = 1;
-	            else if (xi === 2)
-	                subX = -1;
-
-	            if (yi === 1)
-	                subY = 1;
-	            else if (yi === 2)
-	                subY = -1;
-
-	            if (subX && subY) {
-	                this._subDivide(x, y, subX, subY, level + 1, size * .5);
-	            }
-	            else {
-	                var rotation = 0;
-	                var mode = "edge";
-	                // if both are 0, we have a corner
-	                if (xi % 3 === yi % 3) {
-	                    mode = "corner";
-	                    if (xi === 0 && yi === 0) rotation = 0;
-	                    if (xi === 0 && yi === 3) rotation = 1;
-	                    if (xi === 3 && yi === 3) rotation = 2;
-	                    if (xi === 3 && yi === 0) rotation = -1;
-	                }
-	                else {
-	                    if (yi === 3) rotation = 2;
-	                    if (xi === 3) rotation = -1;
-	                    if (xi === 0) rotation = 1;
-	                }
-	                this._addMesh(x, y, level, rotation, mode);
-	            }
-	        }
-	    }
-	};
-
-	/**
-	 * @ignore
-	 * @private
-	 */
-	Terrain.prototype._addMesh = function(x, y, level, rotation, mode)
-	{
-	    var entity = new Entity();
-	    var meshInstance = new MeshInstance(this._meshes[level][mode], this._material);
-	    entity.addComponent(meshInstance);
-	    entity.position.set(x, y, 0);
-	    // this rotation aligns the higher triangle strips
-	    entity.rotation.fromAxisAngle(Float4.Z_AXIS, -rotation * Math.PI * .5);
-	    this._container.attach(entity);
-	};
-
-	/**
-	 * @ignore
-	 * @private
-	 */
-	Terrain.prototype._subDivide = function(x, y, subX, subY, level, size)
-	{
-	    var isMaxLevel = level === this._numLevels - 1;
-	    size *= .5;
-
-	    for (var yi = -1; yi <= 1; yi += 2) {
-	        for (var xi = -1; xi <= 1; xi += 2) {
-	            if((xi !== subX || yi !== subY) || isMaxLevel) {
-	                var rotation = 0;
-	                var mode = "corner";
-	                // messy, I know
-	                if (x < 0 && y < 0) {
-	                    if (xi < 0 && yi > 0) {
-	                        mode = "edge";
-	                        rotation = 1;
-	                    }
-	                    else if (xi > 0 && yi < 0) {
-	                        mode = "edge";
-	                        rotation = 0;
-	                    }
-	                    else
-	                        rotation = 0;
-	                }
-	                else if (x > 0 && y > 0) {
-	                    if (xi > 0 && yi < 0) {
-	                        mode = "edge";
-	                        rotation = -1;
-	                    }
-	                    else if (xi < 0 && yi > 0) {
-	                        mode = "edge";
-	                        rotation = 2;
-	                    }
-	                    else
-	                        rotation = 2;
-	                }
-	                else if (x < 0 && y > 0) {
-	                    if (xi > 0 && yi > 0) {
-	                        mode = "edge";
-	                        rotation = 2;
-	                    }
-	                    else if (xi < 0 && yi < 0) {
-	                        mode = "edge";
-	                        rotation = 1;
-	                    }
-	                    else
-	                        rotation = 1;
-	                }
-	                else if (x > 0 && y < 0) {
-	                    if (xi < 0 && yi < 0) {
-	                        mode = "edge";
-	                        rotation = 0;
-	                    }
-	                    else if (xi > 0 && yi > 0) {
-	                        mode = "edge";
-	                        rotation = -1;
-	                    }
-	                    else
-	                        rotation = -1;
-	                }
-
-	                if (isMaxLevel)
-	                    rotation = 0;
-
-	                this._addMesh(x + size * xi, y + size * yi, level, rotation, mode);
-	            }
-	        }
+	        size *= .5;
+	        texelSize *= .5;
 	    }
 
-	    if (!isMaxLevel)
-	        this._subDivide(x + size * subX, y + size * subY, subX, subY, level + 1, size);
+	    // create the final patch (just a plane)
+		mesh = this._createLODMesh(size, texelSize, true);
+		this._addMesh(mesh, -size * .5, -size * .5, 0);
+	};
+
+
+	Terrain.prototype._addMesh = function(mesh, x, y, rot)
+	{
+		var entity = new Entity();
+		var meshInstance = new MeshInstance(mesh, this._material);
+		entity.addComponent(meshInstance);
+		entity.position.x = x;
+		entity.position.y = y;
+		entity.euler.z = rot * Math.PI * .5;
+		this._container.attach(entity);
 	};
 
 	/**
@@ -30725,15 +30642,15 @@
 	    return ShaderLibrary.get("shadow_pcf.glsl", defines);
 	};
 
-	// The hardest part is deferring the creation/deletion of the objects while still making the interface behave as if it's
-	// done
-	// indices can be updated later, since we're dealing with IDs
+	// local module work objects
+	var m = new Matrix4x4();
 
 	/**
 	 * @classdesc
 	 *
 	 * MeshBatch allows bundling a {@linkcode Mesh} with a {@linkcode Material} similar to {@linkcode MeshInstance}, but
-	 * allows rendering multiple instances in a single draw call.
+	 * allows rendering multiple instances in a single draw call. To save on memory usage, individual instances are referred
+	 * to by individual IDs instead of Transform objects.
 	 *
 	 * @property {number} numInstances The amount of instances that will be drawn.
 	 *
@@ -30754,7 +30671,6 @@
 		this._dynamic = dynamic || false;
 
 		this._idCounter = 0;
-		this._bufferSizeInvalid = false;
 		this._instanceTransformData = new Float32Array([]);		// contains 3 vec4 objects forming an affine matrix
 		this._numInstances = 0;
 
@@ -30789,7 +30705,8 @@
 	});
 
 	/**
-	 * Adds an instance.
+	 * Adds an instance with a given transform. This method returns the ID for the instance, which is used when the instance
+	 * needs to be deleted or its transform updated.
 	 * @param transform A {@linkcode Matrix4x4} or a {@linkcode Transform} containing the transformation for the instance.
 	 * @returns {number} An ID representing the instance. Use this to set the transform in {@linkcode MeshBatch#setTransform}
 	 * and {@linkcode MeshBatch#destroyInstance].
@@ -30823,7 +30740,7 @@
 	};
 
 	/**
-	 * Changes the transform for an instance. This is only allowed if dynamic is set to true;
+	 * Changes the transform for an instance.
 	 * @param instanceID The instance ID as returned by {@linkcode MeshBatch#createInstance}
 	 * @param transform A {@linkcode Matrix4x4} or {@linkcode Transform} object.
 	 */
@@ -30850,6 +30767,10 @@
 			this.invalidateBounds();
 	};
 
+	/**
+	 * Destroys an instance.
+	 * @param instanceID The instance ID as returned by {@linkcode MeshBatch#createInstance}
+	 */
 	MeshBatch.prototype.destroyInstance = function(instanceID)
 	{
 		// if no link to index is present it's still in the add queue, just need to remove it:
@@ -30865,6 +30786,10 @@
 		--this._numInstances;
 	};
 
+	/**
+	 * @ignore
+	 * @private
+	 */
 	MeshBatch.prototype._getAddQueueIndex = function(instanceID)
 	{
 		for (var i = 0, len = this._addQueue.length; i < len; ++i) {
@@ -30875,7 +30800,10 @@
 		return -1;
 	};
 
-	var m = new Matrix4x4();
+	/**
+	 * @ignore
+	 * @private
+	 */
 	MeshBatch.prototype._updateBounds = function()
 	{
 		// this only happens when changing static MeshBatch, hence it's a bit slower but more precise.
@@ -30970,6 +30898,10 @@
 		this._addQueue.length = 0;
 	};
 
+	/**
+	 * @ignore
+	 * @private
+	 */
 	MeshBatch.prototype._processDeletes = function(oldData, newData)
 	{
 		// sort so we can keep grabbing the top of the stack to find the first deleted instance

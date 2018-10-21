@@ -3,6 +3,7 @@ import {SceneVisitor} from "../scene/SceneVisitor";
 import {RenderItem} from "./RenderItem";
 import {RenderSortFunctions} from "./RenderSortFunctions";
 import {Float4} from "../math/Float4";
+import {RenderCollector} from "./RenderCollector";
 
 /**
  * @ignore
@@ -64,6 +65,8 @@ SpotShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
 
     renderList.push(renderItem);
 };
+
+SpotShadowCasterCollector.prototype.visitMeshBatch = SpotShadowCasterCollector.prototype.visitMeshInstance;
 
 SpotShadowCasterCollector.prototype.qualifies = function(object, forceBounds)
 {

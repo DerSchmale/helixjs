@@ -104,6 +104,28 @@ MeshBatch.prototype.createInstance = function(transform)
 };
 
 /**
+ * Retrieves the matrix based on the index in the list, not the instanceID
+ * @ignore
+ */
+MeshBatch.prototype.getMatrixByIndex = function(index, target)
+{
+	target = target || new Matrix4x4();
+
+	var m = target._m;
+	var i = index * 12;
+	var data = this._instanceTransformData;
+
+	for (var r = 0; r < 3; ++r) {
+		m[r] = data[i++];
+		m[r + 4] = data[i++];
+		m[r + 8] = data[i++];
+		m[r + 12] = data[i++];
+	}
+
+	return target;
+};
+
+/**
  * Changes the transform for an instance.
  * @param instanceID The instance ID as returned by {@linkcode MeshBatch#createInstance}
  * @param transform A {@linkcode Matrix4x4} or {@linkcode Transform} object.
@@ -185,6 +207,14 @@ MeshBatch.prototype._updateBounds = function()
 		b.transformFrom(meshBounds, this._addQueue[i].matrix);
 		bounds.growToIncludeBound(b);
 	}
+};
+
+/**
+ * @ignore
+ */
+MeshBatch.prototype.acceptVisitor = function(visitor)
+{
+	visitor.visitMeshBatch(this, this.entity);
 };
 
 /**

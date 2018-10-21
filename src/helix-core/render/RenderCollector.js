@@ -7,6 +7,7 @@ import {RenderItem} from "./RenderItem";
 import {RenderPath} from "./RenderPath";
 import {RenderSortFunctions} from "./RenderSortFunctions";
 import {_glStats} from "../core/GL";
+import {OmniShadowCasterCollector} from "./OmniShadowCasterCollector";
 
 /**
  * @ignore
@@ -136,6 +137,8 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance, entity)
     	numTris *= meshInstance.numInstances;
 	_glStats.numTriangles += numTris;
 };
+
+RenderCollector.prototype.visitMeshBatch = RenderCollector.prototype.visitMeshInstance;
 
 RenderCollector.prototype.visitAmbientLight = function(light)
 {

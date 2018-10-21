@@ -3,6 +3,7 @@ import {SceneVisitor} from "../scene/SceneVisitor";
 import {RenderItem} from "./RenderItem";
 import {RenderSortFunctions} from "./RenderSortFunctions";
 import {Float4} from "../math/Float4";
+import {CascadeShadowCasterCollector} from "./CascadeShadowCasterCollector";
 
 /**
  * @ignore
@@ -96,6 +97,8 @@ OmniShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
     if (side0 >= 0 && side1 >= 0 && side2 >= 0 && side3 >= 0)
         this._addTo(meshInstance, 5, worldBounds, worldMatrix);
 };
+
+OmniShadowCasterCollector.prototype.visitMeshBatch = OmniShadowCasterCollector.prototype.visitMeshInstance;
 
 OmniShadowCasterCollector.prototype._addTo = function(meshInstance, cubeFace, worldBounds, worldMatrix)
 {

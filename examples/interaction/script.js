@@ -34,9 +34,9 @@ function initScene(scene, assetLibrary)
         colorMap: assetLibrary.get("albedo")
     });
 
-    var primitive = new HX.BoxPrimitive(
+    var primitive = new HX.SpherePrimitive(
         {
-            width: .5
+            radius: .25
         });
 
 
@@ -80,4 +80,4 @@ project.onUpdate = function(dt)
         indicator.visible = true;
         indicator.position.copyFrom(hitData.point);
     }
-}
+};

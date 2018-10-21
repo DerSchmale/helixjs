@@ -3,6 +3,7 @@ import {ObjectPool} from "../core/ObjectPool";
 import {Float4} from "../math/Float4";
 import {Ray} from "../math/Ray";
 import {Matrix4x4} from "../math/Matrix4x4";
+import {BoundingAABB} from "../scene/BoundingAABB";
 
 function IntersectionData()
 {
@@ -22,6 +23,7 @@ function Potential()
 {
     this.meshInstance = null;
     this.closestDistanceSqr = 0;
+    this.worldMatrix = new Matrix4x4();
     this.objectMatrix = new Matrix4x4();
 
     // to store this in a linked list for pooling
@@ -86,35 +88,61 @@ Raycaster.prototype.qualifies = function(object, forceBounds)
 Raycaster.prototype.visitMeshInstance = function (meshInstance)
 {
     var entity = meshInstance.entity;
-    var potential = this._potentialPool.getItem();
-    potential.meshInstance = meshInstance;
-    var dir = this._ray.direction;
-    var dirX = dir.x, dirY = dir.y, dirZ = dir.z;
-    var origin = this._ray.origin;
-    var bounds = this.getProxiedBounds(entity);
-    var center = bounds.center;
-    var ex = bounds._halfExtentX;
-    var ey = bounds._halfExtentY;
-    var ez = bounds._halfExtentZ;
-    ex = dirX > 0? center.x - ex : center.x + ex;
-    ey = dirY > 0? center.y - ey : center.y + ey;
-    ez = dirZ > 0? center.z - ez : center.z + ez;
+    this._addPotential(meshInstance, this.getProxiedMatrix(entity), this.getProxiedBounds(entity));
 
-    // this is not required for the order, but when testing the intersection distances
-    ex -= origin.x;
-    ey -= origin.y;
-    ez -= origin.z;
+};
 
-    // the closest projected point on the ray is the order
-    potential.closestDistanceSqr = ex * dirX + ey * dirY + ez * dirZ;
-    potential.objectMatrix.inverseAffineOf(this.getProxiedMatrix(entity));
+var workMtx = new Matrix4x4();
+var workBounds = new BoundingAABB();
 
-    this._potentials.push(potential);
+Raycaster.prototype.visitMeshBatch = function (meshBatch)
+{
+	var entity = meshBatch.entity;
+	var matrix = this.getProxiedMatrix(entity);
+	var b = meshBatch.mesh.bounds;
+
+	for (var i = 0, len = meshBatch.numInstances; i < len; ++i) {
+	    meshBatch.getMatrixByIndex(i, workMtx);
+	    workMtx.appendAffine(matrix);
+		workBounds.transformFrom(b, workMtx);
+
+		if (workBounds.intersectsRay(this._ray))
+			this._addPotential(meshBatch, workMtx, workBounds);
+    }
+};
+
+Raycaster.prototype._addPotential = function (meshInstance, matrix, bounds)
+{
+	var potential = this._potentialPool.getItem();
+	potential.meshInstance = meshInstance;
+
+	var dir = this._ray.direction;
+	var dirX = dir.x, dirY = dir.y, dirZ = dir.z;
+	var origin = this._ray.origin;
+	var center = bounds.center;
+	var ex = bounds._halfExtentX;
+	var ey = bounds._halfExtentY;
+	var ez = bounds._halfExtentZ;
+	ex = dirX > 0? center.x - ex : center.x + ex;
+	ey = dirY > 0? center.y - ey : center.y + ey;
+	ez = dirZ > 0? center.z - ez : center.z + ez;
+
+	// this is not required for the order, but when testing the intersection distances
+	ex -= origin.x;
+	ey -= origin.y;
+	ez -= origin.z;
+
+	potential.worldMatrix.copyFrom(matrix);
+	potential.objectMatrix.inverseAffineOf(matrix);
+	// the closest projected point on the ray is the order
+	potential.closestDistanceSqr = ex * dirX + ey * dirY + ez * dirZ;
+	this._potentials.push(potential);
 };
 
 Raycaster.prototype._findClosest = function()
 {
-    var set = this._potentials;
+	var worldMatrix;
+	var set = this._potentials;
     var len = set.length;
     var hitData = new IntersectionData();
     var worldRay = this._ray;
@@ -130,6 +158,7 @@ Raycaster.prototype._findClosest = function()
         localRay.transformFrom(worldRay, elm.objectMatrix);
 
         if (this._testMesh(localRay, elm.meshInstance.mesh, hitData)) {
+            worldMatrix = elm.worldMatrix;
             hitData.entity = elm.meshInstance.entity;
             hitData.component = elm.meshInstance;
         }
@@ -137,7 +166,6 @@ Raycaster.prototype._findClosest = function()
     }
 
     if (hitData.entity) {
-        var worldMatrix = this.getProxiedMatrix(hitData.entity);
 		worldMatrix.transformPoint(hitData.point, hitData.point);
 		worldMatrix.transformNormal(hitData.faceNormal, hitData.faceNormal);
 	}
@@ -216,7 +244,7 @@ Raycaster.prototype._testMesh = function(ray, mesh, hitData)
         var w = (dot11 * dotp2 - dot12 * dotp1) * rcpDenom;
         var u = 1.0 - v - w;
 
-        if (u >= 0 && v >= 0 && w >= 0) {
+        if (u >= 0 && u <= 1 && v >= 0 && v <= 1 && w >= 0 && w <= 1) {
             hitData.faceNormal.set(nx, ny, nz, 0.0);
             hitData.point.set(px, py, pz, 1.0);
             hitData.barycentric.set(u, v, w, 0.0);

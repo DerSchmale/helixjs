@@ -3613,6 +3613,18 @@
 
 	ShaderLibrary._files['spot_light.glsl'] = 'struct HX_SpotLight\n{\n    vec3 color;\n    vec3 position;\n    vec3 direction;\n    float radius;\n    float rcpRadius;\n\n    vec2 angleData;    // cos(inner), rcp(cos(outer) - cos(inner))\n\n    mat4 shadowMapMatrix;\n    float depthBias;\n    int castShadows;\n\n    vec4 shadowTile;    // xy = scale, zw = offset\n};\n\nvoid hx_calculateLight(HX_SpotLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n\n    float cosAngle = dot(light.direction, direction);\n\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n    attenuation *=  saturate((cosAngle - light.angleData.x) * light.angleData.y);\n\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_SpotLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec4 shadowMapCoord = light.shadowMapMatrix * vec4(viewPos, 1.0);\n    shadowMapCoord /= shadowMapCoord.w;\n    // *.9 --> match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    shadowMapCoord.xy = shadowMapCoord.xy * .95 * light.shadowTile.xy + light.shadowTile.zw;\n    shadowMapCoord.z = length(viewPos - light.position) * light.rcpRadius;\n    return hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
 
+	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
+
+	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
+
+	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
+
+	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
+
+	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
+
 	ShaderLibrary._files['default_geometry_fragment.glsl'] = 'uniform vec3 color;\nuniform vec3 emissiveColor;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(METALLIC_ROUGHNESS_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\n    varying_in vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\n    uniform sampler2D colorMap;\n\n    #ifdef COLOR_MAP_SCALE_OFFSET\n        uniform vec2 colorMapScale;\n        uniform vec2 colorMapOffset;\n    #endif\n#endif\n\n#ifdef OCCLUSION_MAP\n    uniform sampler2D occlusionMap;\n#endif\n\n#ifdef EMISSION_MAP\n    uniform sampler2D emissionMap;\n\n    #ifdef EMISSION_MAP_SCALE_OFFSET\n        uniform vec2 emissionMapScale;\n        uniform vec2 emissionMapOffset;\n    #endif\n#endif\n\n#ifdef MASK_MAP\n    uniform sampler2D maskMap;\n\n    #ifdef MASK_MAP_SCALE_OFFSET\n        uniform vec2 maskMapScale;\n        uniform vec2 maskMapOffset;\n    #endif\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    varying_in vec3 normal;\n\n    #ifdef NORMAL_MAP\n        varying_in vec3 tangent;\n        varying_in vec3 bitangent;\n\n        uniform sampler2D normalMap;\n\n        #ifdef NORMAL_MAP_SCALE_OFFSET\n            uniform vec2 normalMapScale;\n            uniform vec2 normalMapOffset;\n        #endif\n\n    #endif\n#endif\n\n#ifndef HX_SKIP_SPECULAR\n    uniform float roughness;\n    uniform float roughnessRange;\n    uniform float normalSpecularReflectance;\n    uniform float metallicness;\n\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\n        uniform sampler2D specularMap;\n\n        #ifdef SPECULAR_MAP_SCALE_OFFSET\n            uniform vec2 specularMapScale;\n            uniform vec2 specularMapOffset;\n        #endif\n    #endif\n#endif\n\n#if defined(ALPHA_THRESHOLD)\n    uniform float alphaThreshold;\n#endif\n\n#ifdef VERTEX_COLORS\n    varying_in vec3 vertexColor;\n#endif\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    vec2 uv;\n\n    #ifdef COLOR_MAP\n        uv = texCoords;\n        #ifdef COLOR_MAP_SCALE_OFFSET\n            uv = uv * colorMapScale + colorMapOffset;\n        #endif\n        #ifdef COLOR_MAP_ADD\n            outputColor += texture2D(colorMap, uv);\n        #else\n            outputColor *= texture2D(colorMap, uv);\n        #endif\n    #endif\n\n    #ifdef MASK_MAP\n        uv = texCoords;\n        #ifdef MASK_MAP_SCALE_OFFSET\n            uv = uv * maskMapScale + maskMapOffset;\n        #endif\n        outputColor.w *= texture2D(maskMap, uv).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    data.color = hx_gammaToLinear(outputColor);\n\n#ifndef HX_SKIP_SPECULAR\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = normalSpecularReflectance;\n    float roughnessOut = roughness;\n#endif\n\n#if defined(HX_SKIP_NORMALS) && defined(NORMAL_ROUGHNESS_MAP) && !defined(HX_SKIP_SPECULAR)\n    uv = texCoords;\n    #ifdef NORMAL_MAP_SCALE_OFFSET\n        uv = uv * normalMapScale + normalMapOffset;\n    #endif\n    vec4 normalSample = texture2D(normalMap, uv);\n    roughnessOut -= roughnessRange * (normalSample.w - .5);\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    vec3 fragNormal = normal;\n\n    #ifdef NORMAL_MAP\n        uv = texCoords;\n        #ifdef NORMAL_MAP_SCALE_OFFSET\n            uv = uv * normalMapScale + normalMapOffset;\n        #endif\n        vec4 normalSample = texture2D(normalMap, uv);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz - .5);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (normalSample.w - .5);\n        #endif\n    #endif\n\n    #ifdef DOUBLE_SIDED\n        fragNormal *= gl_FrontFacing? 1.0 : -1.0;\n    #endif\n    data.normal = normalize(fragNormal);\n#endif\n\n#ifndef HX_SKIP_SPECULAR\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\n        uv = texCoords;\n        #ifdef SPECULAR_MAP_SCALE_OFFSET\n            uv = uv * specularMapScale + specularMapOffset;\n        #endif\n        vec4 specSample = texture2D(specularMap, uv);\n\n        #ifdef METALLIC_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (specSample.y - .5);\n            metallicnessOut *= specSample.z;\n\n        #else\n            roughnessOut -= roughnessRange * (specSample.x - .5);\n\n        #ifdef SPECULAR_MAP\n            specNormalReflOut *= specSample.y;\n            metallicnessOut *= specSample.z;\n        #endif\n    #endif\n#endif\n\n    data.metallicness = metallicnessOut;\n    data.normalSpecularReflectance = specNormalReflOut;\n    data.roughness = roughnessOut;\n#endif\n\n    data.occlusion = 1.0;\n\n#ifdef OCCLUSION_MAP\n    data.occlusion = texture2D(occlusionMap, texCoords).x;\n#endif\n\n    vec3 emission = emissiveColor;\n#ifdef EMISSION_MAP\n    uv = texCoords;\n    #ifdef EMISSION_MAP_SCALE_OFFSET\n        uv = uv * emissionMapScale + emissionMapOffset;\n    #endif\n    emission *= texture2D(emissionMap, uv).xyz;\n#endif\n\n    data.emission = hx_gammaToLinear(emission);\n    return data;\n}';
 
 	ShaderLibrary._files['default_geometry_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\n// morph positions are offsets re the base position!\n#ifdef HX_USE_MORPHING\nvertex_attribute vec3 hx_morphPosition0;\nvertex_attribute vec3 hx_morphPosition1;\nvertex_attribute vec3 hx_morphPosition2;\nvertex_attribute vec3 hx_morphPosition3;\n\n#ifdef HX_USE_NORMAL_MORPHING\n    #ifndef HX_SKIP_NORMALS\n    vertex_attribute vec3 hx_morphNormal0;\n    vertex_attribute vec3 hx_morphNormal1;\n    vertex_attribute vec3 hx_morphNormal2;\n    vertex_attribute vec3 hx_morphNormal3;\n    #endif\n\nuniform float hx_morphWeights[4];\nuniform float hx_morphModes[4];\n#else\nvertex_attribute vec3 hx_morphPosition4;\nvertex_attribute vec3 hx_morphPosition5;\nvertex_attribute vec3 hx_morphPosition6;\nvertex_attribute vec3 hx_morphPosition7;\n\nuniform float hx_morphWeights[8];\nuniform float hx_morphModes[8];\n#endif\n\n#endif\n\n#ifdef HX_USE_SKINNING\nvertex_attribute vec4 hx_jointIndices;\nvertex_attribute vec4 hx_jointWeights;\n\nuniform mat4 hx_bindShapeMatrix;\nuniform mat4 hx_bindShapeMatrixInverse;\n\n// WebGL doesn\'t support mat4x3 and I don\'t want to split the uniform either\n#ifdef HX_USE_SKINNING_TEXTURE\nuniform sampler2D hx_skinningTexture;\n#else\nuniform vec4 hx_skinningMatrices[HX_MAX_SKELETON_JOINTS * 3];\n#endif\n#endif\n\n#ifdef HX_USE_INSTANCING\n// these are the matrix ROWS\nvertex_attribute vec4 hx_instanceMatrix0;\nvertex_attribute vec4 hx_instanceMatrix1;\nvertex_attribute vec4 hx_instanceMatrix2;\n#endif\n\nuniform mat4 hx_wvpMatrix;\nuniform mat4 hx_worldViewMatrix;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\nvertex_attribute vec2 hx_texCoord;\nvarying_out vec2 texCoords;\n#endif\n\n#ifdef VERTEX_COLORS\nvertex_attribute vec3 hx_vertexColor;\nvarying_out vec3 vertexColor;\n#endif\n\n#ifndef HX_SKIP_NORMALS\nvertex_attribute vec3 hx_normal;\nvarying_out vec3 normal;\n\nuniform mat3 hx_normalWorldViewMatrix;\n#ifdef NORMAL_MAP\nvertex_attribute vec4 hx_tangent;\n\nvarying_out vec3 tangent;\nvarying_out vec3 bitangent;\n#endif\n#endif\n\nvoid hx_geometry()\n{\n    vec4 morphedPosition = hx_position;\n\n    #ifndef HX_SKIP_NORMALS\n    vec3 morphedNormal = hx_normal;\n    #endif\n\n// TODO: Abstract this in functions for easier reuse in other materials\n#ifdef HX_USE_MORPHING\n    morphedPosition.xyz += hx_morphPosition0 * hx_morphWeights[0];\n    morphedPosition.xyz += hx_morphPosition1 * hx_morphWeights[1];\n    morphedPosition.xyz += hx_morphPosition2 * hx_morphWeights[2];\n    morphedPosition.xyz += hx_morphPosition3 * hx_morphWeights[3];\n    #ifdef HX_USE_NORMAL_MORPHING\n        #ifndef HX_SKIP_NORMALS\n        morphedNormal += hx_morphNormal0 * hx_morphWeights[0];\n        morphedNormal += hx_morphNormal1 * hx_morphWeights[1];\n        morphedNormal += hx_morphNormal2 * hx_morphWeights[2];\n        morphedNormal += hx_morphNormal3 * hx_morphWeights[3];\n        #endif\n    #else\n        morphedPosition.xyz += hx_morphPosition4 * hx_morphWeights[4];\n        morphedPosition.xyz += hx_morphPosition5 * hx_morphWeights[5];\n        morphedPosition.xyz += hx_morphPosition6 * hx_morphWeights[6];\n        morphedPosition.xyz += hx_morphPosition7 * hx_morphWeights[7];\n    #endif\n#endif\n\n#ifdef HX_USE_SKINNING\n    mat4 skinningMatrix = hx_getSkinningMatrix(0);\n\n    // first transform to armature space\n    // then apply skinning in skeleton space\n    // then transform back to object space\n    vec4 animPosition = hx_bindShapeMatrixInverse * ((hx_bindShapeMatrix * morphedPosition) * skinningMatrix);\n\n    #ifndef HX_SKIP_NORMALS\n        vec3 animNormal = morphedNormal * mat3(skinningMatrix);\n\n        #ifdef NORMAL_MAP\n        vec3 animTangent = hx_tangent.xyz * mat3(skinningMatrix);\n        #endif\n    #endif\n#else\n    vec4 animPosition = morphedPosition;\n\n    #ifndef HX_SKIP_NORMALS\n        vec3 animNormal = morphedNormal;\n\n        #ifdef NORMAL_MAP\n        vec3 animTangent = hx_tangent.xyz;\n        #endif\n    #endif\n#endif\n\n#ifdef HX_USE_INSTANCING\n    // column major initialized by rows, so be post-multiply\n    mat4 instanceMatrix = mat4(hx_instanceMatrix0, hx_instanceMatrix1, hx_instanceMatrix2, vec4(0.0, 0.0, 0.0, 1.0));\n    animPosition = animPosition * instanceMatrix;\n\n    #ifndef HX_SKIP_NORMALS\n        mat3 instanceNormalMatrix = mat3(instanceMatrix);\n        animNormal = animNormal * instanceNormalMatrix;\n        #ifdef NORMAL_MAP\n            animTangent = animTangent * instanceNormalMatrix;\n        #endif\n    #endif\n#endif\n\n    // TODO: Should gl_position be handled by the shaders if we only return local position?\n    gl_Position = hx_wvpMatrix * animPosition;\n\n#ifndef HX_SKIP_NORMALS\n    normal = normalize(hx_normalWorldViewMatrix * animNormal);\n\n    #ifdef NORMAL_MAP\n        tangent = mat3(hx_worldViewMatrix) * animTangent;\n        bitangent = cross(tangent, normal) * hx_tangent.w;\n    #endif\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\n    texCoords = hx_texCoord;\n#endif\n\n#ifdef VERTEX_COLORS\n    vertexColor = hx_vertexColor;\n#endif\n}';
@@ -3660,18 +3672,6 @@
 	ShaderLibrary._files['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
 
 	ShaderLibrary._files['sh_skybox_fragment.glsl'] = 'varying_in vec3 viewWorldDir;\n\nuniform vec3 hx_sh[9];\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n    data.color = vec4(hx_evaluateSH(hx_sh, normalize(viewWorldDir.xzy)), 1.0);\n    data.emission = vec3(0.0);\n    return data;\n}';
-
-	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
-
-	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
-
-	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
-
-	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
-
-	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
 
 	ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	hx_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
@@ -20404,6 +20404,7 @@
 	    visitLight: function(light) {},
 	    visitAmbientLight: function(light) {},
 		visitMeshInstance: function (meshInstance) {},
+		visitMeshBatch: function (meshBatch) {},    // most implementations will simply use visitMeshInstance for this
 	    visitScene: function (scene) {},
 	    visitEffect: function(effect) {},
 
@@ -20460,6 +20461,10 @@
 	        }
 	    },
 
+		/**
+		 * This returns the world bounds for an entity, whether it's wrapped in a EntityProxy or not. When wrapped in a proxy,
+		 * the worldBounds do not reflect the real world bounds, since it's reused across proxies.
+		 */
 	    getProxiedBounds: function(node)
 	    {
 	        if (this._proxyMatrix) {
@@ -20474,7 +20479,11 @@
 	        }
 	    },
 
-	    getProxiedMatrix: function(node)
+		/**
+	     * This returns the world matrix for an entity, whether it's wrapped in a EntityProxy or not. When wrapped in a proxy,
+	     * the worldMatrix does not reflect the real world transform, since it's reused across proxies.
+		 */
+		getProxiedMatrix: function(node)
 	    {
 	        if (this._proxyMatrix) {
 	            var matrix = this._matrixPool.getItem();
@@ -30740,6 +30749,28 @@
 	};
 
 	/**
+	 * Retrieves the matrix based on the index in the list, not the instanceID
+	 * @ignore
+	 */
+	MeshBatch.prototype.getMatrixByIndex = function(index, target)
+	{
+		target = target || new Matrix4x4();
+
+		var m = target._m;
+		var i = index * 12;
+		var data = this._instanceTransformData;
+
+		for (var r = 0; r < 3; ++r) {
+			m[r] = data[i++];
+			m[r + 4] = data[i++];
+			m[r + 8] = data[i++];
+			m[r + 12] = data[i++];
+		}
+
+		return target;
+	};
+
+	/**
 	 * Changes the transform for an instance.
 	 * @param instanceID The instance ID as returned by {@linkcode MeshBatch#createInstance}
 	 * @param transform A {@linkcode Matrix4x4} or {@linkcode Transform} object.
@@ -30821,6 +30852,14 @@
 			b.transformFrom(meshBounds, this._addQueue[i].matrix);
 			bounds.growToIncludeBound(b);
 		}
+	};
+
+	/**
+	 * @ignore
+	 */
+	MeshBatch.prototype.acceptVisitor = function(visitor)
+	{
+		visitor.visitMeshBatch(this, this.entity);
 	};
 
 	/**
@@ -31594,6 +31633,239 @@
 	 *
 	 * @author derschmale <http://www.derschmale.com>
 	 */
+	function CascadeShadowCasterCollector()
+	{
+	    SceneVisitor.call(this);
+	    this._renderCameras = null;
+	    this._cameraYAxis = new Float4();
+	    this._bounds = new BoundingAABB();
+	    this._cullPlanes = null;
+	    this._numCullPlanes = 0;
+	    this._renderList = [];
+	    this._renderItemPool = new ObjectPool(RenderItem);
+	}
+
+	CascadeShadowCasterCollector.prototype = Object.create(SceneVisitor.prototype);
+
+	CascadeShadowCasterCollector.prototype.getRenderList = function(index) { return this._renderList[index]; };
+
+	CascadeShadowCasterCollector.prototype.collect = function(camera, scene)
+	{
+	    this.reset();
+	    this._collectorCamera = camera;
+	    camera.worldMatrix.getColumn(1, this._cameraYAxis);
+	    this._bounds.clear();
+	    this._renderItemPool.reset();
+
+	    var numCascades = META.OPTIONS.numShadowCascades;
+	    for (var i = 0; i < numCascades; ++i) {
+	        this._renderList[i] = [];
+	    }
+
+	    scene.acceptVisitor(this);
+
+	    for (i = 0; i < numCascades; ++i)
+	        this._renderList[i].sort(RenderSortFunctions.sortOpaques);
+	};
+
+	CascadeShadowCasterCollector.prototype.getBounds = function()
+	{
+	    return this._bounds;
+	};
+
+	CascadeShadowCasterCollector.prototype.setRenderCameras = function(cameras)
+	{
+	    this._renderCameras = cameras;
+	};
+
+	CascadeShadowCasterCollector.prototype.setCullPlanes = function(cullPlanes, numPlanes)
+	{
+	    this._cullPlanes = cullPlanes;
+	    this._numCullPlanes = numPlanes;
+	};
+
+	CascadeShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
+	{
+	    if (!meshInstance.castShadows || !meshInstance.enabled || !meshInstance._lodVisible) return;
+
+	    var skeleton = meshInstance.skeleton;
+		var skeletonMatrices = meshInstance.skeletonMatrices;
+	    var entity = meshInstance.entity;
+	    var worldBounds = this.getProxiedBounds(entity);
+	    this._bounds.growToIncludeBound(worldBounds);
+
+	    var passIndex = MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS;
+	    var numCascades = META.OPTIONS.numShadowCascades;
+	    var cameraYAxis = this._cameraYAxis;
+	    var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
+
+	    for (var cascade = 0; cascade < numCascades; ++cascade) {
+	        var renderList = this._renderList[cascade];
+	        var renderCamera = this._renderCameras[cascade];
+
+	        var contained = worldBounds.intersectsConvexSolid(renderCamera.frustum.planes, 4);
+
+	        if (contained) {
+	            var material = meshInstance.material;
+
+	            if (material.hasPass(passIndex)) {
+	                var renderItem = this._renderItemPool.getItem();
+	                renderItem.pass = material.getPass(passIndex);
+	                renderItem.meshInstance = meshInstance;
+	                renderItem.worldMatrix = this.getProxiedMatrix(entity);
+	                renderItem.material = material;
+	                renderItem.skeleton = skeleton;
+	                renderItem.skeletonMatrices = skeletonMatrices;
+	                var center = worldBounds._center;
+	                renderItem.renderOrderHint = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
+	                renderItem.worldBounds = worldBounds;
+
+	                renderList.push(renderItem);
+	            }
+	        }
+	    }
+	};
+
+	CascadeShadowCasterCollector.prototype.visitMeshBatch = CascadeShadowCasterCollector.prototype.visitMeshInstance;
+
+	CascadeShadowCasterCollector.prototype.qualifies = function(object, forceBounds)
+	{
+	        return object.hierarchyVisible && (forceBounds || object.worldBounds.intersectsConvexSolid(this._cullPlanes, this._numCullPlanes));
+	};
+
+	/**
+	 * @ignore
+	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function OmniShadowCasterCollector()
+	{
+	    SceneVisitor.call(this);
+	    this._lightBounds = null;
+	    this._renderLists = [];
+	    this._renderItemPool = new ObjectPool(RenderItem);
+	    this._octantPlanes = [];
+	    this._cameraPos = null;
+
+	    this._octantPlanes[0] = new Float4(0.0, 1.0, -1.0, 0.0);
+	    this._octantPlanes[1] = new Float4(1.0, 0.0, -1.0, 0.0);
+	    this._octantPlanes[2] = new Float4(-1.0, 0.0, -1.0, 0.0);
+	    this._octantPlanes[3] = new Float4(0.0, -1.0, -1.0, 0.0);
+	    this._octantPlanes[4] = new Float4(1.0, 1.0, 0.0, 0.0);
+	    this._octantPlanes[5] = new Float4(-1.0, 1.0, 0.0, 0.0);
+
+	    for (var i = 0; i < 6; ++i) {
+	        this._octantPlanes[i].normalize();
+	    }
+	}
+
+	OmniShadowCasterCollector.prototype = Object.create(SceneVisitor.prototype);
+
+	OmniShadowCasterCollector.prototype.getRenderList = function(faceIndex) { return this._renderLists[faceIndex]; };
+
+	OmniShadowCasterCollector.prototype.setLightBounds = function(value)
+	{
+	    this._lightBounds = value;
+	};
+
+	OmniShadowCasterCollector.prototype.collect = function(camera, scene)
+	{
+	    this.reset();
+	    this._camera = camera;
+	    this._renderLists = [];
+
+	    var pos = this._cameraPos = camera.position;
+
+	    for (var i = 0; i < 6; ++i) {
+	        var plane = this._octantPlanes[i];
+	        plane.w = -(pos.x * plane.x + pos.y * plane.y + pos.z * plane.z);
+	        this._renderLists[i] = [];
+	    }
+
+	    this._renderItemPool.reset();
+
+	    scene.acceptVisitor(this);
+
+	    for (i = 0; i < 6; ++i)
+	        this._renderLists[i].sort(RenderSortFunctions.sortOpaques);
+	};
+
+	OmniShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
+	{
+		if (!meshInstance.castShadows || !meshInstance.enabled || !meshInstance._lodVisible) return;
+
+		var entity = meshInstance.entity;
+		var worldBounds = this.getProxiedBounds(entity);
+		var worldMatrix = this.getProxiedMatrix(entity);
+	    // basically, this does 6 frustum tests at once
+	    var planes = this._octantPlanes;
+	    var side0 = worldBounds.classifyAgainstPlane(planes[0]);
+	    var side1 = worldBounds.classifyAgainstPlane(planes[1]);
+	    var side2 = worldBounds.classifyAgainstPlane(planes[2]);
+	    var side3 = worldBounds.classifyAgainstPlane(planes[3]);
+	    var side4 = worldBounds.classifyAgainstPlane(planes[4]);
+	    var side5 = worldBounds.classifyAgainstPlane(planes[5]);
+
+	    if (side1 >= 0 && side2 <= 0 && side4 >= 0 && side5 <= 0)
+	        this._addTo(meshInstance, 0, worldBounds, worldMatrix);
+
+	    if (side1 <= 0 && side2 >= 0 && side4 <= 0 && side5 >= 0)
+	        this._addTo(meshInstance, 1, worldBounds, worldMatrix);
+
+	    if (side0 >= 0 && side3 <= 0 && side4 >= 0 && side5 >= 0)
+	        this._addTo(meshInstance, 2, worldBounds, worldMatrix);
+
+	    if (side0 <= 0 && side3 >= 0 && side4 <= 0 && side5 <= 0)
+	        this._addTo(meshInstance, 3, worldBounds, worldMatrix);
+
+	    if (side0 <= 0 && side1 <= 0 && side2 <= 0 && side3 <= 0)
+	        this._addTo(meshInstance, 4, worldBounds, worldMatrix);
+
+	    if (side0 >= 0 && side1 >= 0 && side2 >= 0 && side3 >= 0)
+	        this._addTo(meshInstance, 5, worldBounds, worldMatrix);
+	};
+
+	OmniShadowCasterCollector.prototype.visitMeshBatch = OmniShadowCasterCollector.prototype.visitMeshInstance;
+
+	OmniShadowCasterCollector.prototype._addTo = function(meshInstance, cubeFace, worldBounds, worldMatrix)
+	{
+	    var skeleton = meshInstance.skeleton;
+	    var skeletonMatrices = meshInstance.skeletonMatrices;
+	    var renderPool = this._renderItemPool;
+	    var camPos = this._cameraPos;
+	    var camPosX = camPos.x, camPosY = camPos.y, camPosZ = camPos.z;
+	    var renderList = this._renderLists[cubeFace];
+	    var material = meshInstance.material;
+	    var renderItem = renderPool.getItem();
+
+	    renderItem.material = material;
+	    renderItem.meshInstance = meshInstance;
+	    renderItem.skeleton = skeleton;
+	    renderItem.skeletonMatrices = skeletonMatrices;
+	    var center = worldBounds._center;
+	    var dx = camPosX - center.x;
+	    var dy = camPosY - center.y;
+	    var dz = camPosZ - center.z;
+	    renderItem.renderOrderHint = dx * dx + dy * dy + dz * dz;
+	    renderItem.worldMatrix = worldMatrix;
+	    renderItem.worldBounds = worldBounds;
+
+	    renderList.push(renderItem);
+	};
+
+	OmniShadowCasterCollector.prototype.qualifies = function(object, forceBounds)
+	{
+	    // for now, only interested if it intersects the point light volume at all
+	    return object.hierarchyVisible && (forceBounds || object.worldBounds.intersectsBound(this._lightBounds));
+	};
+
+	/**
+	 * @ignore
+	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
 	function RenderCollector()
 	{
 	    SceneVisitor.call(this);
@@ -31716,6 +31988,8 @@
 	    	numTris *= meshInstance.numInstances;
 		_glStats.numTriangles += numTris;
 	};
+
+	RenderCollector.prototype.visitMeshBatch = RenderCollector.prototype.visitMeshInstance;
 
 	RenderCollector.prototype.visitAmbientLight = function(light)
 	{
@@ -32048,110 +32322,6 @@
 
 	/**
 	 * @ignore
-	 * @constructor
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function CascadeShadowCasterCollector()
-	{
-	    SceneVisitor.call(this);
-	    this._renderCameras = null;
-	    this._cameraYAxis = new Float4();
-	    this._bounds = new BoundingAABB();
-	    this._cullPlanes = null;
-	    this._numCullPlanes = 0;
-	    this._renderList = [];
-	    this._renderItemPool = new ObjectPool(RenderItem);
-	}
-
-	CascadeShadowCasterCollector.prototype = Object.create(SceneVisitor.prototype);
-
-	CascadeShadowCasterCollector.prototype.getRenderList = function(index) { return this._renderList[index]; };
-
-	CascadeShadowCasterCollector.prototype.collect = function(camera, scene)
-	{
-	    this.reset();
-	    this._collectorCamera = camera;
-	    camera.worldMatrix.getColumn(1, this._cameraYAxis);
-	    this._bounds.clear();
-	    this._renderItemPool.reset();
-
-	    var numCascades = META.OPTIONS.numShadowCascades;
-	    for (var i = 0; i < numCascades; ++i) {
-	        this._renderList[i] = [];
-	    }
-
-	    scene.acceptVisitor(this);
-
-	    for (i = 0; i < numCascades; ++i)
-	        this._renderList[i].sort(RenderSortFunctions.sortOpaques);
-	};
-
-	CascadeShadowCasterCollector.prototype.getBounds = function()
-	{
-	    return this._bounds;
-	};
-
-	CascadeShadowCasterCollector.prototype.setRenderCameras = function(cameras)
-	{
-	    this._renderCameras = cameras;
-	};
-
-	CascadeShadowCasterCollector.prototype.setCullPlanes = function(cullPlanes, numPlanes)
-	{
-	    this._cullPlanes = cullPlanes;
-	    this._numCullPlanes = numPlanes;
-	};
-
-	CascadeShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
-	{
-	    if (!meshInstance.castShadows || !meshInstance.enabled || !meshInstance._lodVisible) return;
-
-	    var skeleton = meshInstance.skeleton;
-		var skeletonMatrices = meshInstance.skeletonMatrices;
-	    var entity = meshInstance.entity;
-	    var worldBounds = this.getProxiedBounds(entity);
-	    this._bounds.growToIncludeBound(worldBounds);
-
-	    var passIndex = MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS;
-	    var numCascades = META.OPTIONS.numShadowCascades;
-	    var cameraYAxis = this._cameraYAxis;
-	    var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
-
-	    for (var cascade = 0; cascade < numCascades; ++cascade) {
-	        var renderList = this._renderList[cascade];
-	        var renderCamera = this._renderCameras[cascade];
-
-	        var contained = worldBounds.intersectsConvexSolid(renderCamera.frustum.planes, 4);
-
-	        if (contained) {
-	            var material = meshInstance.material;
-
-	            if (material.hasPass(passIndex)) {
-	                var renderItem = this._renderItemPool.getItem();
-	                renderItem.pass = material.getPass(passIndex);
-	                renderItem.meshInstance = meshInstance;
-	                renderItem.worldMatrix = this.getProxiedMatrix(entity);
-	                renderItem.material = material;
-	                renderItem.skeleton = skeleton;
-	                renderItem.skeletonMatrices = skeletonMatrices;
-	                var center = worldBounds._center;
-	                renderItem.renderOrderHint = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
-	                renderItem.worldBounds = worldBounds;
-
-	                renderList.push(renderItem);
-	            }
-	        }
-	    }
-	};
-
-	CascadeShadowCasterCollector.prototype.qualifies = function(object, forceBounds)
-	{
-	        return object.hierarchyVisible && (forceBounds || object.worldBounds.intersectsConvexSolid(this._cullPlanes, this._numCullPlanes));
-	};
-
-	/**
-	 * @ignore
 	 * @param light
 	 * @param shadowMapSize
 	 * @constructor
@@ -32385,131 +32555,6 @@
 
 	/**
 	 * @ignore
-	 * @constructor
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function OmniShadowCasterCollector()
-	{
-	    SceneVisitor.call(this);
-	    this._lightBounds = null;
-	    this._renderLists = [];
-	    this._renderItemPool = new ObjectPool(RenderItem);
-	    this._octantPlanes = [];
-	    this._cameraPos = null;
-
-	    this._octantPlanes[0] = new Float4(0.0, 1.0, -1.0, 0.0);
-	    this._octantPlanes[1] = new Float4(1.0, 0.0, -1.0, 0.0);
-	    this._octantPlanes[2] = new Float4(-1.0, 0.0, -1.0, 0.0);
-	    this._octantPlanes[3] = new Float4(0.0, -1.0, -1.0, 0.0);
-	    this._octantPlanes[4] = new Float4(1.0, 1.0, 0.0, 0.0);
-	    this._octantPlanes[5] = new Float4(-1.0, 1.0, 0.0, 0.0);
-
-	    for (var i = 0; i < 6; ++i) {
-	        this._octantPlanes[i].normalize();
-	    }
-	}
-
-	OmniShadowCasterCollector.prototype = Object.create(SceneVisitor.prototype);
-
-	OmniShadowCasterCollector.prototype.getRenderList = function(faceIndex) { return this._renderLists[faceIndex]; };
-
-	OmniShadowCasterCollector.prototype.setLightBounds = function(value)
-	{
-	    this._lightBounds = value;
-	};
-
-	OmniShadowCasterCollector.prototype.collect = function(camera, scene)
-	{
-	    this.reset();
-	    this._camera = camera;
-	    this._renderLists = [];
-
-	    var pos = this._cameraPos = camera.position;
-
-	    for (var i = 0; i < 6; ++i) {
-	        var plane = this._octantPlanes[i];
-	        plane.w = -(pos.x * plane.x + pos.y * plane.y + pos.z * plane.z);
-	        this._renderLists[i] = [];
-	    }
-
-	    this._renderItemPool.reset();
-
-	    scene.acceptVisitor(this);
-
-	    for (i = 0; i < 6; ++i)
-	        this._renderLists[i].sort(RenderSortFunctions.sortOpaques);
-	};
-
-	OmniShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
-	{
-		if (!meshInstance.castShadows || !meshInstance.enabled || !meshInstance._lodVisible) return;
-
-		var entity = meshInstance.entity;
-		var worldBounds = this.getProxiedBounds(entity);
-		var worldMatrix = this.getProxiedMatrix(entity);
-	    // basically, this does 6 frustum tests at once
-	    var planes = this._octantPlanes;
-	    var side0 = worldBounds.classifyAgainstPlane(planes[0]);
-	    var side1 = worldBounds.classifyAgainstPlane(planes[1]);
-	    var side2 = worldBounds.classifyAgainstPlane(planes[2]);
-	    var side3 = worldBounds.classifyAgainstPlane(planes[3]);
-	    var side4 = worldBounds.classifyAgainstPlane(planes[4]);
-	    var side5 = worldBounds.classifyAgainstPlane(planes[5]);
-
-	    if (side1 >= 0 && side2 <= 0 && side4 >= 0 && side5 <= 0)
-	        this._addTo(meshInstance, 0, worldBounds, worldMatrix);
-
-	    if (side1 <= 0 && side2 >= 0 && side4 <= 0 && side5 >= 0)
-	        this._addTo(meshInstance, 1, worldBounds, worldMatrix);
-
-	    if (side0 >= 0 && side3 <= 0 && side4 >= 0 && side5 >= 0)
-	        this._addTo(meshInstance, 2, worldBounds, worldMatrix);
-
-	    if (side0 <= 0 && side3 >= 0 && side4 <= 0 && side5 <= 0)
-	        this._addTo(meshInstance, 3, worldBounds, worldMatrix);
-
-	    if (side0 <= 0 && side1 <= 0 && side2 <= 0 && side3 <= 0)
-	        this._addTo(meshInstance, 4, worldBounds, worldMatrix);
-
-	    if (side0 >= 0 && side1 >= 0 && side2 >= 0 && side3 >= 0)
-	        this._addTo(meshInstance, 5, worldBounds, worldMatrix);
-	};
-
-	OmniShadowCasterCollector.prototype._addTo = function(meshInstance, cubeFace, worldBounds, worldMatrix)
-	{
-	    var skeleton = meshInstance.skeleton;
-	    var skeletonMatrices = meshInstance.skeletonMatrices;
-	    var renderPool = this._renderItemPool;
-	    var camPos = this._cameraPos;
-	    var camPosX = camPos.x, camPosY = camPos.y, camPosZ = camPos.z;
-	    var renderList = this._renderLists[cubeFace];
-	    var material = meshInstance.material;
-	    var renderItem = renderPool.getItem();
-
-	    renderItem.material = material;
-	    renderItem.meshInstance = meshInstance;
-	    renderItem.skeleton = skeleton;
-	    renderItem.skeletonMatrices = skeletonMatrices;
-	    var center = worldBounds._center;
-	    var dx = camPosX - center.x;
-	    var dy = camPosY - center.y;
-	    var dz = camPosZ - center.z;
-	    renderItem.renderOrderHint = dx * dx + dy * dy + dz * dz;
-	    renderItem.worldMatrix = worldMatrix;
-	    renderItem.worldBounds = worldBounds;
-
-	    renderList.push(renderItem);
-	};
-
-	OmniShadowCasterCollector.prototype.qualifies = function(object, forceBounds)
-	{
-	    // for now, only interested if it intersects the point light volume at all
-	    return object.hierarchyVisible && (forceBounds || object.worldBounds.intersectsBound(this._lightBounds));
-	};
-
-	/**
-	 * @ignore
 	 *
 	 * @constructor
 	 *
@@ -32622,6 +32667,8 @@
 
 	    renderList.push(renderItem);
 	};
+
+	SpotShadowCasterCollector.prototype.visitMeshBatch = SpotShadowCasterCollector.prototype.visitMeshInstance;
 
 	SpotShadowCasterCollector.prototype.qualifies = function(object, forceBounds)
 	{
@@ -34025,6 +34072,7 @@
 	{
 	    this.meshInstance = null;
 	    this.closestDistanceSqr = 0;
+	    this.worldMatrix = new Matrix4x4();
 	    this.objectMatrix = new Matrix4x4();
 
 	    // to store this in a linked list for pooling
@@ -34089,35 +34137,61 @@
 	Raycaster.prototype.visitMeshInstance = function (meshInstance)
 	{
 	    var entity = meshInstance.entity;
-	    var potential = this._potentialPool.getItem();
-	    potential.meshInstance = meshInstance;
-	    var dir = this._ray.direction;
-	    var dirX = dir.x, dirY = dir.y, dirZ = dir.z;
-	    var origin = this._ray.origin;
-	    var bounds = this.getProxiedBounds(entity);
-	    var center = bounds.center;
-	    var ex = bounds._halfExtentX;
-	    var ey = bounds._halfExtentY;
-	    var ez = bounds._halfExtentZ;
-	    ex = dirX > 0? center.x - ex : center.x + ex;
-	    ey = dirY > 0? center.y - ey : center.y + ey;
-	    ez = dirZ > 0? center.z - ez : center.z + ez;
+	    this._addPotential(meshInstance, this.getProxiedMatrix(entity), this.getProxiedBounds(entity));
 
-	    // this is not required for the order, but when testing the intersection distances
-	    ex -= origin.x;
-	    ey -= origin.y;
-	    ez -= origin.z;
+	};
 
-	    // the closest projected point on the ray is the order
-	    potential.closestDistanceSqr = ex * dirX + ey * dirY + ez * dirZ;
-	    potential.objectMatrix.inverseAffineOf(this.getProxiedMatrix(entity));
+	var workMtx = new Matrix4x4();
+	var workBounds$1 = new BoundingAABB();
 
-	    this._potentials.push(potential);
+	Raycaster.prototype.visitMeshBatch = function (meshBatch)
+	{
+		var entity = meshBatch.entity;
+		var matrix = this.getProxiedMatrix(entity);
+		var b = meshBatch.mesh.bounds;
+
+		for (var i = 0, len = meshBatch.numInstances; i < len; ++i) {
+		    meshBatch.getMatrixByIndex(i, workMtx);
+		    workMtx.appendAffine(matrix);
+			workBounds$1.transformFrom(b, workMtx);
+
+			if (workBounds$1.intersectsRay(this._ray))
+				this._addPotential(meshBatch, workMtx, workBounds$1);
+	    }
+	};
+
+	Raycaster.prototype._addPotential = function (meshInstance, matrix, bounds)
+	{
+		var potential = this._potentialPool.getItem();
+		potential.meshInstance = meshInstance;
+
+		var dir = this._ray.direction;
+		var dirX = dir.x, dirY = dir.y, dirZ = dir.z;
+		var origin = this._ray.origin;
+		var center = bounds.center;
+		var ex = bounds._halfExtentX;
+		var ey = bounds._halfExtentY;
+		var ez = bounds._halfExtentZ;
+		ex = dirX > 0? center.x - ex : center.x + ex;
+		ey = dirY > 0? center.y - ey : center.y + ey;
+		ez = dirZ > 0? center.z - ez : center.z + ez;
+
+		// this is not required for the order, but when testing the intersection distances
+		ex -= origin.x;
+		ey -= origin.y;
+		ez -= origin.z;
+
+		potential.worldMatrix.copyFrom(matrix);
+		potential.objectMatrix.inverseAffineOf(matrix);
+		// the closest projected point on the ray is the order
+		potential.closestDistanceSqr = ex * dirX + ey * dirY + ez * dirZ;
+		this._potentials.push(potential);
 	};
 
 	Raycaster.prototype._findClosest = function()
 	{
-	    var set = this._potentials;
+		var worldMatrix;
+		var set = this._potentials;
 	    var len = set.length;
 	    var hitData = new IntersectionData();
 	    var worldRay = this._ray;
@@ -34133,6 +34207,7 @@
 	        localRay.transformFrom(worldRay, elm.objectMatrix);
 
 	        if (this._testMesh(localRay, elm.meshInstance.mesh, hitData)) {
+	            worldMatrix = elm.worldMatrix;
 	            hitData.entity = elm.meshInstance.entity;
 	            hitData.component = elm.meshInstance;
 	        }
@@ -34140,7 +34215,6 @@
 	    }
 
 	    if (hitData.entity) {
-	        var worldMatrix = this.getProxiedMatrix(hitData.entity);
 			worldMatrix.transformPoint(hitData.point, hitData.point);
 			worldMatrix.transformNormal(hitData.faceNormal, hitData.faceNormal);
 		}
@@ -34219,7 +34293,7 @@
 	        var w = (dot11 * dotp2 - dot12 * dotp1) * rcpDenom;
 	        var u = 1.0 - v - w;
 
-	        if (u >= 0 && v >= 0 && w >= 0) {
+	        if (u >= 0 && u <= 1 && v >= 0 && v <= 1 && w >= 0 && w <= 1) {
 	            hitData.faceNormal.set(nx, ny, nz, 0.0);
 	            hitData.point.set(px, py, pz, 1.0);
 	            hitData.barycentric.set(u, v, w, 0.0);

@@ -106,6 +106,8 @@ CascadeShadowCasterCollector.prototype.visitMeshInstance = function (meshInstanc
     }
 };
 
+CascadeShadowCasterCollector.prototype.visitMeshBatch = CascadeShadowCasterCollector.prototype.visitMeshInstance;
+
 CascadeShadowCasterCollector.prototype.qualifies = function(object, forceBounds)
 {
         return object.hierarchyVisible && (forceBounds || object.worldBounds.intersectsConvexSolid(this._cullPlanes, this._numCullPlanes));

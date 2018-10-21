@@ -4,6 +4,7 @@
 
 var project = new DemoProject();
 var batch;
+var indicator;
 
 window.onload = function ()
 {
@@ -23,6 +24,25 @@ project.onInit = function()
     this.camera.farDistance = 100.0;
 
     initScene(this.scene, this.assetLibrary);
+
+	this.input = new HX.Input();
+	var mouse = new HX.Mouse();
+	mouse.map(HX.Mouse.POS_X, "posX");
+	mouse.map(HX.Mouse.POS_Y, "posY");
+	this.input.enable(mouse);
+
+
+	var material = new HX.BasicMaterial();
+	material.color = 0xffff00;
+
+	var primitive = new HX.SpherePrimitive(
+		{
+			radius: .01
+		});
+	indicator = new HX.Entity(new HX.MeshInstance(primitive, material));
+	indicator.visible = false;
+	indicator.name = "Indicator";
+	this.scene.attach(indicator);
 };
 
 function initScene(scene, assetLibrary)
@@ -65,3 +85,25 @@ function initScene(scene, assetLibrary)
         batch.createInstance(tr);
     }
 }
+
+project.onUpdate = function(dt)
+{
+	// TODO:
+	// For now, raycasting happens manually
+	// We may want a set of interaction components
+	// fe: a simple Clickable component etc
+
+	var x = this.input.getValue("posX");
+	var y = this.input.getValue("posY");
+	var ray = this.camera.getRay(x * 2.0 - 1.0, -(y * 2.0 - 1.0));
+
+	indicator.visible = false;
+
+	var rayCaster = new HX.Raycaster();
+	var hitData = rayCaster.cast(ray, this.scene);
+
+	if (hitData) {
+		indicator.visible = true;
+		indicator.position.copyFrom(hitData.point);
+	}
+};

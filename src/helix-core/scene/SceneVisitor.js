@@ -34,6 +34,7 @@ SceneVisitor.prototype =
     visitLight: function(light) {},
     visitAmbientLight: function(light) {},
 	visitMeshInstance: function (meshInstance) {},
+	visitMeshBatch: function (meshBatch) {},    // most implementations will simply use visitMeshInstance for this
     visitScene: function (scene) {},
     visitEffect: function(effect) {},
 
@@ -90,6 +91,10 @@ SceneVisitor.prototype =
         }
     },
 
+	/**
+	 * This returns the world bounds for an entity, whether it's wrapped in a EntityProxy or not. When wrapped in a proxy,
+	 * the worldBounds do not reflect the real world bounds, since it's reused across proxies.
+	 */
     getProxiedBounds: function(node)
     {
         if (this._proxyMatrix) {
@@ -104,7 +109,11 @@ SceneVisitor.prototype =
         }
     },
 
-    getProxiedMatrix: function(node)
+	/**
+     * This returns the world matrix for an entity, whether it's wrapped in a EntityProxy or not. When wrapped in a proxy,
+     * the worldMatrix does not reflect the real world transform, since it's reused across proxies.
+	 */
+	getProxiedMatrix: function(node)
     {
         if (this._proxyMatrix) {
             var matrix = this._matrixPool.getItem();

@@ -2,6 +2,7 @@ import {GL} from "../core/GL";
 import {DataType, TextureFormat, TextureFilter, TextureWrapMode, capabilities} from "../Helix";
 import {TextureUtils} from "./TextureUtils";
 import {MathX} from "../math/MathX";
+import {Texture} from "./Texture";
 
 var nameCounter = 0;
 
@@ -11,30 +12,22 @@ var nameCounter = 0;
  *
  * @constructor
  *
- * @propety name The name of the texture.
+ * @property name The name of the texture.
+ * @property width The texture's width
+ * @property height The texture's height
  *
  * @author derschmale <http://www.derschmale.com>
  */
 function Texture2D()
 {
-    this.name = "hx_texture2d_" + (nameCounter++);
-    this._default = Texture2D.DEFAULT;
-    this._texture = GL.gl.createTexture();
+	Texture.call(this, GL.gl.TEXTURE_2D);
+
+	this.name = "hx_texture2d_" + (nameCounter++);
+	this._default = Texture2D.DEFAULT;
     this._width = 0;
     this._height = 0;
-    this._format = null;
-    this._dataType = null;
 
-    this.bind();
-
-    // set defaults
-    this.maxAnisotropy = capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY;
-    this.filter = TextureFilter.DEFAULT;
-    this.wrapMode = TextureWrapMode.DEFAULT;
-
-    this._isReady = false;
-
-    GL.gl.bindTexture(GL.gl.TEXTURE_2D, null);
+	this.wrapMode = TextureWrapMode.DEFAULT;
 }
 
 /**
@@ -48,295 +41,205 @@ Texture2D._initDefault = function()
     Texture2D.DEFAULT.filter = TextureFilter.NEAREST_NOMIP;
 };
 
-Texture2D.prototype =
+Texture2D.prototype = Object.create(Texture.prototype, {
+	numMips: {
+		get: function() {
+			return Math.floor(MathX.log2(Math.max(this._width, this._height)));
+		}
+	},
+	wrapMode: {
+		get: function()
+		{
+			return this._wrapMode;
+		},
+
+		set: function(value)
+		{
+			var gl = GL.gl;
+			this._wrapMode = value;
+			this.bind();
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, value.s);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, value.t);
+			gl.bindTexture(gl.TEXTURE_2D, null);
+		}
+	},
+	width: {
+		get: function() { return this._width; }
+	},
+	height: {
+		get: function() { return this._height; }
+	}
+});
+
+/**
+ * Inits an empty texture.
+ * @param width The width of the texture.
+ * @param height The height of the texture.
+ * @param {TextureFormat} format The texture's format.
+ * @param {DataType} dataType The texture's data format.
+ */
+Texture2D.prototype.initEmpty = function(width, height, format, dataType)
 {
-    /**
-     * Generates a mip map chain.
-     */
-    generateMipmap: function()
-    {
-        var gl = GL.gl;
+	this._data = null;
+	var gl = GL.gl;
+	this._format = format = format || TextureFormat.RGBA;
+	this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
 
-        this.bind();
+	this.bind();
+	this._width = width;
+	this._height = height;
 
-        gl.generateMipmap(gl.TEXTURE_2D);
-        gl.bindTexture(gl.TEXTURE_2D, null);
-    },
+	var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
+	gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, width, height, 0, format, dataType, null);
 
-	/**
-	 * The amount of mip levels (if present).
-	 */
-	get numMips()
-	{
-		return Math.floor(MathX.log2(Math.max(this._width, this._height)));
-	},
+	this._isReady = true;
 
-    /**
-     * A {@linkcode TextureFilter} object defining how the texture should be filtered during sampling.
-     */
-    get filter()
-    {
-        return this._filter;
-    },
+	gl.bindTexture(gl.TEXTURE_2D, null);
+};
 
-    set filter(filter)
-    {
-        var gl = GL.gl;
-        this._filter = filter;
-        this.bind();
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter.min);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter.mag);
-        gl.bindTexture(gl.TEXTURE_2D, null);
+/**
+ * Initializes the texture with the given data.
+ * @param {*} data An typed array containing the initial data.
+ * @param {number} width The width of the texture.
+ * @param {number} height The height of the texture.
+ * @param {boolean} generateMips Whether or not a mip chain should be generated.
+ * @param {TextureFormat} format The texture's format.
+ * @param {DataType} dataType The texture's data format.
+ * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
+ */
+Texture2D.prototype.uploadData = function(data, width, height, generateMips, format, dataType, mipLevel)
+{
+	var gl = GL.gl;
 
-        if (filter === TextureFilter.NEAREST_NOMIP || filter === TextureFilter.NEAREST) {
-            this.maxAnisotropy = 1;
-        }
-    },
+	if (capabilities.EXT_HALF_FLOAT_TEXTURES && dataType === DataType.HALF_FLOAT && !(data instanceof Uint16Array))
+		data = TextureUtils.encodeToFloat16Array(data);
 
-    /**
-     * A {@linkcode TextureWrapMode} object defining how out-of-bounds sampling should be handled.
-     */
-    get wrapMode()
-    {
-        return this._wrapMode;
-    },
+	if (!mipLevel) {
+		this._width = width;
+		this._height = height;
+		this._format = format || TextureFormat.RGBA;
+		this._dataType = dataType || DataType.UNSIGNED_BYTE;
 
-    set wrapMode(mode)
-    {
-        var gl = GL.gl;
-        this._wrapMode = mode;
-        this.bind();
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, mode.s);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, mode.t);
-        gl.bindTexture(gl.TEXTURE_2D, null);
-    },
+		if (this._keepData)
+			this._data = data;
+	}
 
-    /**
-     * The maximum anisotropy used when sampling. Limited to {@linkcode capabilities#DEFAULT_TEXTURE_MAX_ANISOTROPY}
-     */
-    get maxAnisotropy()
-    {
-        return this._maxAnisotropy;
-    },
+	format = this._format;
+	dataType = this._dataType;
 
-    set maxAnisotropy(value)
-    {
-        var gl = GL.gl;
+	generateMips = generateMips === undefined? false: generateMips;
 
-        if (value > capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY)
-            value = capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY;
+	this.bind();
 
-        this._maxAnisotropy = value;
+	var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
+	gl.texImage2D(gl.TEXTURE_2D, mipLevel || 0, internalFormat, width, height, 0, format, dataType, data);
 
-        this.bind();
-        if (capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC)
-            GL.gl.texParameteri(gl.TEXTURE_2D, capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC.TEXTURE_MAX_ANISOTROPY_EXT, value);
-        gl.bindTexture(gl.TEXTURE_2D, null);
-    },
+	if (generateMips)
+		gl.generateMipmap(gl.TEXTURE_2D);
 
-    /**
-     * The texture's width
-     */
-    get width() { return this._width; },
+	this._isReady = true;
 
-    /**
-     * The texture's height
-     */
-    get height() { return this._height; },
+	gl.bindTexture(gl.TEXTURE_2D, null);
+};
 
-    /**
-     * The texture's format
-     *
-     * @see {@linkcode TextureFormat}
-     */
-    get format() { return this._format; },
+/**
+ * Initializes the texture with a given Image.
+ * @param image The Image to upload to the texture
+ * @param width The width of the texture.
+ * @param height The height of the texture.
+ * @param generateMips Whether or not a mip chain should be generated.
+ * @param {TextureFormat} format The texture's format.
+ * @param {DataType} dataType The texture's data format.
+ * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
+ */
+Texture2D.prototype.uploadImage = function(image, width, height, generateMips, format, dataType, mipLevel)
+{
+	var gl = GL.gl;
 
-    /**
-     * The texture's data type
-     *
-     * @see {@linkcode DataType}
-     */
-    get dataType() { return this._dataType; },
+	if (!mipLevel) {
+		this._width = width;
+		this._height = height;
+		this._format = format || TextureFormat.RGBA;
+		this._dataType = dataType || DataType.UNSIGNED_BYTE;
 
-    /**
-     * Inits an empty texture.
-     * @param width The width of the texture.
-     * @param height The height of the texture.
-     * @param {TextureFormat} format The texture's format.
-     * @param {DataType} dataType The texture's data format.
-     */
-    initEmpty: function(width, height, format, dataType)
-    {
-        var gl = GL.gl;
-        this._format = format = format || TextureFormat.RGBA;
-        this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
+		if (this._keepData)
+			this._data = image;
+	}
 
-        this.bind();
-        this._width = width;
-        this._height = height;
+	format = this._format;
+	dataType = this._dataType;
 
-		var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
-        gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, width, height, 0, format, dataType, null);
+	generateMips = generateMips === undefined? true: generateMips;
 
-        this._isReady = true;
+	if (!(MathX.isPowerOfTwo(width) && MathX.isPowerOfTwo(height))) {
+		generateMips = false;
+		if (this.filter === TextureFilter.NEAREST)
+			this.filter = TextureFilter.NEAREST_NOMIP;
+		else if (this.filter === TextureFilter.BILINEAR)
+			this.filter = TextureFilter.BILINEAR_NOMIP;
+		else if (this.filter === TextureFilter.TRILINEAR || this.filter === TextureFilter.TRILINEAR_ANISOTROPIC)
+			this.filter = TextureFilter.BILINEAR_NOMIP;
 
-        gl.bindTexture(gl.TEXTURE_2D, null);
-    },
+		this.wrapMode = TextureWrapMode.CLAMP;
+	}
 
-    /**
-     * Initializes the texture with the given data.
-     * @param {*} data An typed array containing the initial data.
-     * @param {number} width The width of the texture.
-     * @param {number} height The height of the texture.
-     * @param {boolean} generateMips Whether or not a mip chain should be generated.
-     * @param {TextureFormat} format The texture's format.
-     * @param {DataType} dataType The texture's data format.
-     * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
-     */
-    uploadData: function(data, width, height, generateMips, format, dataType, mipLevel)
-    {
-        var gl = GL.gl;
+	this.bind();
 
-        if (capabilities.EXT_HALF_FLOAT_TEXTURES && dataType === DataType.HALF_FLOAT && !(data instanceof Uint16Array))
-            data = TextureUtils.encodeToFloat16Array(data);
+	var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
+	gl.texImage2D(gl.TEXTURE_2D, mipLevel || 0, internalFormat, format, dataType, image);
 
-        if (!mipLevel) {
-			this._width = width;
-			this._height = height;
-			this._format = format || TextureFormat.RGBA;
-			this._dataType = dataType || DataType.UNSIGNED_BYTE;
-		}
+	if (generateMips)
+		gl.generateMipmap(gl.TEXTURE_2D);
 
-		format = this._format;
-		dataType = this._dataType;
+	this._isReady = true;
 
-		generateMips = generateMips === undefined? false: generateMips;
+	gl.bindTexture(gl.TEXTURE_2D, null);
+};
 
-        this.bind();
+/**
+ * Uploads compressed data.
+ *
+ * @param {*} data An typed array containing the initial data.
+ * @param {number} width The width of the texture.
+ * @param {number} height The height of the texture.
+ * @param {boolean} generateMips Whether or not a mip chain should be generated.
+ * @param {*} internalFormat The texture's internal compression format.
+ * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
+ */
+Texture2D.prototype.uploadCompressedData = function(data, width, height, generateMips, internalFormat, mipLevel)
+{
+	if (this._keepData)
+		this._data = data;
+	var gl = GL.gl;
 
-        var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
-        gl.texImage2D(gl.TEXTURE_2D, mipLevel || 0, internalFormat, width, height, 0, format, dataType, data);
+	if (!mipLevel) {
+		this._width = width;
+		this._height = height;
+		this._format = TextureFormat.RGBA;
+		this._dataType = DataType.UNSIGNED_BYTE;
 
-        if (generateMips)
-            gl.generateMipmap(gl.TEXTURE_2D);
+		if (this._keepData)
+			this._data = data;
+	}
 
-        this._isReady = true;
+	this.bind();
 
-        gl.bindTexture(gl.TEXTURE_2D, null);
-    },
+	gl.compressedTexImage2D(gl.TEXTURE_2D, mipLevel || 0, internalFormat, width, height, 0, data);
 
-    /**
-     * Initializes the texture with a given Image.
-     * @param image The Image to upload to the texture
-     * @param width The width of the texture.
-     * @param height The height of the texture.
-     * @param generateMips Whether or not a mip chain should be generated.
-     * @param {TextureFormat} format The texture's format.
-     * @param {DataType} dataType The texture's data format.
-     * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
-     */
-    uploadImage: function(image, width, height, generateMips, format, dataType, mipLevel)
-    {
-        var gl = GL.gl;
+	if (generateMips)
+		gl.generateMipmap(gl.TEXTURE_2D);
 
-		if (!mipLevel) {
-			this._width = width;
-			this._height = height;
-			this._format = format || TextureFormat.RGBA;
-			this._dataType = dataType || DataType.UNSIGNED_BYTE;
-		}
+	this._isReady = true;
 
-		format = this._format;
-		dataType = this._dataType;
+	gl.bindTexture(gl.TEXTURE_2D, null);
+};
 
-
-		generateMips = generateMips === undefined? true: generateMips;
-
-        if (!(MathX.isPowerOfTwo(width) && MathX.isPowerOfTwo(height))) {
-			generateMips = false;
-			if (this.filter === TextureFilter.NEAREST)
-			    this.filter = TextureFilter.NEAREST_NOMIP;
-			else if (this.filter === TextureFilter.BILINEAR)
-				this.filter = TextureFilter.BILINEAR_NOMIP;
-			else if (this.filter === TextureFilter.TRILINEAR || this.filter === TextureFilter.TRILINEAR_ANISOTROPIC)
-				this.filter = TextureFilter.BILINEAR_NOMIP;
-
-			this.wrapMode = TextureWrapMode.CLAMP;
-		}
-
-        this.bind();
-
-		var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
-        gl.texImage2D(gl.TEXTURE_2D, mipLevel || 0, internalFormat, format, dataType, image);
-
-        if (generateMips)
-            gl.generateMipmap(gl.TEXTURE_2D);
-
-        this._isReady = true;
-
-        gl.bindTexture(gl.TEXTURE_2D, null);
-    },
-
-	/**
-     * Uploads compressed data.
-     *
-     * @param {*} data An typed array containing the initial data.
-	 * @param {number} width The width of the texture.
-	 * @param {number} height The height of the texture.
-	 * @param {boolean} generateMips Whether or not a mip chain should be generated.
-	 * @param {*} internalFormat The texture's internal compression format.
-     * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
-	 */
-	uploadCompressedData: function(data, width, height, generateMips, internalFormat, mipLevel)
-    {
-		var gl = GL.gl;
-
-		if (!mipLevel) {
-			this._width = width;
-			this._height = height;
-			this._format = TextureFormat.RGBA;
-			this._dataType = DataType.UNSIGNED_BYTE;
-		}
-
-		this.bind();
-
-		gl.compressedTexImage2D(gl.TEXTURE_2D, mipLevel || 0, internalFormat, width, height, 0, data);
-
-		if (generateMips)
-			gl.generateMipmap(gl.TEXTURE_2D);
-
-		this._isReady = true;
-
-		gl.bindTexture(gl.TEXTURE_2D, null);
-	},
-
-    /**
-     * Defines whether data has been uploaded to the texture or not.
-     */
-    isReady: function() { return this._isReady; },
-
-    /**
-     * Binds a texture to a given texture unit.
-     * @ignore
-     */
-    bind: function(unitIndex)
-    {
-        var gl = GL.gl;
-
-        if (unitIndex !== undefined) {
-            gl.activeTexture(gl.TEXTURE0 + unitIndex);
-        }
-
-        gl.bindTexture(gl.TEXTURE_2D, this._texture);
-    },
-
-    /**
-     * @ignore
-     */
-    toString: function()
-    {
-        return "[Texture2D(name=" + this.name + ")]";
-    }
+/**
+ * @ignore
+ */
+Texture2D.prototype.toString = function()
+{
+	return "[Texture2D(name=" + this.name + ")]";
 };
 
 

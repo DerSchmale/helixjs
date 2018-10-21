@@ -3613,17 +3613,35 @@
 
 	ShaderLibrary._files['spot_light.glsl'] = 'struct HX_SpotLight\n{\n    vec3 color;\n    vec3 position;\n    vec3 direction;\n    float radius;\n    float rcpRadius;\n\n    vec2 angleData;    // cos(inner), rcp(cos(outer) - cos(inner))\n\n    mat4 shadowMapMatrix;\n    float depthBias;\n    int castShadows;\n\n    vec4 shadowTile;    // xy = scale, zw = offset\n};\n\nvoid hx_calculateLight(HX_SpotLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n\n    float cosAngle = dot(light.direction, direction);\n\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n    attenuation *=  saturate((cosAngle - light.angleData.x) * light.angleData.y);\n\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_SpotLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec4 shadowMapCoord = light.shadowMapMatrix * vec4(viewPos, 1.0);\n    shadowMapCoord /= shadowMapCoord.w;\n    // *.9 --> match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    shadowMapCoord.xy = shadowMapCoord.xy * .95 * light.shadowTile.xy + light.shadowTile.zw;\n    shadowMapCoord.z = length(viewPos - light.position) * light.rcpRadius;\n    return hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
 
-	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
+	ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	hx_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
-	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
+	ShaderLibrary._files['bloom_composite_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
 
-	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
+	ShaderLibrary._files['bloom_threshold_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nuniform float threshold;\n\nvoid main()\n{\n        vec4 color = texture2D(hx_backbuffer, uv);\n        float originalLuminance = .05 + hx_luminance(color);\n        float targetLuminance = max(originalLuminance - threshold, 0.0);\n        hx_FragColor = color * targetLuminance / originalLuminance;\n}\n';
 
-	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
+	ShaderLibrary._files['default_post_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
 
-	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
+	ShaderLibrary._files['fog_fragment.glsl'] = 'varying_in vec2 uv;\nvarying_in vec3 viewDir;\n\nuniform vec3 tint;\nuniform float density;\nuniform float startDistance;\nuniform float heightFallOff;\n\nuniform float hx_cameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\nuniform vec3 hx_cameraWorldPosition;\n\nuniform sampler2D hx_normalDepthBuffer;\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n    vec4 normalDepth = texture2D(hx_normalDepthBuffer, uv);\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float depth = hx_decodeLinearDepth(normalDepth);\n	// do not fog up skybox\n	if (normalDepth.z == 1.0 && normalDepth.w == 1.0) depth = 0.0;\n	float absViewY = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n	vec3 viewVec = viewDir * absViewY;\n	float fogFactor = max(length(viewVec) - startDistance, 0.0);// * exp(-heightFallOff * hx_cameraWorldPosition.y);\n//    if( abs( viewVec.y ) > 0.1 )\n//	{\n		float t = heightFallOff * (viewVec.z + hx_cameraWorldPosition.z);\n		fogFactor *= saturate(( 1.0 - exp( -t ) ) / t);\n//	}\n\n	float fog = clamp(exp(-fogFactor * density), 0.0, 1.0);\n	color.xyz = mix(tint, color.xyz, fog);\n	hx_FragColor = color;\n}';
 
-	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
+	ShaderLibrary._files['fog_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\nvarying_out vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\nuniform mat4 hx_cameraWorldMatrix;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    viewDir = mat3(hx_cameraWorldMatrix) * hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n    gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['fxaa_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\nuniform vec2 hx_rcpRenderTargetResolution;\nuniform float edgeThreshold;\nuniform float edgeThresholdMin;\nuniform float edgeSharpness;\n\nfloat luminanceHint(vec4 color)\n{\n	return .30/.59 * color.r + color.g;\n}\n\nvoid main()\n{\n	vec4 center = texture2D(hx_backbuffer, uv);\n	vec2 halfRes = vec2(hx_rcpRenderTargetResolution.x, hx_rcpRenderTargetResolution.y) * .5;\n	float topLeftLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(-halfRes.x, halfRes.y)));\n	float bottomLeftLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(-halfRes.x, -halfRes.y)));\n	float topRightLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(halfRes.x, halfRes.y)));\n	float bottomRightLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(halfRes.x, -halfRes.y)));\n\n	float centerLum = luminanceHint(center);\n	float minLum = min(min(topLeftLum, bottomLeftLum), min(topRightLum, bottomRightLum));\n	float maxLum = max(max(topLeftLum, bottomLeftLum), max(topRightLum, bottomRightLum));\n	float range = max(centerLum, maxLum) - min(centerLum, minLum);\n	float threshold = max(edgeThresholdMin, maxLum * edgeThreshold);\n	float applyFXAA = range < threshold? 0.0 : 1.0;\n\n	float diagDiff1 = bottomLeftLum - topRightLum;\n	float diagDiff2 = bottomRightLum - topLeftLum;\n	vec2 dir1 = normalize(vec2(diagDiff1 + diagDiff2, diagDiff1 - diagDiff2));\n	vec4 sampleNeg1 = texture2D(hx_backbuffer, uv - halfRes * dir1);\n	vec4 samplePos1 = texture2D(hx_backbuffer, uv + halfRes * dir1);\n\n	float minComp = min(abs(dir1.x), abs(dir1.y)) * edgeSharpness;\n	vec2 dir2 = clamp(dir1.xy / minComp, -2.0, 2.0) * 2.0;\n	vec4 sampleNeg2 = texture2D(hx_backbuffer, uv - hx_rcpRenderTargetResolution * dir2);\n	vec4 samplePos2 = texture2D(hx_backbuffer, uv + hx_rcpRenderTargetResolution * dir2);\n	vec4 tap1 = sampleNeg1 + samplePos1;\n	vec4 fxaa = (tap1 + sampleNeg2 + samplePos2) * .25;\n	float fxaaLum = luminanceHint(fxaa);\n	if ((fxaaLum < minLum) || (fxaaLum > maxLum))\n		fxaa = tap1 * .5;\n	hx_FragColor = mix(center, fxaa, applyFXAA);\n}';
+
+	ShaderLibrary._files['gaussian_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sourceTexture;\n\nuniform vec2 stepSize;\n\nuniform float gaussianWeights[NUM_WEIGHTS];\n\nvoid main()\n{\n	vec4 total = texture2D(sourceTexture, uv) * gaussianWeights[0];\n    vec2 offset = vec2(0.0);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n		offset += stepSize;\n	    vec4 s = texture2D(sourceTexture, uv + offset) + texture2D(sourceTexture, uv - offset);\n		total += s * gaussianWeights[i];\n	}\n\n	hx_FragColor = total;\n}';
+
+	ShaderLibrary._files['gaussian_blur_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['post_viewpos_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\nvarying_out vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n    gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['ssr_fragment.glsl'] = '#derivatives\n\n// TODO: This won\'t work anymore\nuniform sampler2D hx_gbufferColor;\nuniform sampler2D hx_gbufferNormals;\nuniform sampler2D hx_gbufferSpecular;\nuniform sampler2D hx_gbufferDepth;\nuniform sampler2D hx_dither2D;\nuniform vec2 hx_renderTargetResolution;\n\nuniform sampler2D hx_frontbuffer;\n\nvarying_in vec2 uv;\nvarying_in vec3 viewDir;\n\nuniform vec2 ditherTextureScale;\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\nuniform float hx_rcpCameraFrustumRange;\nuniform mat4 hx_projectionMatrix;\n\nuniform float maxDistance;\nuniform float stepSize;\nuniform float maxRoughness;\n\n// all in viewspace\n// 0 is start, 1 is end\nfloat raytrace(in vec3 ray0, in vec3 rayDir, out float hitZ, out vec2 hitUV)\n{\n    vec4 dither = hx_sampleDefaultDither(hx_dither2D, uv * ditherTextureScale);\n    // Clip to the near plane\n	float rayLength = ((ray0.z + rayDir.z * maxDistance) > -hx_cameraNearPlaneDistance) ?\n						(-hx_cameraNearPlaneDistance - ray0.z) / rayDir.z : maxDistance;\n\n    vec3 ray1 = ray0 + rayDir * rayLength;\n\n    // only need the w component for perspective correct interpolation\n    // need to get adjusted ray end\'s uv value\n    vec4 hom0 = hx_projectionMatrix * vec4(ray0, 1.0);\n    vec4 hom1 = hx_projectionMatrix * vec4(ray1, 1.0);\n    float rcpW0 = 1.0 / hom0.w;\n    float rcpW1 = 1.0 / hom1.w;\n\n    hom0 *= rcpW0;\n    hom1 *= rcpW1;\n\n    // expressed in pixels, so we can snap to 1\n    // need to figure out the ratio between 1 pixel and the entire line \"width\" (if primarily vertical, it\'s actually height)\n\n    // line dimensions in pixels:\n\n    vec2 pixelSize = (hom1.xy - hom0.xy) * hx_renderTargetResolution * .5;\n\n    // line-\"width\" = max(abs(pixelSize.x), abs(pixelSize.y))\n    // ratio pixel/width = 1 / max(abs(pixelSize.x), abs(pixelSize.y))\n\n    float stepRatio = 1.0 / max(abs(pixelSize.x), abs(pixelSize.y)) * stepSize;\n\n    vec2 uvEnd = hom1.xy * .5 + .5;\n\n    vec2 dUV = (uvEnd - uv) * stepRatio;\n    hitUV = uv;\n\n    // linear depth\n    float rayDepth = (-ray0.z - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange;\n    float rayPerspDepth0 = rayDepth * rcpW0;\n    float rayPerspDepth1 = (-ray1.z - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange * rcpW1;\n    float rayPerspDepth = rayPerspDepth0;\n    // could probably optimize this:\n    float dRayD = (rayPerspDepth1 - rayPerspDepth0) * stepRatio;\n\n    float rcpW = rcpW0;\n    float dRcpW = (rcpW1 - rcpW0) * stepRatio;\n    float sceneDepth = rayDepth;\n\n    float amount = 0.0;\n\n    hitUV += dUV * dither.z;\n    rayPerspDepth += dRayD * dither.z;\n    rcpW += dRcpW * dither.z;\n\n    float sampleCount;\n    for (int i = 0; i < NUM_SAMPLES; ++i) {\n        rayDepth = rayPerspDepth / rcpW;\n\n        sceneDepth = hx_sampleLinearDepth(hx_gbufferDepth, hitUV);\n\n        if (rayDepth > sceneDepth + .001) {\n            amount = float(sceneDepth < 1.0);\n            sampleCount = float(i);\n            break;\n        }\n\n        hitUV += dUV;\n        rayPerspDepth += dRayD;\n        rcpW += dRcpW;\n    }\n\n    hitZ = -hx_cameraNearPlaneDistance - sceneDepth * hx_cameraFrustumRange;\n\n    amount *= clamp((1.0 - (sampleCount - float(NUM_SAMPLES)) / float(NUM_SAMPLES)) * 5.0, 0.0, 1.0);\n    return amount;\n}\n\nvoid main()\n{\n    vec4 colorSample = hx_gammaToLinear(texture2D(hx_gbufferColor, uv));\n    vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n    float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n    vec3 normalSpecularReflectance;\n    float roughness;\n    float metallicness;\n    hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness, metallicness);\n    vec3 normal = hx_decodeNormal(texture2D(hx_gbufferNormals, uv));\n    vec3 reflDir = reflect(normalize(viewDir), normal);\n\n    vec3 fresnel = hx_fresnel(normalSpecularReflectance, reflDir, normal);\n    // not physically correct, but attenuation is required to look good\n\n    // step for every pixel\n\n    float absViewY = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n    vec3 viewSpacePos = absViewY * viewDir;\n\n    float hitY = 0.0;\n    vec2 hitUV;\n    float amount = raytrace(viewSpacePos, reflDir, hitY, hitUV);\n    float fadeFactor = 1.0 - clamp(reflDir.z * 2.0, 0.0, 1.0);\n\n    vec2 borderFactors = abs(hitUV * 2.0 - 1.0);\n    borderFactors = (1.0 - borderFactors) * 10.0;\n    fadeFactor *= clamp(borderFactors.x, 0.0, 1.0) * clamp(borderFactors.y, 0.0, 1.0);\n\n    float diff = viewSpacePos.y - hitY;\n    fadeFactor *= hx_linearStep(-1.0, 0.0, diff);\n    fadeFactor *= hx_linearStep(maxRoughness, 0.0, roughness);\n\n    vec4 reflColor = texture2D(hx_frontbuffer, hitUV);\n\n    float amountUsed = amount * fadeFactor;\n    hx_FragColor = vec4(fresnel * reflColor.xyz, amountUsed);\n}\n\n';
+
+	ShaderLibrary._files['ssr_stencil_fragment.glsl'] = 'uniform sampler2D hx_gbufferSpecular;\n\nvarying_in vec2 uv;\n\nuniform float maxRoughness;\n\nvoid main()\n{\n    vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n    if (specularSample.x > maxRoughness)\n        discard;\n}\n\n';
+
+	ShaderLibrary._files['tonemap_filmic_fragment.glsl'] = 'void main()\n{\n	vec3 x = hx_getToneMapScaledColor().xyz * 16.0;\n\n    // Uncharted 2 tonemapping (http://filmicworlds.com/blog/filmic-tonemapping-operators/)\n\n	float A = 0.15;\n    float B = 0.50;\n    float C = 0.10;\n    float D = 0.20;\n    float E = 0.02;\n    float F = 0.30;\n    float W = 11.2;\n\n    hx_FragColor.xyz = hx_gammaToLinear(((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F);\n    hx_FragColor.w = 1.0;\n}';
+
+	ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	hx_FragColor = vec4(l, l, l, 1.0);\n}';
+
+	ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	hx_FragColor = color / (1.0 + lum);\n}';
 
 	ShaderLibrary._files['default_geometry_fragment.glsl'] = 'uniform vec3 color;\nuniform vec3 emissiveColor;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(METALLIC_ROUGHNESS_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\n    varying_in vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\n    uniform sampler2D colorMap;\n\n    #ifdef COLOR_MAP_SCALE_OFFSET\n        uniform vec2 colorMapScale;\n        uniform vec2 colorMapOffset;\n    #endif\n#endif\n\n#ifdef OCCLUSION_MAP\n    uniform sampler2D occlusionMap;\n#endif\n\n#ifdef EMISSION_MAP\n    uniform sampler2D emissionMap;\n\n    #ifdef EMISSION_MAP_SCALE_OFFSET\n        uniform vec2 emissionMapScale;\n        uniform vec2 emissionMapOffset;\n    #endif\n#endif\n\n#ifdef MASK_MAP\n    uniform sampler2D maskMap;\n\n    #ifdef MASK_MAP_SCALE_OFFSET\n        uniform vec2 maskMapScale;\n        uniform vec2 maskMapOffset;\n    #endif\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    varying_in vec3 normal;\n\n    #ifdef NORMAL_MAP\n        varying_in vec3 tangent;\n        varying_in vec3 bitangent;\n\n        uniform sampler2D normalMap;\n\n        #ifdef NORMAL_MAP_SCALE_OFFSET\n            uniform vec2 normalMapScale;\n            uniform vec2 normalMapOffset;\n        #endif\n\n    #endif\n#endif\n\n#ifndef HX_SKIP_SPECULAR\n    uniform float roughness;\n    uniform float roughnessRange;\n    uniform float normalSpecularReflectance;\n    uniform float metallicness;\n\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\n        uniform sampler2D specularMap;\n\n        #ifdef SPECULAR_MAP_SCALE_OFFSET\n            uniform vec2 specularMapScale;\n            uniform vec2 specularMapOffset;\n        #endif\n    #endif\n#endif\n\n#if defined(ALPHA_THRESHOLD)\n    uniform float alphaThreshold;\n#endif\n\n#ifdef VERTEX_COLORS\n    varying_in vec3 vertexColor;\n#endif\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    vec2 uv;\n\n    #ifdef COLOR_MAP\n        uv = texCoords;\n        #ifdef COLOR_MAP_SCALE_OFFSET\n            uv = uv * colorMapScale + colorMapOffset;\n        #endif\n        #ifdef COLOR_MAP_ADD\n            outputColor += texture2D(colorMap, uv);\n        #else\n            outputColor *= texture2D(colorMap, uv);\n        #endif\n    #endif\n\n    #ifdef MASK_MAP\n        uv = texCoords;\n        #ifdef MASK_MAP_SCALE_OFFSET\n            uv = uv * maskMapScale + maskMapOffset;\n        #endif\n        outputColor.w *= texture2D(maskMap, uv).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    data.color = hx_gammaToLinear(outputColor);\n\n#ifndef HX_SKIP_SPECULAR\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = normalSpecularReflectance;\n    float roughnessOut = roughness;\n#endif\n\n#if defined(HX_SKIP_NORMALS) && defined(NORMAL_ROUGHNESS_MAP) && !defined(HX_SKIP_SPECULAR)\n    uv = texCoords;\n    #ifdef NORMAL_MAP_SCALE_OFFSET\n        uv = uv * normalMapScale + normalMapOffset;\n    #endif\n    vec4 normalSample = texture2D(normalMap, uv);\n    roughnessOut -= roughnessRange * (normalSample.w - .5);\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    vec3 fragNormal = normal;\n\n    #ifdef NORMAL_MAP\n        uv = texCoords;\n        #ifdef NORMAL_MAP_SCALE_OFFSET\n            uv = uv * normalMapScale + normalMapOffset;\n        #endif\n        vec4 normalSample = texture2D(normalMap, uv);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz - .5);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (normalSample.w - .5);\n        #endif\n    #endif\n\n    #ifdef DOUBLE_SIDED\n        fragNormal *= gl_FrontFacing? 1.0 : -1.0;\n    #endif\n    data.normal = normalize(fragNormal);\n#endif\n\n#ifndef HX_SKIP_SPECULAR\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\n        uv = texCoords;\n        #ifdef SPECULAR_MAP_SCALE_OFFSET\n            uv = uv * specularMapScale + specularMapOffset;\n        #endif\n        vec4 specSample = texture2D(specularMap, uv);\n\n        #ifdef METALLIC_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (specSample.y - .5);\n            metallicnessOut *= specSample.z;\n\n        #else\n            roughnessOut -= roughnessRange * (specSample.x - .5);\n\n        #ifdef SPECULAR_MAP\n            specNormalReflOut *= specSample.y;\n            metallicnessOut *= specSample.z;\n        #endif\n    #endif\n#endif\n\n    data.metallicness = metallicnessOut;\n    data.normalSpecularReflectance = specNormalReflOut;\n    data.roughness = roughnessOut;\n#endif\n\n    data.occlusion = 1.0;\n\n#ifdef OCCLUSION_MAP\n    data.occlusion = texture2D(occlusionMap, texCoords).x;\n#endif\n\n    vec3 emission = emissiveColor;\n#ifdef EMISSION_MAP\n    uv = texCoords;\n    #ifdef EMISSION_MAP_SCALE_OFFSET\n        uv = uv * emissionMapScale + emissionMapOffset;\n    #endif\n    emission *= texture2D(emissionMap, uv).xyz;\n#endif\n\n    data.emission = hx_gammaToLinear(emission);\n    return data;\n}';
 
@@ -3673,35 +3691,17 @@
 
 	ShaderLibrary._files['sh_skybox_fragment.glsl'] = 'varying_in vec3 viewWorldDir;\n\nuniform vec3 hx_sh[9];\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n    data.color = vec4(hx_evaluateSH(hx_sh, normalize(viewWorldDir.xzy)), 1.0);\n    data.emission = vec3(0.0);\n    return data;\n}';
 
-	ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	hx_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
+	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
 
-	ShaderLibrary._files['bloom_composite_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
+	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
 
-	ShaderLibrary._files['bloom_threshold_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nuniform float threshold;\n\nvoid main()\n{\n        vec4 color = texture2D(hx_backbuffer, uv);\n        float originalLuminance = .05 + hx_luminance(color);\n        float targetLuminance = max(originalLuminance - threshold, 0.0);\n        hx_FragColor = color * targetLuminance / originalLuminance;\n}\n';
+	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
 
-	ShaderLibrary._files['default_post_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
+	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
 
-	ShaderLibrary._files['fog_fragment.glsl'] = 'varying_in vec2 uv;\nvarying_in vec3 viewDir;\n\nuniform vec3 tint;\nuniform float density;\nuniform float startDistance;\nuniform float heightFallOff;\n\nuniform float hx_cameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\nuniform vec3 hx_cameraWorldPosition;\n\nuniform sampler2D hx_normalDepthBuffer;\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n    vec4 normalDepth = texture2D(hx_normalDepthBuffer, uv);\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float depth = hx_decodeLinearDepth(normalDepth);\n	// do not fog up skybox\n	if (normalDepth.z == 1.0 && normalDepth.w == 1.0) depth = 0.0;\n	float absViewY = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n	vec3 viewVec = viewDir * absViewY;\n	float fogFactor = max(length(viewVec) - startDistance, 0.0);// * exp(-heightFallOff * hx_cameraWorldPosition.y);\n//    if( abs( viewVec.y ) > 0.1 )\n//	{\n		float t = heightFallOff * (viewVec.z + hx_cameraWorldPosition.z);\n		fogFactor *= saturate(( 1.0 - exp( -t ) ) / t);\n//	}\n\n	float fog = clamp(exp(-fogFactor * density), 0.0, 1.0);\n	color.xyz = mix(tint, color.xyz, fog);\n	hx_FragColor = color;\n}';
+	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
 
-	ShaderLibrary._files['fog_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\nvarying_out vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\nuniform mat4 hx_cameraWorldMatrix;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    viewDir = mat3(hx_cameraWorldMatrix) * hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['fxaa_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\nuniform vec2 hx_rcpRenderTargetResolution;\nuniform float edgeThreshold;\nuniform float edgeThresholdMin;\nuniform float edgeSharpness;\n\nfloat luminanceHint(vec4 color)\n{\n	return .30/.59 * color.r + color.g;\n}\n\nvoid main()\n{\n	vec4 center = texture2D(hx_backbuffer, uv);\n	vec2 halfRes = vec2(hx_rcpRenderTargetResolution.x, hx_rcpRenderTargetResolution.y) * .5;\n	float topLeftLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(-halfRes.x, halfRes.y)));\n	float bottomLeftLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(-halfRes.x, -halfRes.y)));\n	float topRightLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(halfRes.x, halfRes.y)));\n	float bottomRightLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(halfRes.x, -halfRes.y)));\n\n	float centerLum = luminanceHint(center);\n	float minLum = min(min(topLeftLum, bottomLeftLum), min(topRightLum, bottomRightLum));\n	float maxLum = max(max(topLeftLum, bottomLeftLum), max(topRightLum, bottomRightLum));\n	float range = max(centerLum, maxLum) - min(centerLum, minLum);\n	float threshold = max(edgeThresholdMin, maxLum * edgeThreshold);\n	float applyFXAA = range < threshold? 0.0 : 1.0;\n\n	float diagDiff1 = bottomLeftLum - topRightLum;\n	float diagDiff2 = bottomRightLum - topLeftLum;\n	vec2 dir1 = normalize(vec2(diagDiff1 + diagDiff2, diagDiff1 - diagDiff2));\n	vec4 sampleNeg1 = texture2D(hx_backbuffer, uv - halfRes * dir1);\n	vec4 samplePos1 = texture2D(hx_backbuffer, uv + halfRes * dir1);\n\n	float minComp = min(abs(dir1.x), abs(dir1.y)) * edgeSharpness;\n	vec2 dir2 = clamp(dir1.xy / minComp, -2.0, 2.0) * 2.0;\n	vec4 sampleNeg2 = texture2D(hx_backbuffer, uv - hx_rcpRenderTargetResolution * dir2);\n	vec4 samplePos2 = texture2D(hx_backbuffer, uv + hx_rcpRenderTargetResolution * dir2);\n	vec4 tap1 = sampleNeg1 + samplePos1;\n	vec4 fxaa = (tap1 + sampleNeg2 + samplePos2) * .25;\n	float fxaaLum = luminanceHint(fxaa);\n	if ((fxaaLum < minLum) || (fxaaLum > maxLum))\n		fxaa = tap1 * .5;\n	hx_FragColor = mix(center, fxaa, applyFXAA);\n}';
-
-	ShaderLibrary._files['gaussian_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sourceTexture;\n\nuniform vec2 stepSize;\n\nuniform float gaussianWeights[NUM_WEIGHTS];\n\nvoid main()\n{\n	vec4 total = texture2D(sourceTexture, uv) * gaussianWeights[0];\n    vec2 offset = vec2(0.0);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n		offset += stepSize;\n	    vec4 s = texture2D(sourceTexture, uv + offset) + texture2D(sourceTexture, uv - offset);\n		total += s * gaussianWeights[i];\n	}\n\n	hx_FragColor = total;\n}';
-
-	ShaderLibrary._files['gaussian_blur_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['post_viewpos_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\nvarying_out vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['ssr_fragment.glsl'] = '#derivatives\n\n// TODO: This won\'t work anymore\nuniform sampler2D hx_gbufferColor;\nuniform sampler2D hx_gbufferNormals;\nuniform sampler2D hx_gbufferSpecular;\nuniform sampler2D hx_gbufferDepth;\nuniform sampler2D hx_dither2D;\nuniform vec2 hx_renderTargetResolution;\n\nuniform sampler2D hx_frontbuffer;\n\nvarying_in vec2 uv;\nvarying_in vec3 viewDir;\n\nuniform vec2 ditherTextureScale;\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\nuniform float hx_rcpCameraFrustumRange;\nuniform mat4 hx_projectionMatrix;\n\nuniform float maxDistance;\nuniform float stepSize;\nuniform float maxRoughness;\n\n// all in viewspace\n// 0 is start, 1 is end\nfloat raytrace(in vec3 ray0, in vec3 rayDir, out float hitZ, out vec2 hitUV)\n{\n    vec4 dither = hx_sampleDefaultDither(hx_dither2D, uv * ditherTextureScale);\n    // Clip to the near plane\n	float rayLength = ((ray0.z + rayDir.z * maxDistance) > -hx_cameraNearPlaneDistance) ?\n						(-hx_cameraNearPlaneDistance - ray0.z) / rayDir.z : maxDistance;\n\n    vec3 ray1 = ray0 + rayDir * rayLength;\n\n    // only need the w component for perspective correct interpolation\n    // need to get adjusted ray end\'s uv value\n    vec4 hom0 = hx_projectionMatrix * vec4(ray0, 1.0);\n    vec4 hom1 = hx_projectionMatrix * vec4(ray1, 1.0);\n    float rcpW0 = 1.0 / hom0.w;\n    float rcpW1 = 1.0 / hom1.w;\n\n    hom0 *= rcpW0;\n    hom1 *= rcpW1;\n\n    // expressed in pixels, so we can snap to 1\n    // need to figure out the ratio between 1 pixel and the entire line \"width\" (if primarily vertical, it\'s actually height)\n\n    // line dimensions in pixels:\n\n    vec2 pixelSize = (hom1.xy - hom0.xy) * hx_renderTargetResolution * .5;\n\n    // line-\"width\" = max(abs(pixelSize.x), abs(pixelSize.y))\n    // ratio pixel/width = 1 / max(abs(pixelSize.x), abs(pixelSize.y))\n\n    float stepRatio = 1.0 / max(abs(pixelSize.x), abs(pixelSize.y)) * stepSize;\n\n    vec2 uvEnd = hom1.xy * .5 + .5;\n\n    vec2 dUV = (uvEnd - uv) * stepRatio;\n    hitUV = uv;\n\n    // linear depth\n    float rayDepth = (-ray0.z - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange;\n    float rayPerspDepth0 = rayDepth * rcpW0;\n    float rayPerspDepth1 = (-ray1.z - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange * rcpW1;\n    float rayPerspDepth = rayPerspDepth0;\n    // could probably optimize this:\n    float dRayD = (rayPerspDepth1 - rayPerspDepth0) * stepRatio;\n\n    float rcpW = rcpW0;\n    float dRcpW = (rcpW1 - rcpW0) * stepRatio;\n    float sceneDepth = rayDepth;\n\n    float amount = 0.0;\n\n    hitUV += dUV * dither.z;\n    rayPerspDepth += dRayD * dither.z;\n    rcpW += dRcpW * dither.z;\n\n    float sampleCount;\n    for (int i = 0; i < NUM_SAMPLES; ++i) {\n        rayDepth = rayPerspDepth / rcpW;\n\n        sceneDepth = hx_sampleLinearDepth(hx_gbufferDepth, hitUV);\n\n        if (rayDepth > sceneDepth + .001) {\n            amount = float(sceneDepth < 1.0);\n            sampleCount = float(i);\n            break;\n        }\n\n        hitUV += dUV;\n        rayPerspDepth += dRayD;\n        rcpW += dRcpW;\n    }\n\n    hitZ = -hx_cameraNearPlaneDistance - sceneDepth * hx_cameraFrustumRange;\n\n    amount *= clamp((1.0 - (sampleCount - float(NUM_SAMPLES)) / float(NUM_SAMPLES)) * 5.0, 0.0, 1.0);\n    return amount;\n}\n\nvoid main()\n{\n    vec4 colorSample = hx_gammaToLinear(texture2D(hx_gbufferColor, uv));\n    vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n    float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n    vec3 normalSpecularReflectance;\n    float roughness;\n    float metallicness;\n    hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness, metallicness);\n    vec3 normal = hx_decodeNormal(texture2D(hx_gbufferNormals, uv));\n    vec3 reflDir = reflect(normalize(viewDir), normal);\n\n    vec3 fresnel = hx_fresnel(normalSpecularReflectance, reflDir, normal);\n    // not physically correct, but attenuation is required to look good\n\n    // step for every pixel\n\n    float absViewY = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n    vec3 viewSpacePos = absViewY * viewDir;\n\n    float hitY = 0.0;\n    vec2 hitUV;\n    float amount = raytrace(viewSpacePos, reflDir, hitY, hitUV);\n    float fadeFactor = 1.0 - clamp(reflDir.z * 2.0, 0.0, 1.0);\n\n    vec2 borderFactors = abs(hitUV * 2.0 - 1.0);\n    borderFactors = (1.0 - borderFactors) * 10.0;\n    fadeFactor *= clamp(borderFactors.x, 0.0, 1.0) * clamp(borderFactors.y, 0.0, 1.0);\n\n    float diff = viewSpacePos.y - hitY;\n    fadeFactor *= hx_linearStep(-1.0, 0.0, diff);\n    fadeFactor *= hx_linearStep(maxRoughness, 0.0, roughness);\n\n    vec4 reflColor = texture2D(hx_frontbuffer, hitUV);\n\n    float amountUsed = amount * fadeFactor;\n    hx_FragColor = vec4(fresnel * reflColor.xyz, amountUsed);\n}\n\n';
-
-	ShaderLibrary._files['ssr_stencil_fragment.glsl'] = 'uniform sampler2D hx_gbufferSpecular;\n\nvarying_in vec2 uv;\n\nuniform float maxRoughness;\n\nvoid main()\n{\n    vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n    if (specularSample.x > maxRoughness)\n        discard;\n}\n\n';
-
-	ShaderLibrary._files['tonemap_filmic_fragment.glsl'] = 'void main()\n{\n	vec3 x = hx_getToneMapScaledColor().xyz * 16.0;\n\n    // Uncharted 2 tonemapping (http://filmicworlds.com/blog/filmic-tonemapping-operators/)\n\n	float A = 0.15;\n    float B = 0.50;\n    float C = 0.10;\n    float D = 0.20;\n    float E = 0.02;\n    float F = 0.30;\n    float W = 11.2;\n\n    hx_FragColor.xyz = hx_gammaToLinear(((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F);\n    hx_FragColor.w = 1.0;\n}';
-
-	ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	hx_FragColor = vec4(l, l, l, 1.0);\n}';
-
-	ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	hx_FragColor = color / (1.0 + lum);\n}';
+	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
 
 	ShaderLibrary._files['esm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readValue(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readValue(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValue(uv + offset) + readValue(uv - offset);\n	}\n\n//	hx_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	hx_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
 
@@ -7656,6 +7656,156 @@
 	    }
 	};
 
+	/**
+	 * @classdesc
+	 * A base class for textures.
+	 *
+	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function Texture(target)
+	{
+		this._keepData = false;
+		this._data = null;
+		this._format = null;
+		this._dataType = null;
+		this._glTarget = target;
+		this._texture = GL.gl.createTexture();
+
+		this.bind();
+		this.filter = TextureFilter.DEFAULT;
+		this.maxAnisotropy = capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY;
+		this._isReady = false;
+
+		GL.gl.bindTexture(target, null);
+
+	}
+
+	Texture.prototype =
+	{
+		/**
+		 * Generates a mip map chain.
+		 */
+		generateMipmap: function()
+		{
+			var gl = GL.gl;
+
+			this.bind();
+
+			gl.generateMipmap(this._glTarget);
+			gl.bindTexture(this._glTarget, null);
+		},
+
+		/**
+		 * Defines whether or not CPU-side data should be kept in the data property;
+		 * @returns {boolean}
+		 */
+		get keepData()
+		{
+			return this._keepData;
+		},
+
+		/**
+		 * Defines whether or not CPU-side data should be kept in the data property;
+		 * @returns {boolean}
+		 */
+		set keepData(value)
+		{
+			this._keepData = value;
+			if (!value) this._data = null;
+		},
+
+		/**
+		 * The data used during the last upload. Only available if keepData is true.
+		 * @returns {null}
+		 */
+		get data()
+		{
+			return this._data;
+		},
+
+		/**
+		 * A {@linkcode TextureFilter} object defining how the texture should be filtered during sampling.
+		 */
+		get filter()
+		{
+			return this._filter;
+		},
+
+		set filter(filter)
+		{
+			var gl = GL.gl;
+			this._filter = filter;
+			this.bind();
+			gl.texParameteri(this._glTarget, gl.TEXTURE_MIN_FILTER, filter.min);
+			gl.texParameteri(this._glTarget, gl.TEXTURE_MAG_FILTER, filter.mag);
+			gl.bindTexture(this._glTarget, null);
+
+			if (filter === TextureFilter.NEAREST_NOMIP || filter === TextureFilter.NEAREST) {
+				this.maxAnisotropy = 1;
+			}
+		},
+
+		/**
+		 * The maximum anisotropy used when sampling. Limited to {@linkcode capabilities#DEFAULT_TEXTURE_MAX_ANISOTROPY}
+		 */
+		get maxAnisotropy()
+		{
+			return this._maxAnisotropy;
+		},
+
+		set maxAnisotropy(value)
+		{
+			var gl = GL.gl;
+
+			if (value > capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY)
+				value = capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY;
+
+			this._maxAnisotropy = value;
+
+			this.bind();
+			if (capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC)
+				GL.gl.texParameteri(this._glTarget, capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC.TEXTURE_MAX_ANISOTROPY_EXT, value);
+
+			gl.bindTexture(this._glTarget, null);
+		},
+
+		/**
+		 * The texture's format
+		 *
+		 * @see {@linkcode TextureFormat}
+		 */
+		get format() { return this._format; },
+
+		/**
+		 * The texture's data type
+		 *
+		 * @see {@linkcode DataType}
+		 */
+		get dataType() { return this._dataType; },
+
+		/**
+		 * Defines whether data has been uploaded to the texture or not.
+		 */
+		isReady: function() { return this._isReady; },
+
+		/**
+		 * Binds a texture to a given texture unit.
+		 * @ignore
+		 */
+		bind: function(unitIndex)
+		{
+			var gl = GL.gl;
+
+			if (unitIndex !== undefined) {
+				gl.activeTexture(gl.TEXTURE0 + unitIndex);
+			}
+
+			gl.bindTexture(this._glTarget, this._texture);
+		}
+	};
+
 	var nameCounter = 0;
 
 	/**
@@ -7664,30 +7814,22 @@
 	 *
 	 * @constructor
 	 *
-	 * @propety name The name of the texture.
+	 * @property name The name of the texture.
+	 * @property width The texture's width
+	 * @property height The texture's height
 	 *
 	 * @author derschmale <http://www.derschmale.com>
 	 */
 	function Texture2D()
 	{
-	    this.name = "hx_texture2d_" + (nameCounter++);
-	    this._default = Texture2D.DEFAULT;
-	    this._texture = GL.gl.createTexture();
+		Texture.call(this, GL.gl.TEXTURE_2D);
+
+		this.name = "hx_texture2d_" + (nameCounter++);
+		this._default = Texture2D.DEFAULT;
 	    this._width = 0;
 	    this._height = 0;
-	    this._format = null;
-	    this._dataType = null;
 
-	    this.bind();
-
-	    // set defaults
-	    this.maxAnisotropy = capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY;
-	    this.filter = TextureFilter.DEFAULT;
-	    this.wrapMode = TextureWrapMode.DEFAULT;
-
-	    this._isReady = false;
-
-	    GL.gl.bindTexture(GL.gl.TEXTURE_2D, null);
+		this.wrapMode = TextureWrapMode.DEFAULT;
 	}
 
 	/**
@@ -7701,295 +7843,206 @@
 	    Texture2D.DEFAULT.filter = TextureFilter.NEAREST_NOMIP;
 	};
 
-	Texture2D.prototype =
+	Texture2D.prototype = Object.create(Texture.prototype, {
+		numMips: {
+			get: function() {
+				return Math.floor(MathX.log2(Math.max(this._width, this._height)));
+			}
+		},
+		wrapMode: {
+			get: function()
+			{
+				return this._wrapMode;
+			},
+
+			set: function(value)
+			{
+				var gl = GL.gl;
+				this._wrapMode = value;
+				this.bind();
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, value.s);
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, value.t);
+				gl.bindTexture(gl.TEXTURE_2D, null);
+			}
+		},
+		width: {
+			get: function() { return this._width; }
+		},
+		height: {
+			get: function() { return this._height; }
+		}
+	});
+
+	/**
+	 * Inits an empty texture.
+	 * @param width The width of the texture.
+	 * @param height The height of the texture.
+	 * @param {TextureFormat} format The texture's format.
+	 * @param {DataType} dataType The texture's data format.
+	 */
+	Texture2D.prototype.initEmpty = function(width, height, format, dataType)
 	{
-	    /**
-	     * Generates a mip map chain.
-	     */
-	    generateMipmap: function()
-	    {
-	        var gl = GL.gl;
+		this._data = null;
+		var gl = GL.gl;
+		this._format = format = format || TextureFormat.RGBA;
+		this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
 
-	        this.bind();
+		this.bind();
+		this._width = width;
+		this._height = height;
 
-	        gl.generateMipmap(gl.TEXTURE_2D);
-	        gl.bindTexture(gl.TEXTURE_2D, null);
-	    },
+		var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
+		gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, width, height, 0, format, dataType, null);
 
-		/**
-		 * The amount of mip levels (if present).
-		 */
-		get numMips()
-		{
-			return Math.floor(MathX.log2(Math.max(this._width, this._height)));
-		},
+		this._isReady = true;
 
-	    /**
-	     * A {@linkcode TextureFilter} object defining how the texture should be filtered during sampling.
-	     */
-	    get filter()
-	    {
-	        return this._filter;
-	    },
+		gl.bindTexture(gl.TEXTURE_2D, null);
+	};
 
-	    set filter(filter)
-	    {
-	        var gl = GL.gl;
-	        this._filter = filter;
-	        this.bind();
-	        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter.min);
-	        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter.mag);
-	        gl.bindTexture(gl.TEXTURE_2D, null);
+	/**
+	 * Initializes the texture with the given data.
+	 * @param {*} data An typed array containing the initial data.
+	 * @param {number} width The width of the texture.
+	 * @param {number} height The height of the texture.
+	 * @param {boolean} generateMips Whether or not a mip chain should be generated.
+	 * @param {TextureFormat} format The texture's format.
+	 * @param {DataType} dataType The texture's data format.
+	 * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
+	 */
+	Texture2D.prototype.uploadData = function(data, width, height, generateMips, format, dataType, mipLevel)
+	{
+		var gl = GL.gl;
 
-	        if (filter === TextureFilter.NEAREST_NOMIP || filter === TextureFilter.NEAREST) {
-	            this.maxAnisotropy = 1;
-	        }
-	    },
+		if (capabilities.EXT_HALF_FLOAT_TEXTURES && dataType === DataType.HALF_FLOAT && !(data instanceof Uint16Array))
+			data = TextureUtils.encodeToFloat16Array(data);
 
-	    /**
-	     * A {@linkcode TextureWrapMode} object defining how out-of-bounds sampling should be handled.
-	     */
-	    get wrapMode()
-	    {
-	        return this._wrapMode;
-	    },
+		if (!mipLevel) {
+			this._width = width;
+			this._height = height;
+			this._format = format || TextureFormat.RGBA;
+			this._dataType = dataType || DataType.UNSIGNED_BYTE;
 
-	    set wrapMode(mode)
-	    {
-	        var gl = GL.gl;
-	        this._wrapMode = mode;
-	        this.bind();
-	        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, mode.s);
-	        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, mode.t);
-	        gl.bindTexture(gl.TEXTURE_2D, null);
-	    },
+			if (this._keepData)
+				this._data = data;
+		}
 
-	    /**
-	     * The maximum anisotropy used when sampling. Limited to {@linkcode capabilities#DEFAULT_TEXTURE_MAX_ANISOTROPY}
-	     */
-	    get maxAnisotropy()
-	    {
-	        return this._maxAnisotropy;
-	    },
+		format = this._format;
+		dataType = this._dataType;
 
-	    set maxAnisotropy(value)
-	    {
-	        var gl = GL.gl;
+		generateMips = generateMips === undefined? false: generateMips;
 
-	        if (value > capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY)
-	            value = capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY;
+		this.bind();
 
-	        this._maxAnisotropy = value;
+		var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
+		gl.texImage2D(gl.TEXTURE_2D, mipLevel || 0, internalFormat, width, height, 0, format, dataType, data);
 
-	        this.bind();
-	        if (capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC)
-	            GL.gl.texParameteri(gl.TEXTURE_2D, capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC.TEXTURE_MAX_ANISOTROPY_EXT, value);
-	        gl.bindTexture(gl.TEXTURE_2D, null);
-	    },
+		if (generateMips)
+			gl.generateMipmap(gl.TEXTURE_2D);
 
-	    /**
-	     * The texture's width
-	     */
-	    get width() { return this._width; },
+		this._isReady = true;
 
-	    /**
-	     * The texture's height
-	     */
-	    get height() { return this._height; },
+		gl.bindTexture(gl.TEXTURE_2D, null);
+	};
 
-	    /**
-	     * The texture's format
-	     *
-	     * @see {@linkcode TextureFormat}
-	     */
-	    get format() { return this._format; },
+	/**
+	 * Initializes the texture with a given Image.
+	 * @param image The Image to upload to the texture
+	 * @param width The width of the texture.
+	 * @param height The height of the texture.
+	 * @param generateMips Whether or not a mip chain should be generated.
+	 * @param {TextureFormat} format The texture's format.
+	 * @param {DataType} dataType The texture's data format.
+	 * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
+	 */
+	Texture2D.prototype.uploadImage = function(image, width, height, generateMips, format, dataType, mipLevel)
+	{
+		var gl = GL.gl;
 
-	    /**
-	     * The texture's data type
-	     *
-	     * @see {@linkcode DataType}
-	     */
-	    get dataType() { return this._dataType; },
+		if (!mipLevel) {
+			this._width = width;
+			this._height = height;
+			this._format = format || TextureFormat.RGBA;
+			this._dataType = dataType || DataType.UNSIGNED_BYTE;
 
-	    /**
-	     * Inits an empty texture.
-	     * @param width The width of the texture.
-	     * @param height The height of the texture.
-	     * @param {TextureFormat} format The texture's format.
-	     * @param {DataType} dataType The texture's data format.
-	     */
-	    initEmpty: function(width, height, format, dataType)
-	    {
-	        var gl = GL.gl;
-	        this._format = format = format || TextureFormat.RGBA;
-	        this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
+			// TODO: Should this rather be decoded?
+			if (this._keepData)
+				this._data = image;
+		}
 
-	        this.bind();
-	        this._width = width;
-	        this._height = height;
+		format = this._format;
+		dataType = this._dataType;
 
-			var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
-	        gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, width, height, 0, format, dataType, null);
+		generateMips = generateMips === undefined? true: generateMips;
 
-	        this._isReady = true;
+		if (!(MathX.isPowerOfTwo(width) && MathX.isPowerOfTwo(height))) {
+			generateMips = false;
+			if (this.filter === TextureFilter.NEAREST)
+				this.filter = TextureFilter.NEAREST_NOMIP;
+			else if (this.filter === TextureFilter.BILINEAR)
+				this.filter = TextureFilter.BILINEAR_NOMIP;
+			else if (this.filter === TextureFilter.TRILINEAR || this.filter === TextureFilter.TRILINEAR_ANISOTROPIC)
+				this.filter = TextureFilter.BILINEAR_NOMIP;
 
-	        gl.bindTexture(gl.TEXTURE_2D, null);
-	    },
+			this.wrapMode = TextureWrapMode.CLAMP;
+		}
 
-	    /**
-	     * Initializes the texture with the given data.
-	     * @param {*} data An typed array containing the initial data.
-	     * @param {number} width The width of the texture.
-	     * @param {number} height The height of the texture.
-	     * @param {boolean} generateMips Whether or not a mip chain should be generated.
-	     * @param {TextureFormat} format The texture's format.
-	     * @param {DataType} dataType The texture's data format.
-	     * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
-	     */
-	    uploadData: function(data, width, height, generateMips, format, dataType, mipLevel)
-	    {
-	        var gl = GL.gl;
+		this.bind();
 
-	        if (capabilities.EXT_HALF_FLOAT_TEXTURES && dataType === DataType.HALF_FLOAT && !(data instanceof Uint16Array))
-	            data = TextureUtils.encodeToFloat16Array(data);
+		var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
+		gl.texImage2D(gl.TEXTURE_2D, mipLevel || 0, internalFormat, format, dataType, image);
 
-	        if (!mipLevel) {
-				this._width = width;
-				this._height = height;
-				this._format = format || TextureFormat.RGBA;
-				this._dataType = dataType || DataType.UNSIGNED_BYTE;
-			}
+		if (generateMips)
+			gl.generateMipmap(gl.TEXTURE_2D);
 
-			format = this._format;
-			dataType = this._dataType;
+		this._isReady = true;
 
-			generateMips = generateMips === undefined? false: generateMips;
+		gl.bindTexture(gl.TEXTURE_2D, null);
+	};
 
-	        this.bind();
+	/**
+	 * Uploads compressed data.
+	 *
+	 * @param {*} data An typed array containing the initial data.
+	 * @param {number} width The width of the texture.
+	 * @param {number} height The height of the texture.
+	 * @param {boolean} generateMips Whether or not a mip chain should be generated.
+	 * @param {*} internalFormat The texture's internal compression format.
+	 * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
+	 */
+	Texture2D.prototype.uploadCompressedData = function(data, width, height, generateMips, internalFormat, mipLevel)
+	{
+		if (this._keepData)
+			this._data = data;
+		var gl = GL.gl;
 
-	        var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
-	        gl.texImage2D(gl.TEXTURE_2D, mipLevel || 0, internalFormat, width, height, 0, format, dataType, data);
+		if (!mipLevel) {
+			this._width = width;
+			this._height = height;
+			this._format = TextureFormat.RGBA;
+			this._dataType = DataType.UNSIGNED_BYTE;
 
-	        if (generateMips)
-	            gl.generateMipmap(gl.TEXTURE_2D);
+			if (this._keepData)
+				this._data = data;
+		}
 
-	        this._isReady = true;
+		this.bind();
 
-	        gl.bindTexture(gl.TEXTURE_2D, null);
-	    },
+		gl.compressedTexImage2D(gl.TEXTURE_2D, mipLevel || 0, internalFormat, width, height, 0, data);
 
-	    /**
-	     * Initializes the texture with a given Image.
-	     * @param image The Image to upload to the texture
-	     * @param width The width of the texture.
-	     * @param height The height of the texture.
-	     * @param generateMips Whether or not a mip chain should be generated.
-	     * @param {TextureFormat} format The texture's format.
-	     * @param {DataType} dataType The texture's data format.
-	     * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
-	     */
-	    uploadImage: function(image, width, height, generateMips, format, dataType, mipLevel)
-	    {
-	        var gl = GL.gl;
+		if (generateMips)
+			gl.generateMipmap(gl.TEXTURE_2D);
 
-			if (!mipLevel) {
-				this._width = width;
-				this._height = height;
-				this._format = format || TextureFormat.RGBA;
-				this._dataType = dataType || DataType.UNSIGNED_BYTE;
-			}
+		this._isReady = true;
 
-			format = this._format;
-			dataType = this._dataType;
+		gl.bindTexture(gl.TEXTURE_2D, null);
+	};
 
-
-			generateMips = generateMips === undefined? true: generateMips;
-
-	        if (!(MathX.isPowerOfTwo(width) && MathX.isPowerOfTwo(height))) {
-				generateMips = false;
-				if (this.filter === TextureFilter.NEAREST)
-				    this.filter = TextureFilter.NEAREST_NOMIP;
-				else if (this.filter === TextureFilter.BILINEAR)
-					this.filter = TextureFilter.BILINEAR_NOMIP;
-				else if (this.filter === TextureFilter.TRILINEAR || this.filter === TextureFilter.TRILINEAR_ANISOTROPIC)
-					this.filter = TextureFilter.BILINEAR_NOMIP;
-
-				this.wrapMode = TextureWrapMode.CLAMP;
-			}
-
-	        this.bind();
-
-			var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
-	        gl.texImage2D(gl.TEXTURE_2D, mipLevel || 0, internalFormat, format, dataType, image);
-
-	        if (generateMips)
-	            gl.generateMipmap(gl.TEXTURE_2D);
-
-	        this._isReady = true;
-
-	        gl.bindTexture(gl.TEXTURE_2D, null);
-	    },
-
-		/**
-	     * Uploads compressed data.
-	     *
-	     * @param {*} data An typed array containing the initial data.
-		 * @param {number} width The width of the texture.
-		 * @param {number} height The height of the texture.
-		 * @param {boolean} generateMips Whether or not a mip chain should be generated.
-		 * @param {*} internalFormat The texture's internal compression format.
-	     * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
-		 */
-		uploadCompressedData: function(data, width, height, generateMips, internalFormat, mipLevel)
-	    {
-			var gl = GL.gl;
-
-			if (!mipLevel) {
-				this._width = width;
-				this._height = height;
-				this._format = TextureFormat.RGBA;
-				this._dataType = DataType.UNSIGNED_BYTE;
-			}
-
-			this.bind();
-
-			gl.compressedTexImage2D(gl.TEXTURE_2D, mipLevel || 0, internalFormat, width, height, 0, data);
-
-			if (generateMips)
-				gl.generateMipmap(gl.TEXTURE_2D);
-
-			this._isReady = true;
-
-			gl.bindTexture(gl.TEXTURE_2D, null);
-		},
-
-	    /**
-	     * Defines whether data has been uploaded to the texture or not.
-	     */
-	    isReady: function() { return this._isReady; },
-
-	    /**
-	     * Binds a texture to a given texture unit.
-	     * @ignore
-	     */
-	    bind: function(unitIndex)
-	    {
-	        var gl = GL.gl;
-
-	        if (unitIndex !== undefined) {
-	            gl.activeTexture(gl.TEXTURE0 + unitIndex);
-	        }
-
-	        gl.bindTexture(gl.TEXTURE_2D, this._texture);
-	    },
-
-	    /**
-	     * @ignore
-	     */
-	    toString: function()
-	    {
-	        return "[Texture2D(name=" + this.name + ")]";
-	    }
+	/**
+	 * @ignore
+	 */
+	Texture2D.prototype.toString = function()
+	{
+		return "[Texture2D(name=" + this.name + ")]";
 	};
 
 	var nameCounter$1 = 0;
@@ -8009,23 +8062,16 @@
 	 * @constructor
 	 *
 	 * @property name The name of the texture.
+	 * @property size The cube texture's size
 	 *
 	 * @author derschmale <http://www.derschmale.com>
 	 */
 	function TextureCube()
 	{
+		Texture.call(this, GL.gl.TEXTURE_CUBE_MAP);
 		this.name = "hx_texturecube_" + (nameCounter$1++);
 	    this._default = TextureCube.DEFAULT;
-	    this._texture = GL.gl.createTexture();
 	    this._size = 0;
-	    this._format = null;
-	    this._dataType = null;
-
-	    this.bind();
-	    this.filter = TextureFilter.DEFAULT;
-	    this.maxAnisotropy = capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY;
-
-	    this._isReady = false;
 	}
 
 	/**
@@ -8041,267 +8087,189 @@
 	    gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
 	};
 
-	TextureCube.prototype =
-	{
-	    /**
-	     * Generates a mip map chain.
-	     */
-	    generateMipmap: function()
-	    {
-	        this.bind();
-	        var gl = GL.gl;
-	        gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
-	        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
-	    },
+	TextureCube.prototype = Object.create(Texture.prototype, {
+		size: {
+			get: function() { return this._size; }
+		},
 
 		/**
 		 * The amount of mip levels (if present).
 		 */
-		get numMips()
-		{
-			return Math.floor(MathX.log2(this._size));
-		},
-
-	    /**
-	     * A {@linkcode TextureFilter} object defining how the texture should be filtered during sampling.
-	     */
-	    get filter()
-	    {
-	        return this._filter;
-	    },
-
-	    set filter(filter)
-	    {
-	        this._filter = filter;
-	        this.bind();
-	        var gl = GL.gl;
-	        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, filter.min);
-	        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, filter.mag);
-	        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
-	    },
-
-	    /**
-	     * The maximum anisotropy used when sampling. Limited to {@linkcode capabilities#DEFAULT_TEXTURE_MAX_ANISOTROPY}
-	     */
-	    get maxAnisotropy()
-	    {
-	        return this._maxAnisotropy;
-	    },
-
-	    set maxAnisotropy(value)
-	    {
-	        if (value > capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY)
-	            value = capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY;
-
-	        this._maxAnisotropy = value;
-
-	        this.bind();
-
-	        var gl = GL.gl;
-	        if (capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC)
-	            gl.texParameteri(gl.TEXTURE_CUBE_MAP, capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC.TEXTURE_MAX_ANISOTROPY_EXT, value);
-	        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
-	    },
-
-	    /**
-	     * The cube texture's size
-	     */
-	    get size() { return this._size; },
-
-	    /**
-	     * The texture's format
-	     *
-	     * @see {@linkcode TextureFormat}
-	     */
-	    get format() { return this._format; },
-
-	    /**
-	     * The texture's data type
-	     *
-	     * @see {@linkcode DataType}
-	     */
-	    get dataType() { return this._dataType; },
-
-	    /**
-	     * Inits an empty texture.
-	     * @param size The size of the texture.
-	     * @param {TextureFormat} format The texture's format.
-	     * @param {DataType} dataType The texture's data format.
-	     */
-	    initEmpty: function(size, format, dataType)
-	    {
-	        this._format = format = format || TextureFormat.RGBA;
-	        this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
-
-	        this._size = size;
-
-	        this.bind();
-
-	        var gl = GL.gl;
-			var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
-			gl.texImage2D(CubeFace.POSITIVE_X, 0, internalFormat, size, size, 0, format, dataType, null);
-	        gl.texImage2D(CubeFace.NEGATIVE_X, 0, internalFormat, size, size, 0, format, dataType, null);
-	        gl.texImage2D(CubeFace.POSITIVE_Y, 0, internalFormat, size, size, 0, format, dataType, null);
-	        gl.texImage2D(CubeFace.NEGATIVE_Y, 0, internalFormat, size, size, 0, format, dataType, null);
-	        gl.texImage2D(CubeFace.POSITIVE_Z, 0, internalFormat, size, size, 0, format, dataType, null);
-	        gl.texImage2D(CubeFace.NEGATIVE_Z, 0, internalFormat, size, size, 0, format, dataType, null);
-
-	        this._isReady = true;
-
-	        gl.bindTexture(gl.TEXTURE_2D, null);
-	    },
-
-		/**
-		 * Uploads compressed data.
-		 *
-		 * @param {*} data An typed array containing the initial data.
-		 * @param {number} size The size of the texture.
-		 * @param {boolean} generateMips Whether or not a mip chain should be generated.
-		 * @param {*} internalFormat The texture's internal compression format.
-		 * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
-		 */
-		uploadCompressedData: function(data, size, generateMips, internalFormat, mipLevel)
-		{
-			var gl = GL.gl;
-
-			if (!mipLevel) {
-				this._size = size;
-				this._format = TextureFormat.RGBA;
-				this._dataType = DataType.UNSIGNED_BYTE;
+		numMips: {
+			get: function() {
+				return Math.floor(MathX.log2(this._size));
 			}
-
-			this.bind();
-
-			mipLevel = mipLevel || 0;
-			gl.compressedTexImage2D(CubeFace.POSITIVE_X, mipLevel, internalFormat, size, size, 0, data[0]);
-			gl.compressedTexImage2D(CubeFace.NEGATIVE_X, mipLevel, internalFormat, size, size, 0, data[1]);
-			gl.compressedTexImage2D(CubeFace.POSITIVE_Y, mipLevel, internalFormat, size, size, 0, data[2]);
-			gl.compressedTexImage2D(CubeFace.NEGATIVE_Y, mipLevel, internalFormat, size, size, 0, data[3]);
-			gl.compressedTexImage2D(CubeFace.POSITIVE_Z, mipLevel, internalFormat, size, size, 0, data[4]);
-			gl.compressedTexImage2D(CubeFace.NEGATIVE_Z, mipLevel, internalFormat, size, size, 0, data[5]);
-
-			if (generateMips)
-				gl.generateMipmap(gl.TEXTURE_2D);
-
-			this._isReady = true;
-
-			gl.bindTexture(gl.TEXTURE_2D, null);
-		},
-
-	    /**
-	     * Initializes the texture with the given data.
-	     * @param data A array of typed arrays (per {@linkcode CubeFace}) containing the initial data.
-	     * @param size The size of the texture.
-	     * @param generateMips Whether or not a mip chain should be generated.
-	     * @param {TextureFormat} format The texture's format.
-	     * @param {DataType} dataType The texture's data format.
-	     * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
-	     */
-	    uploadData: function(data, size, generateMips, format, dataType, mipLevel)
-	    {
-			if (!mipLevel) {
-				this._size = size;
-				this._format = format = format || TextureFormat.RGBA;
-				this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
-			}
-
-			if (capabilities.EXT_HALF_FLOAT_TEXTURES && dataType === DataType.HALF_FLOAT && !(data[0] instanceof Uint16Array)) {
-				for (var i = 0; i < 6; ++i)
-					data[i] = TextureUtils.encodeToFloat16Array(data[i]);
-			}
-
-	        generateMips = generateMips === undefined? true: generateMips;
-
-	        this.bind();
-
-	        var gl = GL.gl;
-			mipLevel = mipLevel || 0;
-			var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
-	        gl.texImage2D(CubeFace.POSITIVE_X, mipLevel, internalFormat, size, size, 0, format, dataType, data[0]);
-	        gl.texImage2D(CubeFace.NEGATIVE_X, mipLevel, internalFormat, size, size, 0, format, dataType, data[1]);
-	        gl.texImage2D(CubeFace.POSITIVE_Y, mipLevel, internalFormat, size, size, 0, format, dataType, data[2]);
-	        gl.texImage2D(CubeFace.NEGATIVE_Y, mipLevel, internalFormat, size, size, 0, format, dataType, data[3]);
-	        gl.texImage2D(CubeFace.POSITIVE_Z, mipLevel, internalFormat, size, size, 0, format, dataType, data[4]);
-	        gl.texImage2D(CubeFace.NEGATIVE_Z, mipLevel, internalFormat, size, size, 0, format, dataType, data[5]);
-
-	        if (generateMips)
-	            gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
-
-	        this._isReady = true;
-
-	        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
-	    },
-
-	    /**
-	     * Initializes the texture with the given Images.
-	     * @param data A array of typed arrays (per {@linkcode CubeFace}) containing the initial data.
-	     * @param generateMips Whether or not a mip chain should be generated.
-	     * @param {TextureFormat} format The texture's format.
-	     * @param {DataType} dataType The texture's data format.
-	     * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
-	     */
-	    uploadImages: function(images, generateMips, format, dataType, mipLevel)
-	    {
-	        generateMips = generateMips === undefined? true: generateMips;
-
-	        if (!mipLevel) {
-				this._format = format || TextureFormat.RGBA;
-				this._dataType = dataType || DataType.UNSIGNED_BYTE;
-				this._size = images[0].naturalWidth;
-			}
-
-			format = this._format;
-			dataType = this._dataType;
-
-	        var gl = GL.gl;
-
-			this.bind();
-
-			mipLevel = mipLevel || 0;
-
-			var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
-			gl.texImage2D(CubeFace.POSITIVE_X, mipLevel, internalFormat, format, dataType, images[0]);
-			gl.texImage2D(CubeFace.NEGATIVE_X, mipLevel, internalFormat, format, dataType, images[1]);
-			gl.texImage2D(CubeFace.POSITIVE_Y, mipLevel, internalFormat, format, dataType, images[2]);
-			gl.texImage2D(CubeFace.NEGATIVE_Y, mipLevel, internalFormat, format, dataType, images[3]);
-			gl.texImage2D(CubeFace.POSITIVE_Z, mipLevel, internalFormat, format, dataType, images[4]);
-			gl.texImage2D(CubeFace.NEGATIVE_Z, mipLevel, internalFormat, format, dataType, images[5]);
-
-	        if (generateMips)
-	            gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
-
-	        this._isReady = true;
-
-	        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
-	    },
+		}
+	});
 
 
-	    /**
-	     * Defines whether data has been uploaded to the texture or not.
-	     */
-	    isReady: function() { return this._isReady; },
+	/**
+	 * Inits an empty texture.
+	 * @param size The size of the texture.
+	 * @param {TextureFormat} format The texture's format.
+	 * @param {DataType} dataType The texture's data format.
+	 */
+	TextureCube.prototype.initEmpty = function(size, format, dataType)
+	{
+		this._data = null;
+		this._format = format = format || TextureFormat.RGBA;
+		this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
+		this._size = size;
 
-	    /**
-	     * Binds a texture to a given texture unit.
-	     * @ignore
-	     */
-	    bind: function(unitIndex)
-	    {
-	        var gl = GL.gl;
+		this.bind();
 
-	        if (unitIndex !== undefined)
-	            gl.activeTexture(gl.TEXTURE0 + unitIndex);
+		var gl = GL.gl;
+		var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
+		gl.texImage2D(CubeFace.POSITIVE_X, 0, internalFormat, size, size, 0, format, dataType, null);
+		gl.texImage2D(CubeFace.NEGATIVE_X, 0, internalFormat, size, size, 0, format, dataType, null);
+		gl.texImage2D(CubeFace.POSITIVE_Y, 0, internalFormat, size, size, 0, format, dataType, null);
+		gl.texImage2D(CubeFace.NEGATIVE_Y, 0, internalFormat, size, size, 0, format, dataType, null);
+		gl.texImage2D(CubeFace.POSITIVE_Z, 0, internalFormat, size, size, 0, format, dataType, null);
+		gl.texImage2D(CubeFace.NEGATIVE_Z, 0, internalFormat, size, size, 0, format, dataType, null);
 
-	        gl.bindTexture(gl.TEXTURE_CUBE_MAP, this._texture);
-	    },
+		this._isReady = true;
 
-	    /**
-	     * @ignore
-	     */
-	    toString: function()
-	    {
-	        return "[TextureCube(name=" + this.name + ")]";
-	    }
+		gl.bindTexture(gl.TEXTURE_2D, null);
+	};
+
+	/**
+	 * Uploads compressed data.
+	 *
+	 * @param {*} data An typed array containing the initial data.
+	 * @param {number} size The size of the texture.
+	 * @param {boolean} generateMips Whether or not a mip chain should be generated.
+	 * @param {*} internalFormat The texture's internal compression format.
+	 * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
+	 */
+	TextureCube.prototype.uploadCompressedData = function(data, size, generateMips, internalFormat, mipLevel)
+	{
+		var gl = GL.gl;
+
+		if (!mipLevel) {
+			this._size = size;
+			this._format = TextureFormat.RGBA;
+			this._dataType = DataType.UNSIGNED_BYTE;
+			if (this._keepData)
+				this._data = data;
+		}
+
+		this.bind();
+
+		mipLevel = mipLevel || 0;
+		gl.compressedTexImage2D(CubeFace.POSITIVE_X, mipLevel, internalFormat, size, size, 0, data[0]);
+		gl.compressedTexImage2D(CubeFace.NEGATIVE_X, mipLevel, internalFormat, size, size, 0, data[1]);
+		gl.compressedTexImage2D(CubeFace.POSITIVE_Y, mipLevel, internalFormat, size, size, 0, data[2]);
+		gl.compressedTexImage2D(CubeFace.NEGATIVE_Y, mipLevel, internalFormat, size, size, 0, data[3]);
+		gl.compressedTexImage2D(CubeFace.POSITIVE_Z, mipLevel, internalFormat, size, size, 0, data[4]);
+		gl.compressedTexImage2D(CubeFace.NEGATIVE_Z, mipLevel, internalFormat, size, size, 0, data[5]);
+
+		if (generateMips)
+			gl.generateMipmap(gl.TEXTURE_2D);
+
+		this._isReady = true;
+
+		gl.bindTexture(gl.TEXTURE_2D, null);
+	};
+
+	/**
+	 * Initializes the texture with the given data.
+	 * @param data A array of typed arrays (per {@linkcode CubeFace}) containing the initial data.
+	 * @param size The size of the texture.
+	 * @param generateMips Whether or not a mip chain should be generated.
+	 * @param {TextureFormat} format The texture's format.
+	 * @param {DataType} dataType The texture's data format.
+	 * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
+	 */
+	TextureCube.prototype.uploadData = function(data, size, generateMips, format, dataType, mipLevel)
+	{
+		if (!mipLevel) {
+			this._size = size;
+			this._format = format = format || TextureFormat.RGBA;
+			this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
+
+			if (this._keepData)
+				this._data = data;
+		}
+
+		if (capabilities.EXT_HALF_FLOAT_TEXTURES && dataType === DataType.HALF_FLOAT && !(data[0] instanceof Uint16Array)) {
+			for (var i = 0; i < 6; ++i)
+				data[i] = TextureUtils.encodeToFloat16Array(data[i]);
+		}
+
+		generateMips = generateMips === undefined? true: generateMips;
+
+		this.bind();
+
+		var gl = GL.gl;
+		mipLevel = mipLevel || 0;
+		var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
+		gl.texImage2D(CubeFace.POSITIVE_X, mipLevel, internalFormat, size, size, 0, format, dataType, data[0]);
+		gl.texImage2D(CubeFace.NEGATIVE_X, mipLevel, internalFormat, size, size, 0, format, dataType, data[1]);
+		gl.texImage2D(CubeFace.POSITIVE_Y, mipLevel, internalFormat, size, size, 0, format, dataType, data[2]);
+		gl.texImage2D(CubeFace.NEGATIVE_Y, mipLevel, internalFormat, size, size, 0, format, dataType, data[3]);
+		gl.texImage2D(CubeFace.POSITIVE_Z, mipLevel, internalFormat, size, size, 0, format, dataType, data[4]);
+		gl.texImage2D(CubeFace.NEGATIVE_Z, mipLevel, internalFormat, size, size, 0, format, dataType, data[5]);
+
+		if (generateMips)
+			gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+
+		this._isReady = true;
+
+		gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+	};
+
+	/**
+	 * Initializes the texture with the given Images.
+	 * @param data A array of typed arrays (per {@linkcode CubeFace}) containing the initial data.
+	 * @param generateMips Whether or not a mip chain should be generated.
+	 * @param {TextureFormat} format The texture's format.
+	 * @param {DataType} dataType The texture's data format.
+	 * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
+	 */
+	TextureCube.prototype.uploadImages = function(images, generateMips, format, dataType, mipLevel)
+	{
+		generateMips = generateMips === undefined? true: generateMips;
+
+		if (!mipLevel) {
+			this._format = format || TextureFormat.RGBA;
+			this._dataType = dataType || DataType.UNSIGNED_BYTE;
+			this._size = images[0].naturalWidth;
+
+			if (this._keepData)
+				this._data = images;
+		}
+
+		format = this._format;
+		dataType = this._dataType;
+
+		var gl = GL.gl;
+
+		this.bind();
+
+		mipLevel = mipLevel || 0;
+
+		var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
+		gl.texImage2D(CubeFace.POSITIVE_X, mipLevel, internalFormat, format, dataType, images[0]);
+		gl.texImage2D(CubeFace.NEGATIVE_X, mipLevel, internalFormat, format, dataType, images[1]);
+		gl.texImage2D(CubeFace.POSITIVE_Y, mipLevel, internalFormat, format, dataType, images[2]);
+		gl.texImage2D(CubeFace.NEGATIVE_Y, mipLevel, internalFormat, format, dataType, images[3]);
+		gl.texImage2D(CubeFace.POSITIVE_Z, mipLevel, internalFormat, format, dataType, images[4]);
+		gl.texImage2D(CubeFace.NEGATIVE_Z, mipLevel, internalFormat, format, dataType, images[5]);
+
+		if (generateMips)
+			gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+
+		this._isReady = true;
+
+		gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+	};
+
+	/**
+	 * @ignore
+	 */
+	Texture2D.prototype.toString = function()
+	{
+		return "[TextureCube(name=" + this.name + ")]";
 	};
 
 	/**
@@ -16273,7 +16241,7 @@
 	 */
 	MeshInstance.prototype.acceptVisitor = function(visitor)
 	{
-		visitor.visitMeshInstance(this, this.entity);
+		visitor.visitMeshInstance(this);
 	};
 
 	/**

@@ -59,9 +59,7 @@ HeightfieldCollider.prototype._convertHeightMap = function (map, scale, rgbaEnc)
 {
     var w = map.width;
     var h = map.height;
-	var data = map.data || HX.TextureUtils.getData(map);
-	var numComps = map.data? map.numComponents : 4;
-
+	var data = HX.TextureUtils.getData(map);
 	var arr = [];
 
 	if (rgbaEnc) scale /= 255.0;
@@ -71,7 +69,7 @@ HeightfieldCollider.prototype._convertHeightMap = function (map, scale, rgbaEnc)
 		for (var y = 0; y < h; ++y) {
 			// var y2 = h - y - 1;
 			// var x2 = w - x - 1;
-			var i = (x + y * w) * numComps;
+			var i = (x + y * w) << 2;
 			var val = data[i];
 
 			if (rgbaEnc)

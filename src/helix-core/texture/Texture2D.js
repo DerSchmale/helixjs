@@ -119,9 +119,6 @@ Texture2D.prototype.uploadData = function(data, width, height, generateMips, for
 		this._height = height;
 		this._format = format || TextureFormat.RGBA;
 		this._dataType = dataType || DataType.UNSIGNED_BYTE;
-
-		if (this._keepData)
-			this._data = data;
 	}
 
 	format = this._format;
@@ -161,9 +158,6 @@ Texture2D.prototype.uploadImage = function(image, width, height, generateMips, f
 		this._height = height;
 		this._format = format || TextureFormat.RGBA;
 		this._dataType = dataType || DataType.UNSIGNED_BYTE;
-
-		if (this._keepData)
-			this._data = image;
 	}
 
 	format = this._format;
@@ -208,8 +202,6 @@ Texture2D.prototype.uploadImage = function(image, width, height, generateMips, f
  */
 Texture2D.prototype.uploadCompressedData = function(data, width, height, generateMips, internalFormat, mipLevel)
 {
-	if (this._keepData)
-		this._data = data;
 	var gl = GL.gl;
 
 	if (!mipLevel) {
@@ -217,9 +209,6 @@ Texture2D.prototype.uploadCompressedData = function(data, width, height, generat
 		this._height = height;
 		this._format = TextureFormat.RGBA;
 		this._dataType = DataType.UNSIGNED_BYTE;
-
-		if (this._keepData)
-			this._data = data;
 	}
 
 	this.bind();

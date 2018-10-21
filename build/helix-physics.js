@@ -948,7 +948,6 @@
 	    var w = map.width;
 	    var h = map.height;
 		var data = HX.TextureUtils.getData(map);
-
 		var arr = [];
 
 		if (rgbaEnc) scale /= 255.0;

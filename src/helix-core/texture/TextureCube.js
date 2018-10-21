@@ -109,8 +109,6 @@ TextureCube.prototype.uploadCompressedData = function(data, size, generateMips, 
 		this._size = size;
 		this._format = TextureFormat.RGBA;
 		this._dataType = DataType.UNSIGNED_BYTE;
-		if (this._keepData)
-			this._data = data;
 	}
 
 	this.bind();
@@ -146,9 +144,6 @@ TextureCube.prototype.uploadData = function(data, size, generateMips, format, da
 		this._size = size;
 		this._format = format = format || TextureFormat.RGBA;
 		this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
-
-		if (this._keepData)
-			this._data = data;
 	}
 
 	if (capabilities.EXT_HALF_FLOAT_TEXTURES && dataType === DataType.HALF_FLOAT && !(data[0] instanceof Uint16Array)) {
@@ -194,9 +189,6 @@ TextureCube.prototype.uploadImages = function(images, generateMips, format, data
 		this._format = format || TextureFormat.RGBA;
 		this._dataType = dataType || DataType.UNSIGNED_BYTE;
 		this._size = images[0].naturalWidth;
-
-		if (this._keepData)
-			this._data = images;
 	}
 
 	format = this._format;

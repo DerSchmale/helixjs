@@ -1,5 +1,4 @@
 import {GL} from "../core/GL";
-import {MathX} from "../math/MathX";
 import {capabilities, TextureFilter, TextureFormat, TextureWrapMode} from "../Helix";
 
 /**
@@ -12,8 +11,6 @@ import {capabilities, TextureFilter, TextureFormat, TextureWrapMode} from "../He
  */
 function Texture(target)
 {
-	this._keepData = false;
-	this._data = null;
 	this._format = null;
 	this._dataType = null;
 	this._glTarget = target;
@@ -41,51 +38,6 @@ Texture.prototype =
 
 		gl.generateMipmap(this._glTarget);
 		gl.bindTexture(this._glTarget, null);
-	},
-
-	/**
-	 * Defines whether or not CPU-side data should be kept in the data property;
-	 * @returns {boolean}
-	 */
-	get keepData()
-	{
-		return this._keepData;
-	},
-
-	/**
-	 * Defines whether or not CPU-side data should be kept in the data property;
-	 * @returns {boolean}
-	 */
-	set keepData(value)
-	{
-		this._keepData = value;
-		if (!value) this._data = null;
-	},
-
-	/**
-	 * The data used during the last upload. Only available if keepData is true.
-	 * @returns {null}
-	 */
-	get data()
-	{
-		return this._data;
-	},
-
-	/**
-	 * The amount of color components per pixel.
-	 */
-	get numComponents()
-	{
-		switch (this._format) {
-			case TextureFormat.RED:
-				return 1;
-			case TextureFormat.RG:
-				return 2;
-			case TextureFormat.RGB:
-				return 3;
-			case TextureFormat.RGBA:
-				return 4;
-		}
 	},
 
 	/**

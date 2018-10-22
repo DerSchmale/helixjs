@@ -7,8 +7,6 @@ import {BoundingAABB} from "./BoundingAABB";
 import {MathX} from "../math/MathX";
 import {MeshInstance} from "../mesh/MeshInstance";
 import {Entity} from "../entity/Entity";
-import {BasicMaterial} from "../material/BasicMaterial";
-import {LightingModel} from "../render/LightingModel";
 
 /**
  * Terrain provides a paged terrain engine with dynamic LOD. The heightmapping itself happens in the Material.

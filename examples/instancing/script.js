@@ -47,21 +47,23 @@ function initScene(scene, assetLibrary)
     material.normalMap = assetLibrary.get("normals");
     material.lightingModel = HX.LightingModel.GGX;
 
-    var primitive = new HX.SpherePrimitive(
+    var primitive = new HX.CylinderPrimitive(
         {
             radius:.25,
             numSegmentsH: 10,
             numSegmentsW: 15
         });
 
-    var entity = new HX.Entity();
-    batch = new HX.MeshBatch(primitive, material);
-    entity.addComponent(batch);
+	batch = new HX.MeshBatch(primitive, material, true);
+	var entity = new HX.Entity(batch);
     scene.attach(entity);
 
     var tr = new HX.Transform();
-    for (var i = 0; i < 1000; ++i) {
+    for (var i = 0; i < 3000; ++i) {
         tr.position.set((Math.random() - .5) * 30, (Math.random() - .5) * 30, (Math.random() - .5) * 30);
-        batch.createInstance(tr);
+		tr.euler.set(Math.random() * 3.1415, Math.random() * 3.1415, Math.random() * 3.1415);
+        var sc = Math.random() * .5 + .5;
+		tr.scale.set(sc, sc, sc);
+		batch.createInstance(tr);
     }
 }

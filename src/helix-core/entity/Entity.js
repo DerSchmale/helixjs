@@ -119,9 +119,6 @@ Entity.prototype._invalidateWorldMatrix = function()
 	this._SceneNode_invalidateWorldMatrix();
 
 	this._invalidateWorldBounds();
-
-	if (this._scene)
-		this._scene._partitioning.markEntityForUpdate(this);
 };
 
 /**
@@ -139,6 +136,8 @@ Entity.prototype.invalidateBounds = function ()
 Entity.prototype._invalidateWorldBounds = function ()
 {
 	this._worldBoundsInvalid = true;
+	if (this._scene)
+		this._scene._partitioning.markEntityForUpdate(this);
 };
 
 /**

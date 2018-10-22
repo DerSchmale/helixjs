@@ -562,6 +562,9 @@ BasicMaterial.prototype._generateDefines = function()
     if (this._doubleSided)
         defines.DOUBLE_SIDED = 1;
 
+    if (this._roughness === 1.0 && !this._specularMap && this._metallicness === 0.0)
+        defines.HX_SKIP_SPECULAR = 1;
+
     if (this._colorMapOffset || this._colorMapScale)
         defines.COLOR_MAP_SCALE_OFFSET = 1;
 

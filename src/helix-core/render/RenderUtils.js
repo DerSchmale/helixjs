@@ -15,7 +15,6 @@ export function renderPass(renderer, camera, passType, renderItems, data)
 {
     var len = renderItems.length;
     var activePass = null;
-    var lastMesh = null;
 
     for(var i = 0; i < len; ++i) {
         var renderItem = renderItems[i];
@@ -27,16 +26,10 @@ export function renderPass(renderer, camera, passType, renderItems, data)
         if (pass !== activePass) {
             pass.updatePassRenderState(camera, renderer, data);
             activePass = pass;
-            lastMesh = null;    // need to reset mesh data too
         }
 
-        // make sure renderstate is propagated
-        pass.updateInstanceRenderState(camera, renderItem, data);
-
-        if (lastMesh !== meshInstance._mesh) {
-            meshInstance.updateRenderState(passType);
-            lastMesh = meshInstance._mesh;
-        }
+		pass.updateInstanceRenderState(camera, renderItem, data);
+		meshInstance.updateRenderState(passType);
 
         var mesh = meshInstance._mesh;
         var numInstances = meshInstance.numInstances;

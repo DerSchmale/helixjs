@@ -4556,13 +4556,13 @@
 	     */
 	    drawElementsInstanced: function (elementType, numIndices, indexType, offset, numInstances)
 	    {
-	        if (numInstances === 0) return;
 	        indexType = indexType || gl.UNSIGNED_SHORT;
 	        ++_glStats.numDrawCalls;
+
 	        if (capabilities.WEBGL_2)
 	            gl.drawElementsInstanced(elementType, numIndices, indexType, (offset || 0) << 1, numInstances);
 	        else
-			    capabilities.EXT_INSTANCED_ARRAYS.drawElementsInstancedANGLE(elementType, numIndices, indexType, (offset || 0) << 1, numInstances);
+				capabilities.EXT_INSTANCED_ARRAYS.drawElementsInstancedANGLE(elementType, numIndices, indexType, (offset || 0) << 1, numInstances);
 	    },
 
 	    setShader: function(shader)
@@ -16490,9 +16490,6 @@
 		this._SceneNode_invalidateWorldMatrix();
 
 		this._invalidateWorldBounds();
-
-		if (this._scene)
-			this._scene._partitioning.markEntityForUpdate(this);
 	};
 
 	/**
@@ -16510,6 +16507,8 @@
 	Entity.prototype._invalidateWorldBounds = function ()
 	{
 		this._worldBoundsInvalid = true;
+		if (this._scene)
+			this._scene._partitioning.markEntityForUpdate(this);
 	};
 
 	/**
@@ -19547,6 +19546,9 @@
 
 	    if (this._doubleSided)
 	        defines.DOUBLE_SIDED = 1;
+
+	    if (this._roughness === 1.0 && !this._specularMap && this._metallicness === 0.0)
+	        defines.HX_SKIP_SPECULAR = 1;
 
 	    if (this._colorMapOffset || this._colorMapScale)
 	        defines.COLOR_MAP_SCALE_OFFSET = 1;
@@ -30760,6 +30762,8 @@
 		var bounds = this._bounds;
 		var b = meshBounds.clone();
 
+		bounds.clear();
+
 		for (var i = 0, len = this._numInstances; i < len; ++i) {
 			this._readMatrix(i, m);
 			b.transformFrom(meshBounds, m);
@@ -30777,7 +30781,8 @@
 	 */
 	MeshBatch.prototype.acceptVisitor = function(visitor)
 	{
-		visitor.visitMeshBatch(this, this.entity);
+		if (this._numInstances)
+			visitor.visitMeshBatch(this, this.entity);
 	};
 
 	/**
@@ -31796,6 +31801,7 @@
 	    this._transparents = null;
 	    this._camera = null;
 	    this._cameraYAxis = new Float4();
+	    this._cameraPos = new Float4();
 	    this._frustumPlanes = null;
 		this.shadowCasters = null;
 		this.lights = null;
@@ -31821,6 +31827,7 @@
 	    this.reset();
 	    this._camera = camera;
 	    camera.worldMatrix.getColumn(1, this._cameraYAxis);
+	    camera.worldMatrix.getColumn(3, this._cameraPos);
 	    this._frustumPlanes = camera.frustum.planes;
 	    this._reset();
 
@@ -31864,9 +31871,16 @@
 		var entity = meshInstance.entity;
 		var worldBounds = this.getProxiedBounds(entity);
 	    var cameraYAxis = this._cameraYAxis;
+	    var cameraPos = this._cameraPos;
 	    var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
+	    var cameraPos_X = cameraPos.x, cameraPos_Y = cameraPos.y, cameraPos_Z = cameraPos.z;
 		var center = worldBounds._center;
-		var dist = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
+		var cx = center.x, cy = center.y, cz = center.z;
+		// the closest point of the bounds
+		cx += cameraY_X > 0? -worldBounds._halfExtentX : worldBounds._halfExtentX;
+		cy += cameraY_Y > 0? -worldBounds._halfExtentY : worldBounds._halfExtentY;
+		cz += cameraY_Z > 0? -worldBounds._halfExtentZ : worldBounds._halfExtentZ;
+		var dist = (cx - cameraPos_X) * cameraY_X + (cy - cameraPos_Y) * cameraY_Y + (cz - cameraPos_Z) * cameraY_Z;
 
 		meshInstance._lodVisible = dist >= meshInstance.lodRangeStart && dist < meshInstance.lodRangeEnd;
 
@@ -31920,11 +31934,13 @@
 	RenderCollector.prototype.visitLightProbe = function(probe)
 	{
 		var cameraYAxis = this._cameraYAxis;
+		var cameraPos = this._cameraPos;
 		var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
+		var cameraPos_X = cameraPos.x, cameraPos_Y = cameraPos.y, cameraPos_Z = cameraPos.z;
 		var worldBounds = this.getProxiedBounds(probe.entity);
 		var center = worldBounds.center;
 
-		probe._renderOrderHint = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
+		probe._renderOrderHint = (center.x - cameraPos_X) * cameraY_X + (center.y - cameraPos_Y) * cameraY_Y + (center.z - cameraPos_Z) * cameraY_Z;
 
 		if (probe.diffuseSH)
 	        this.diffuseProbes.push(probe);
@@ -31985,7 +32001,6 @@
 	{
 	    var len = renderItems.length;
 	    var activePass = null;
-	    var lastMesh = null;
 
 	    for(var i = 0; i < len; ++i) {
 	        var renderItem = renderItems[i];
@@ -31997,16 +32012,10 @@
 	        if (pass !== activePass) {
 	            pass.updatePassRenderState(camera, renderer, data);
 	            activePass = pass;
-	            lastMesh = null;    // need to reset mesh data too
 	        }
 
-	        // make sure renderstate is propagated
-	        pass.updateInstanceRenderState(camera, renderItem, data);
-
-	        if (lastMesh !== meshInstance._mesh) {
-	            meshInstance.updateRenderState(passType);
-	            lastMesh = meshInstance._mesh;
-	        }
+			pass.updateInstanceRenderState(camera, renderItem, data);
+			meshInstance.updateRenderState(passType);
 
 	        var mesh = meshInstance._mesh;
 	        var numInstances = meshInstance.numInstances;

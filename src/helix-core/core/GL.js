@@ -101,13 +101,13 @@ var GL = {
      */
     drawElementsInstanced: function (elementType, numIndices, indexType, offset, numInstances)
     {
-        if (numInstances === 0) return;
         indexType = indexType || gl.UNSIGNED_SHORT;
         ++_glStats.numDrawCalls;
+
         if (capabilities.WEBGL_2)
             gl.drawElementsInstanced(elementType, numIndices, indexType, (offset || 0) << 1, numInstances);
         else
-		    capabilities.EXT_INSTANCED_ARRAYS.drawElementsInstancedANGLE(elementType, numIndices, indexType, (offset || 0) << 1, numInstances);
+			capabilities.EXT_INSTANCED_ARRAYS.drawElementsInstancedANGLE(elementType, numIndices, indexType, (offset || 0) << 1, numInstances);
     },
 
     setShader: function(shader)

@@ -1,5 +1,4 @@
 /**
-/**
  * @author derschmale <http://www.derschmale.com>
  */
 var project = new DemoProject();
@@ -12,6 +11,7 @@ var worldSize = 20000;
 var waterLevel = 467;
 var minHeight = 0;
 var maxHeight = 4000;
+var treeLine = 3000;
 
 function CenterAtComponent(camera)
 {
@@ -182,4 +182,100 @@ function initScene(scene, camera, assetLibrary)
 		);
 		terrain.addComponent(rigidBody);
 	}
+
+	initFoliage(terrain, heightMap, terrainMap, lights);
+}
+
+function initFoliage(terrain, heightMap, terrainMap, lights)
+{
+	var heightData = HX.TextureUtils.getData(heightMap);
+	var terrainData = HX.TextureUtils.getData(terrainMap);
+	var heightMapSize = heightMap.width;
+	var terrainMapSize = terrainMap.width;
+	var prim0 = new HX.CylinderPrimitive({height: 30.0, radius: 1.0});
+	var prim1 = new HX.CylinderPrimitive({height: 30.0, radius: 1.0, numSegmentsW: 3});
+	var material0 = new HX.BasicMaterial();
+	var material1 = new HX.BasicMaterial({roughness: 1.0});
+	material0.fixedLights = lights;
+	material1.fixedLights = lights;
+
+	var batches = [];
+	var entities = [];
+	var cellsX = 16;
+	var cellsY = 16;
+
+	function addBatch(index, name, geom, mat, lod) {
+		if (!batches[name]) {
+			batches[name] = [];
+		}
+
+		var batch = new HX.MeshBatch(geom, mat);
+		batch.lodRangeEnd = 500 * (lod + 1);
+		if (lod > 0)
+			batch.lodRangeStart = batch.lodRangeEnd - 500;
+		batches[name].push(batch);
+		entities[index].addComponent(batch);
+	}
+
+	for (var i = 0; i < cellsX * cellsY; ++i) {
+		// every cell contains an entity, which in turn contains all the batches for that cell
+		var entity = new HX.Entity();
+		entities.push(entity);
+		project.scene.attach(entity);
+		addBatch(i, "tree_lod_0", prim0, material0, 0);
+		addBatch(i, "tree_lod_1", prim1, material1, 1);
+	}
+
+	var spacing = 10;
+	var rand = spacing * .75;
+	var ext = worldSize * .5 - 10;
+
+	var transform = new HX.Transform();
+
+	for (var y = -ext; y < ext; y += spacing) {
+		for (var x = -ext; x < ext; x += spacing) {
+			var xp = x + (Math.random() - .5) * rand;
+			var yp = y + (Math.random() - .5) * rand;
+			var height = getValue(xp, yp, 0, heightData, heightMapSize) * (maxHeight - minHeight) + minHeight;
+			var rock = getValue(xp, yp, 1, terrainData, terrainMapSize);
+
+			// let's have nothing grow on rock
+			if (rock > 0.0) continue;
+
+			if (Math.random() > .75 && height > waterLevel + 20.0 && height < treeLine) {
+				transform.position.set(xp, yp, height);
+				var sc = HX.MathX.lerp(.05, 1.2, Math.random());
+				transform.scale.set(sc, sc, sc);
+				transform.euler.z = Math.random() * Math.PI * 2.0;
+				var cellX = Math.floor((xp / worldSize + .5) * cellsX);
+				var cellY = Math.floor((yp / worldSize + .5) * cellsY);
+				var cellIndex = cellX + cellY * cellsX;
+				batches["tree_lod_0"][cellIndex].createInstance(transform);
+				batches["tree_lod_1"][cellIndex].createInstance(transform);
+			}
+		}
+	}
+}
+
+function getValue(x, y, comp, mapData, mapSize)
+{
+	x = (x / worldSize + .5) * (mapSize - 1) + .5;
+	y = (y / worldSize + .5) * (mapSize - 1) + .5;
+	var xi = Math.floor(x);
+	var yi = Math.floor(y);
+	var xf = x - xi;
+	var yf = y - yi;
+	var tl = getHeightPixel(xi, yi, comp, mapData, mapSize);
+	var tr = getHeightPixel(xi + 1, yi, comp, mapData, mapSize);
+	var bl = getHeightPixel(xi, yi + 1, comp, mapData, mapSize);
+	var br = getHeightPixel(xi + 1, yi + 1, comp, mapData, mapSize);
+	var t = HX.MathX.lerp(tl, tr, xf);
+	var b = HX.MathX.lerp(bl, br, xf);
+	return HX.MathX.lerp(t, b, yf);
+}
+
+function getHeightPixel(xi, yi, comp, mapData, mapSize)
+{
+	return mapData[((xi + yi * mapSize) << 2) + comp];
+	return mapData[((xi + yi * mapSize) << 2) + comp];
 }

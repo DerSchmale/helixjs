@@ -197,6 +197,8 @@ MeshBatch.prototype._updateBounds = function()
 	var bounds = this._bounds;
 	var b = meshBounds.clone();
 
+	bounds.clear();
+
 	for (var i = 0, len = this._numInstances; i < len; ++i) {
 		this._readMatrix(i, m);
 		b.transformFrom(meshBounds, m);
@@ -214,7 +216,8 @@ MeshBatch.prototype._updateBounds = function()
  */
 MeshBatch.prototype.acceptVisitor = function(visitor)
 {
-	visitor.visitMeshBatch(this, this.entity);
+	if (this._numInstances)
+		visitor.visitMeshBatch(this, this.entity);
 };
 
 /**

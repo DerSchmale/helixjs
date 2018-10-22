@@ -27,6 +27,7 @@ function RenderCollector()
     this._transparents = null;
     this._camera = null;
     this._cameraYAxis = new Float4();
+    this._cameraPos = new Float4();
     this._frustumPlanes = null;
 	this.shadowCasters = null;
 	this.lights = null;
@@ -52,6 +53,7 @@ RenderCollector.prototype.collect = function(camera, scene)
     this.reset();
     this._camera = camera;
     camera.worldMatrix.getColumn(1, this._cameraYAxis);
+    camera.worldMatrix.getColumn(3, this._cameraPos);
     this._frustumPlanes = camera.frustum.planes;
     this._reset();
 
@@ -95,11 +97,18 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance, entity)
 	var entity = meshInstance.entity;
 	var worldBounds = this.getProxiedBounds(entity);
     var cameraYAxis = this._cameraYAxis;
+    var cameraPos = this._cameraPos;
     var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
+    var cameraPos_X = cameraPos.x, cameraPos_Y = cameraPos.y, cameraPos_Z = cameraPos.z;
 	var center = worldBounds._center;
-	var dist = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
+	var cx = center.x, cy = center.y, cz = center.z;
+	// the closest point of the bounds
+	cx += cameraY_X > 0? -worldBounds._halfExtentX : worldBounds._halfExtentX;
+	cy += cameraY_Y > 0? -worldBounds._halfExtentY : worldBounds._halfExtentY;
+	cz += cameraY_Z > 0? -worldBounds._halfExtentZ : worldBounds._halfExtentZ;
+	var dist = (cx - cameraPos_X) * cameraY_X + (cy - cameraPos_Y) * cameraY_Y + (cz - cameraPos_Z) * cameraY_Z;
 
-	meshInstance._lodVisible = dist >= meshInstance.lodRangeStart && dist < meshInstance.lodRangeEnd
+	meshInstance._lodVisible = dist >= meshInstance.lodRangeStart && dist < meshInstance.lodRangeEnd;
 
 	if (!meshInstance._lodVisible)
 	    return;
@@ -151,11 +160,13 @@ RenderCollector.prototype.visitAmbientLight = function(light)
 RenderCollector.prototype.visitLightProbe = function(probe)
 {
 	var cameraYAxis = this._cameraYAxis;
+	var cameraPos = this._cameraPos;
 	var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
+	var cameraPos_X = cameraPos.x, cameraPos_Y = cameraPos.y, cameraPos_Z = cameraPos.z;
 	var worldBounds = this.getProxiedBounds(probe.entity);
 	var center = worldBounds.center;
 
-	probe._renderOrderHint = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
+	probe._renderOrderHint = (center.x - cameraPos_X) * cameraY_X + (center.y - cameraPos_Y) * cameraY_Y + (center.z - cameraPos_Z) * cameraY_Z;
 
 	if (probe.diffuseSH)
         this.diffuseProbes.push(probe);

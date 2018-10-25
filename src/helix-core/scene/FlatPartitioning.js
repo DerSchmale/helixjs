@@ -1,8 +1,11 @@
 /**
- * SpatialPartitioning forms a base class for spatial partitioning. Scene components such as MeshInstance, PointLightComponent, etc.
- * Are placed in here to accelerate collection.
+ * @classdesc
+ * FlatPartitioning is a spatial partitioning system for simple scenes that do not require hierarchical testing.
+ *
+ * @extends
  *
  * @constructor
+ *
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -20,6 +23,15 @@ FlatPartitioning.prototype = {
 			if (visitor.qualifies(entity))
 				entity.acceptVisitor(visitor, isMainCollector);
 		}
+	},
+
+	migrateTo: function(other)
+	{
+		this._entities.forEach(function(entity) {
+			other.registerEntity(entity);
+		});
+
+		this._entities = [];
 	},
 
 	markEntityForUpdate: function(entity) {},

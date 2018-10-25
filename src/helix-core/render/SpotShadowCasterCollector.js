@@ -68,6 +68,11 @@ SpotShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
 
 SpotShadowCasterCollector.prototype.visitMeshBatch = SpotShadowCasterCollector.prototype.visitMeshInstance;
 
+SpotShadowCasterCollector.prototype.qualifiesBounds = function(bounds)
+{
+    return bounds.intersectsConvexSolid(this._frustumPlanes, 6);
+};
+
 SpotShadowCasterCollector.prototype.qualifies = function(object, forceBounds)
 {
     return object.visible && (forceBounds || object.worldBounds.intersectsConvexSolid(this._frustumPlanes, 6));

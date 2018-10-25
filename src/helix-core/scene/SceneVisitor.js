@@ -28,7 +28,9 @@ SceneVisitor.prototype =
         this._matrixPool.reset();
     },
 
-    // the entry point depends on the concrete subclass (collect, etc)
+    // the entry point method depends on the concrete subclass (collect, cast, etc)
+
+    qualifiesBounds: function(bounds) {},
     qualifies: function(object) {},
     visitLightProbe: function(probe) {},
     visitLight: function(light) {},

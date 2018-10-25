@@ -168,11 +168,9 @@ vec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)
 }
 
 // THIS IS FOR NON_LINEAR DEPTH!
-float hx_depthToViewY(float depthSample, mat4 projectionMatrix)
+float hx_depthToViewY(float depth, mat4 projectionMatrix)
 {
-    // View Y maps to NDC Z!!!
-    // y = projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[1][2])
-    return projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[1][2]);
+    return projectionMatrix[3][2] / (depth * 2.0 - 1.0 - projectionMatrix[1][2]);
 }
 
 vec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)

@@ -579,7 +579,7 @@ Matrix4x4.prototype =
         m[14] = 2 * nearDistance * farDistance * rcpFrustumDepth;
         m[15] = 0;
         return this;
-    },
+	},
 
     /**
      * Initializes as an off-center orthographic projection matrix.

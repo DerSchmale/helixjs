@@ -126,6 +126,11 @@ OmniShadowCasterCollector.prototype._addTo = function(meshInstance, cubeFace, wo
     renderList.push(renderItem);
 };
 
+OmniShadowCasterCollector.prototype.qualifiesBounds = function(bounds)
+{
+	return bounds.intersectsBound(this._lightBounds);
+};
+
 OmniShadowCasterCollector.prototype.qualifies = function(object, forceBounds)
 {
     // for now, only interested if it intersects the point light volume at all

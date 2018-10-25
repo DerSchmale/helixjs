@@ -6,6 +6,7 @@ var terrainMaterial;
 var waterMaterial;
 var time = 0;
 var physics = false;
+var lights;
 
 var worldSize = 20000;
 var waterLevel = 467;
@@ -39,6 +40,7 @@ project.queueAssets = function(assetLibrary)
     assetLibrary.queueAsset("terrainMap", "terrain/textures/terrainMap.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
     assetLibrary.queueAsset("terrain-material", "terrain/material/terrainMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
     assetLibrary.queueAsset("water-material", "terrain/material/waterMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
+    assetLibrary.queueAsset("mango-lod-0", "terrain/models/mango_lod_0.hx", HX.AssetLibrary.Type.ASSET, HX.HX);
 };
 
 project.onInit = function()
@@ -68,10 +70,12 @@ project.onUpdate = function(dt)
 window.onload = function ()
 {
     var options = new HX.InitOptions();
-    if (!HX.Platform.isMobile)
-        options.webgl2 = true;
+    if (!HX.Platform.isMobile) {
+		options.webgl2 = true;
+		options.numShadowCascades = 3;
+	}
     options.hdr = true;
-    // options.debug = true;
+    options.debug = true;
     options.defaultLightingModel = HX.LightingModel.GGX_FULL;
     options.shadowFilter = new HX.VarianceShadowFilter();
     options.shadowFilter.softness = .002;
@@ -119,7 +123,10 @@ function initCamera(camera)
 
 function initScene(scene, camera, assetLibrary)
 {
+	scene.partitioning = new HX.QuadPartitioning(worldSize, 5);
     var dirLight = new HX.DirectionalLight();
+    // shift more detail closer to the camera
+	dirLight.setCascadeRatios(.01, .05, 1.0);
     dirLight.intensity = 15;
     dirLight.color = 0xfff5e8;
     if (!HX.Platform.isMobile)
@@ -140,7 +147,7 @@ function initScene(scene, camera, assetLibrary)
     var lightProbe = new HX.LightProbe(skyboxIrradiance, skyboxSpecularTexture);
     scene.attach(new HX.Entity(lightProbe));
 
-    var lights = [ dirLight, lightProbe ];
+    lights = [ dirLight, lightProbe ];
     var heightMap = assetLibrary.get("heightMap");
     var terrainMap = assetLibrary.get("terrainMap");
 
@@ -183,48 +190,85 @@ function initScene(scene, camera, assetLibrary)
 		terrain.addComponent(rigidBody);
 	}
 
-	initFoliage(terrain, heightMap, terrainMap, lights);
+	initFoliage(terrain, heightMap, terrainMap);
 }
 
-function initFoliage(terrain, heightMap, terrainMap, lights)
+var foliage = {};
+var cellsX = 32;
+var cellsY = 32;
+var batchEntities = [];
+
+function initBatchEntities()
 {
+	for (var i = 0; i < cellsX * cellsY; ++i) {
+		// every cell contains an entity, which in turn contains all the batches for that cell
+		var entity = new HX.Entity();
+		batchEntities.push(entity);
+		project.scene.attach(entity);
+	}
+}
+
+function addLOD(name, lodLevel, mesh, material, startRange, endRange)
+{
+	foliage[name] = foliage[name] || [];
+	var batches = [];
+	foliage[name].push(batches);
+
+	material.fixedLights = lights;
+
+	for (var i = 0; i < cellsX * cellsY; ++i) {
+		var batch = new HX.MeshBatch(mesh, material);
+		batch.lodRangeEnd = endRange;
+		batch.lodRangeStart = startRange;
+		batches.push(batch);
+		batchEntities[i].addComponent(batch);
+	}
+}
+
+function addInstance(name, transform)
+{
+	var cellX = Math.floor((transform.position.x / worldSize + .5) * cellsX);
+	var cellY = Math.floor((transform.position.y / worldSize + .5) * cellsY);
+	var cellIndex = cellX + cellY * cellsX;
+	var lods = foliage[name];
+
+	for (var i = 0; i < lods.length; ++i) {
+		var batch = lods[i][cellIndex];
+		batch.createInstance(transform);
+	}
+}
+
+function initMango()
+{
+	var mango0 = project.assetLibrary.get("mango-lod-0");
+	var trunkMat = mango0.materials["tree_mango_trunk_mat.004"];
+	var leavesMat = mango0.materials["tree_mango_leaves_mat.004"];
+
+	trunkMat.roughness = 0.75;
+	// trunkMat.clipToLODRange = true;
+
+	leavesMat.roughness = 0.75;
+	// leavesMat.clipToLODRange = true;
+	leavesMat.doubleSided = true;
+	leavesMat.alphaThreshold = .5;
+	leavesMat.alpha = 1.0;
+	leavesMat.blendState = HX.BlendState.NORMAL;
+	leavesMat.maskMap = null;
+
+	addLOD("mango", 0, mango0.meshes["Untitled.004"], trunkMat, Number.NEGATIVE_INFINITY, 100.0);
+	addLOD("mango", 0, mango0.meshes["Untitled.004_1"], leavesMat, Number.NEGATIVE_INFINITY, 100.0);
+}
+
+function initFoliage(terrain, heightMap, terrainMap)
+{
+	initBatchEntities();
+
 	var heightData = HX.TextureUtils.getData(heightMap);
 	var terrainData = HX.TextureUtils.getData(terrainMap);
 	var heightMapSize = heightMap.width;
 	var terrainMapSize = terrainMap.width;
-	var prim0 = new HX.CylinderPrimitive({height: 30.0, radius: 1.0});
-	var prim1 = new HX.CylinderPrimitive({height: 30.0, radius: 1.0, numSegmentsW: 3});
-	var material0 = new HX.BasicMaterial();
-	var material1 = new HX.BasicMaterial({roughness: 1.0});
-	material0.fixedLights = lights;
-	material1.fixedLights = lights;
 
-	var batches = [];
-	var entities = [];
-	var cellsX = 16;
-	var cellsY = 16;
-
-	function addBatch(index, name, geom, mat, lod) {
-		if (!batches[name]) {
-			batches[name] = [];
-		}
-
-		var batch = new HX.MeshBatch(geom, mat);
-		batch.lodRangeEnd = 500 * (lod + 1);
-		if (lod > 0)
-			batch.lodRangeStart = batch.lodRangeEnd - 500;
-		batches[name].push(batch);
-		entities[index].addComponent(batch);
-	}
-
-	for (var i = 0; i < cellsX * cellsY; ++i) {
-		// every cell contains an entity, which in turn contains all the batches for that cell
-		var entity = new HX.Entity();
-		entities.push(entity);
-		project.scene.attach(entity);
-		addBatch(i, "tree_lod_0", prim0, material0, 0);
-		addBatch(i, "tree_lod_1", prim1, material1, 1);
-	}
+	initMango();
 
 	var spacing = 10;
 	var rand = spacing * .75;
@@ -244,14 +288,12 @@ function initFoliage(terrain, heightMap, terrainMap, lights)
 
 			if (Math.random() > .75 && height > waterLevel + 20.0 && height < treeLine) {
 				transform.position.set(xp, yp, height);
-				var sc = HX.MathX.lerp(.05, 1.2, Math.random());
+				var sc = HX.MathX.lerp(.05, 1.2, Math.random()) * 0.07;
 				transform.scale.set(sc, sc, sc);
 				transform.euler.z = Math.random() * Math.PI * 2.0;
-				var cellX = Math.floor((xp / worldSize + .5) * cellsX);
-				var cellY = Math.floor((yp / worldSize + .5) * cellsY);
-				var cellIndex = cellX + cellY * cellsX;
-				batches["tree_lod_0"][cellIndex].createInstance(transform);
-				batches["tree_lod_1"][cellIndex].createInstance(transform);
+
+				addInstance("mango", transform);
+				// batches["mango_lod_1"][cellIndex].createInstance(transform);
 			}
 		}
 	}

@@ -130,11 +130,20 @@ Scene.prototype = {
     },
 
 	/**
-     * @ignore
+     * Set the spatial partitioning for the current scene. Defaults to {@linkcode FlatPartitioning}
 	 */
 	get partitioning()
     {
          return this._partitioning;
+    },
+
+    set partitioning(value)
+    {
+        if (this._partitioning === value)
+            return;
+
+        this._partitioning.migrateTo(value);
+		this._partitioning = value;
     },
 
     /**

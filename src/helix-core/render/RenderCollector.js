@@ -2,12 +2,12 @@ import {ObjectPool} from "../core/ObjectPool";
 import {Float4} from "../math/Float4";
 import {Color} from "../core/Color";
 import {SceneVisitor} from "../scene/SceneVisitor";
-import {capabilities, META} from "../Helix";
+import {META} from "../Helix";
 import {RenderItem} from "./RenderItem";
 import {RenderPath} from "./RenderPath";
 import {RenderSortFunctions} from "./RenderSortFunctions";
 import {_glStats} from "../core/GL";
-import {OmniShadowCasterCollector} from "./OmniShadowCasterCollector";
+import {Raycaster} from "../utils/Raycaster";
 
 /**
  * @ignore
@@ -72,6 +72,12 @@ RenderCollector.prototype.collect = function(camera, scene)
 	this._camera.acceptVisitorPost(this);
 };
 
+RenderCollector.prototype.qualifiesBounds = function(bounds)
+{
+	return bounds.intersectsConvexSolid(this._frustumPlanes, 6)
+};
+
+
 RenderCollector.prototype.qualifies = function(object, forceBounds)
 {
     return object.hierarchyVisible && (forceBounds || object.worldBounds.intersectsConvexSolid(this._frustumPlanes, 6));
@@ -100,12 +106,10 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance, entity)
     var cameraPos = this._cameraPos;
     var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
     var cameraPos_X = cameraPos.x, cameraPos_Y = cameraPos.y, cameraPos_Z = cameraPos.z;
-	var center = worldBounds._center;
-	var cx = center.x, cy = center.y, cz = center.z;
 	// the closest point of the bounds
-	cx += cameraY_X > 0? -worldBounds._halfExtentX : worldBounds._halfExtentX;
-	cy += cameraY_Y > 0? -worldBounds._halfExtentY : worldBounds._halfExtentY;
-	cz += cameraY_Z > 0? -worldBounds._halfExtentZ : worldBounds._halfExtentZ;
+	var cx = cameraY_X > 0? worldBounds._minimumX : worldBounds._maximumX;
+	var cy = cameraY_Y > 0? worldBounds._minimumY : worldBounds._maximumY;
+	var cz = cameraY_Z > 0? worldBounds._minimumZ : worldBounds._maximumZ;
 	var dist = (cx - cameraPos_X) * cameraY_X + (cy - cameraPos_Y) * cameraY_Y + (cz - cameraPos_Z) * cameraY_Z;
 
 	meshInstance._lodVisible = dist >= meshInstance.lodRangeStart && dist < meshInstance.lodRangeEnd;

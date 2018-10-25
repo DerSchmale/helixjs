@@ -21,8 +21,10 @@ export var ShaderLibrary = {
 
         for (var key in defines) {
             if (defines.hasOwnProperty(key)) {
+                defineString += "#ifndef " + key + "\n";
                 defineString += "#define " + key + " " + defines[key] + "\n";
-            }
+				defineString += "#endif\n";
+			}
         }
 
         return defineString + ShaderLibrary._files[filename];

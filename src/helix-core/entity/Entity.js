@@ -31,6 +31,10 @@ function Entity(components)
 	this._requiresUpdates = false;
 	this._onComponentsChange = new Signal();
 
+	// a doubly linked list for spatial partitioning
+	this._spatialPrev = null;
+	this._spatialNext = null;
+
 	this._boundsInvalid = true;
 	this._worldBoundsInvalid = true;
 	this._worldBounds = this._createBoundingVolume();

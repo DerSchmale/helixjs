@@ -88,10 +88,10 @@ Component.create(DirectionalLight,
  */
 DirectionalLight.prototype.setCascadeRatios = function(r1, r2, r3, r4)
 {
-    this._cascadeSplitRatios[0] = r1;
-    this._cascadeSplitRatios[1] = r2;
-    this._cascadeSplitRatios[2] = r3;
-    this._cascadeSplitRatios[3] = r4;
+	if (r1 !== undefined) this._cascadeSplitRatios[0] = r1;
+	if (r2 !== undefined) this._cascadeSplitRatios[1] = r2;
+	if (r3 !== undefined) this._cascadeSplitRatios[2] = r3;
+    if (r4 !== undefined) this._cascadeSplitRatios[3] = r4;
 };
 
 /**

@@ -51,11 +51,13 @@ export {ShowSkeleton} from "./debug/ShowSkeleton";
 export {BoundingVolume} from "./scene/BoundingVolume";
 export {BoundingAABB} from "./scene/BoundingAABB";
 export {BoundingSphere} from "./scene/BoundingSphere";
+export {FlatPartitioning} from "./scene/FlatPartitioning";
 export {SceneNode} from "./scene/SceneNode";
 export {Scene} from "./scene/Scene";
 export {SceneVisitor} from "./scene/SceneVisitor";
 export {Skybox} from "./scene/Skybox";
 export {Terrain} from "./scene/Terrain";
+export {QuadPartitioning} from "./scene/QuadPartitioning";
 
 export {Entity} from "./entity/Entity";
 export {EntityProxy} from "./entity/EntityProxy";

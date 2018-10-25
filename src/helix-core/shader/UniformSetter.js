@@ -229,15 +229,14 @@ NormalWorldViewMatrixSetter.prototype.execute = function() {
     }
 }();
 
-
-
 function LODRangeSetter()
 {
 }
 
 LODRangeSetter.prototype.execute = function (camera, renderItem)
 {
-	GL.gl.uniform2f(this.location, renderItem.lodRangeStart, renderItem.lodRangeEnd);
+    var instance = renderItem.meshInstance;
+	GL.gl.uniform2f(this.location, instance.lodRangeStart, instance.lodRangeEnd);
 };
 
 function CameraWorldPosSetter()

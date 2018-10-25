@@ -77,9 +77,17 @@ Raycaster.prototype.cast = function(ray, scene)
 /**
  * @ignore
  */
+Raycaster.prototype.qualifiesBounds = function(bounds)
+{
+	return bounds.intersectsRay(this._ray);
+};
+
+/**
+ * @ignore
+ */
 Raycaster.prototype.qualifies = function(object, forceBounds)
 {
-    return object.raycast && object.visible && (forceBounds || object.worldBounds.intersectsRay(this._ray));
+    return object.raycast && object.hierarchyVisible && (forceBounds || object.worldBounds.intersectsRay(this._ray));
 };
 
 /**

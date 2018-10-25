@@ -5,9 +5,11 @@ import {VertexBuffer} from "../core/VertexBuffer";
 import {BufferUsage} from "../Helix";
 import {GL} from "../core/GL";
 import {MaterialPass} from "../material/MaterialPass";
+import {BoundingAABB} from "../scene/BoundingAABB";
 
 // local module work objects
 var m = new Matrix4x4();
+var aabb = new BoundingAABB();
 
 /**
  * @classdesc
@@ -85,16 +87,17 @@ MeshBatch.prototype.createInstance = function(transform)
 	else
 		matrix  = transform.matrix;
 
+	aabb.transformFrom(this._mesh.bounds, matrix);
+
+	if (!this._dynamic)
+		this.bounds.growToIncludeBound(aabb);
+
 	this._addQueue.push({
 		id: id,
 		matrix: matrix.clone()	// need to clone so that we could use the same object multiple times
 	});
 
-	var bound = this._mesh.bounds.clone();
-	bound.transformFrom(bound, matrix);
-
-	if (!this._dynamic)
-		this._bounds.growToIncludeBound(bound);
+	this.entity.invalidateBounds();
 
 	++this._numInstances;
 
@@ -195,19 +198,18 @@ MeshBatch.prototype._updateBounds = function()
 	// this only happens when changing static MeshBatch, hence it's a bit slower but more precise.
 	var meshBounds = this._mesh.bounds;
 	var bounds = this._bounds;
-	var b = meshBounds.clone();
 
 	bounds.clear();
 
 	for (var i = 0, len = this._numInstances; i < len; ++i) {
 		this._readMatrix(i, m);
-		b.transformFrom(meshBounds, m);
-		bounds.growToIncludeBound(b);
+		aabb.transformFrom(meshBounds, m);
+		bounds.growToIncludeBound(aabb);
 	}
 
 	for (i = 0, len = this._addQueue.length; i < len; ++i) {
-		b.transformFrom(meshBounds, this._addQueue[i].matrix);
-		bounds.growToIncludeBound(b);
+		aabb.transformFrom(meshBounds, this._addQueue[i].matrix);
+		bounds.growToIncludeBound(aabb);
 	}
 };
 
@@ -217,7 +219,7 @@ MeshBatch.prototype._updateBounds = function()
 MeshBatch.prototype.acceptVisitor = function(visitor)
 {
 	if (this._numInstances)
-		visitor.visitMeshBatch(this, this.entity);
+		visitor.visitMeshBatch(this);
 };
 
 /**
@@ -336,7 +338,7 @@ MeshBatch.prototype._processDeletes = function(oldData, newData)
 
 	// test to see algo behaves as expected
 	console.assert(this._deleteQueue.length === 0, "Delete queue not empty.");
-}
+};
 
 /**
  * @inheritDoc

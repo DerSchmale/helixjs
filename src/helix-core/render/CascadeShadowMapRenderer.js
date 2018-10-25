@@ -36,7 +36,7 @@ CascadeShadowMapRenderer.prototype =
         this._updateCollectorCamera(light, viewCamera);
         this._updateSplits(light, viewCamera);
         this._updateCullPlanes(light, viewCamera);
-        this._collectShadowCasters(scene);
+        this._collectShadowCasters(scene, viewCamera);
         this._updateCascadeCameras(light, atlas, viewCamera, this._casterCollector.getBounds());
 
         var passType = MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS;
@@ -223,11 +223,11 @@ CascadeShadowMapRenderer.prototype =
         }
     },
 
-    _collectShadowCasters: function(scene)
+    _collectShadowCasters: function(scene, viewCamera)
     {
         this._casterCollector.setCullPlanes(this._cullPlanes, this._numCullPlanes);
         this._casterCollector.setRenderCameras(this._shadowMapCameras);
-        this._casterCollector.collect(this._collectorCamera, scene);
+        this._casterCollector.collect(this._collectorCamera, scene, viewCamera);
     }
 };
 

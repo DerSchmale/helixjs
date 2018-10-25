@@ -28,7 +28,7 @@ SpotShadowMapRenderer.prototype =
 			this._camera.matrix.copyFrom(light.entity.worldMatrix);
 			this._camera._invalidateWorldMatrix();
 
-			this._casterCollector.collect(this._camera, scene);
+			this._casterCollector.collect(this._camera, scene, viewCamera);
 
 			var rect = atlas.getNextRect();
 			var atlasSize = 1.0 / atlas.size;

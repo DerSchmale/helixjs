@@ -32,7 +32,7 @@ OmniShadowMapRenderer.prototype =
             this._cubeCamera.position = pos;
 
             this._casterCollector.setLightBounds(entity.worldBounds);
-            this._casterCollector.collect(this._cubeCamera, scene);
+            this._casterCollector.collect(this._cubeCamera, scene, viewCamera);
 
             GL.setInvertCulling(true);
 

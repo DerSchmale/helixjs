@@ -236,7 +236,7 @@ function LODRangeSetter()
 LODRangeSetter.prototype.execute = function (camera, renderItem)
 {
     var instance = renderItem.meshInstance;
-	GL.gl.uniform2f(this.location, instance.lodRangeStart, instance.lodRangeEnd);
+	GL.gl.uniform2f(this.location, instance._lodRangeStart, instance._lodRangeEnd);
 };
 
 function CameraWorldPosSetter()

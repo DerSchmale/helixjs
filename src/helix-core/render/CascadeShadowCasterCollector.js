@@ -18,6 +18,7 @@ function CascadeShadowCasterCollector()
     SceneVisitor.call(this);
     this._renderCameras = null;
     this._cameraYAxis = new Float4();
+	this._viewCameraPos = new Float4();
     this._bounds = new BoundingAABB();
     this._cullPlanes = null;
     this._numCullPlanes = 0;
@@ -29,12 +30,12 @@ CascadeShadowCasterCollector.prototype = Object.create(SceneVisitor.prototype);
 
 CascadeShadowCasterCollector.prototype.getRenderList = function(index) { return this._renderList[index]; };
 
-CascadeShadowCasterCollector.prototype.collect = function(camera, scene)
+CascadeShadowCasterCollector.prototype.collect = function(camera, scene, viewCamera)
 {
     this.reset();
-    this._collectorCamera = camera;
-    camera.worldMatrix.getColumn(1, this._cameraYAxis);
-    this._bounds.clear();
+	camera.worldMatrix.getColumn(1, this._cameraYAxis);
+	viewCamera.worldMatrix.getColumn(3, this._viewCameraPos);
+	this._bounds.clear();
     this._renderItemPool.reset();
 
     var numCascades = META.OPTIONS.numShadowCascades;
@@ -66,12 +67,22 @@ CascadeShadowCasterCollector.prototype.setCullPlanes = function(cullPlanes, numP
 
 CascadeShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
 {
-    if (!meshInstance.castShadows || !meshInstance.enabled || !meshInstance._lodVisible) return;
+	if (!meshInstance.castShadows || !meshInstance.enabled)
+		return;
+
+	var entity = meshInstance.entity;
+	var cameraPos = this._viewCameraPos;
+	var worldBounds = this.getProxiedBounds(entity);
+	var center = worldBounds.center;
+	var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);
+	var distSqr = dx * dx + dy * dy + dz * dz;
+
+	if (distSqr < meshInstance._lodRangeStartSqr || distSqr > meshInstance._lodRangeEndSqr)
+    	return;
 
     var skeleton = meshInstance.skeleton;
 	var skeletonMatrices = meshInstance.skeletonMatrices;
-    var entity = meshInstance.entity;
-    var worldBounds = this.getProxiedBounds(entity);
+
     this._bounds.growToIncludeBound(worldBounds);
 
     var passIndex = MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS;

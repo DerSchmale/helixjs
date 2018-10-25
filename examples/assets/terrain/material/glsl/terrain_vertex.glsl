@@ -11,6 +11,7 @@ uniform float hx_elevationOffset;
 uniform float hx_elevationScale;
 uniform float hx_heightMapSize;
 uniform float hx_worldSize;
+uniform float hx_heightMapSize;
 uniform sampler2D hx_heightMap;
 
 varying_out vec3 viewPosition;
@@ -24,7 +25,8 @@ void hx_geometry()
 
 // snap to cell size is required to not get a floating interpolated landscape
     worldPos.xy = floor(worldPos.xy / hx_cellSize) * hx_cellSize;
-    uv = worldPos.xy / hx_worldSize + .5;
+    // THE UV must have a half-pixel offset applied!
+    uv = worldPos.xy / hx_worldSize + .5 + .5 / hx_heightMapSize;
 
 #ifdef HX_GLSL_300_ES
     // the shader LOD extension doesn't work in the vertex shader, so only WebGL 2 can support this

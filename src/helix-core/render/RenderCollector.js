@@ -7,7 +7,6 @@ import {RenderItem} from "./RenderItem";
 import {RenderPath} from "./RenderPath";
 import {RenderSortFunctions} from "./RenderSortFunctions";
 import {_glStats} from "../core/GL";
-import {Raycaster} from "../utils/Raycaster";
 
 /**
  * @ignore
@@ -102,19 +101,12 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance, entity)
 
 	var entity = meshInstance.entity;
 	var worldBounds = this.getProxiedBounds(entity);
-    var cameraYAxis = this._cameraYAxis;
     var cameraPos = this._cameraPos;
-    var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
-    var cameraPos_X = cameraPos.x, cameraPos_Y = cameraPos.y, cameraPos_Z = cameraPos.z;
-	// the closest point of the bounds
-	var cx = cameraY_X > 0? worldBounds._minimumX : worldBounds._maximumX;
-	var cy = cameraY_Y > 0? worldBounds._minimumY : worldBounds._maximumY;
-	var cz = cameraY_Z > 0? worldBounds._minimumZ : worldBounds._maximumZ;
-	var dist = (cx - cameraPos_X) * cameraY_X + (cy - cameraPos_Y) * cameraY_Y + (cz - cameraPos_Z) * cameraY_Z;
+	var center = worldBounds.center;
+	var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);
+	var distSqr = dx * dx + dy * dy + dz * dz;
 
-	meshInstance._lodVisible = dist >= meshInstance.lodRangeStart && dist < meshInstance.lodRangeEnd;
-
-	if (!meshInstance._lodVisible)
+	if (distSqr < meshInstance._lodRangeStartSqr || distSqr > meshInstance._lodRangeEndSqr)
 	    return;
 
     var skeleton = meshInstance.skeleton;
@@ -138,7 +130,7 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance, entity)
     renderItem.skeleton = skeleton;
     renderItem.skeletonMatrices = skeletonMatrices;
     // distance along Z axis:
-    renderItem.renderOrderHint = dist;
+    renderItem.renderOrderHint = distSqr;
     renderItem.worldMatrix = this.getProxiedMatrix(entity);
     renderItem.worldBounds = worldBounds;
 

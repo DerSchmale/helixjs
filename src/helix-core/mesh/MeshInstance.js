@@ -38,9 +38,10 @@ function MeshInstance(mesh, material)
 
 	this.name = "hx_meshinstance_" + (nameCounter++);
 	this.castShadows = true;
-	this.lodRangeStart = Number.NEGATIVE_INFINITY;
-	this.lodRangeEnd = Number.POSITIVE_INFINITY;
-	this._lodVisible = true;
+	this._lodRangeStart = 0.0;
+	this._lodRangeEnd = 0.0;
+	this._lodRangeStartSqr = 0.0;
+	this._lodRangeEndSqr = Number.POSITIVE_INFINITY;
 	this.skeletonPose = null;
 	this.bindShapeMatrix = null;
 	this.bindShapeMatrixInverse = null;
@@ -57,6 +58,30 @@ function MeshInstance(mesh, material)
 }
 
 Component.create(MeshInstance, {
+	lodRangeStart: {
+		get: function()
+		{
+			return this._lodRangeStart;
+		},
+
+		set: function(value)
+		{
+			this._lodRangeStart = value;
+			this._lodRangeStartSqr = value * value;
+		}
+	},
+	lodRangeEnd: {
+		get: function()
+		{
+			return this._lodRangeEnd;
+		},
+
+		set: function(value)
+		{
+			this._lodRangeEnd = value;
+			this._lodRangeEndSqr = value * value;
+		}
+	},
 	skeleton: {
 		get: function()
 		{

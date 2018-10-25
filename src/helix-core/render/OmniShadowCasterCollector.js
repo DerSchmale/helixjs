@@ -3,7 +3,6 @@ import {SceneVisitor} from "../scene/SceneVisitor";
 import {RenderItem} from "./RenderItem";
 import {RenderSortFunctions} from "./RenderSortFunctions";
 import {Float4} from "../math/Float4";
-import {CascadeShadowCasterCollector} from "./CascadeShadowCasterCollector";
 
 /**
  * @ignore
@@ -19,6 +18,7 @@ function OmniShadowCasterCollector()
     this._renderItemPool = new ObjectPool(RenderItem);
     this._octantPlanes = [];
     this._cameraPos = null;
+	this._viewCameraPos = new Float4();
 
     this._octantPlanes[0] = new Float4(0.0, 1.0, -1.0, 0.0);
     this._octantPlanes[1] = new Float4(1.0, 0.0, -1.0, 0.0);
@@ -41,11 +41,13 @@ OmniShadowCasterCollector.prototype.setLightBounds = function(value)
     this._lightBounds = value;
 };
 
-OmniShadowCasterCollector.prototype.collect = function(camera, scene)
+OmniShadowCasterCollector.prototype.collect = function(camera, scene, viewCamera)
 {
     this.reset();
     this._camera = camera;
     this._renderLists = [];
+
+	viewCamera.worldMatrix.getColumn(3, this._viewCameraPos);
 
     var pos = this._cameraPos = camera.position;
 
@@ -65,10 +67,19 @@ OmniShadowCasterCollector.prototype.collect = function(camera, scene)
 
 OmniShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
 {
-	if (!meshInstance.castShadows || !meshInstance.enabled || !meshInstance._lodVisible) return;
+	if (!meshInstance.castShadows || !meshInstance.enabled)
+		return;
 
 	var entity = meshInstance.entity;
 	var worldBounds = this.getProxiedBounds(entity);
+	var cameraPos = this._viewCameraPos;
+	var center = worldBounds.center;
+	var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);
+	var distSqr = dx * dx + dy * dy + dz * dz;
+
+    if (distSqr < meshInstance._lodRangeStartSqr || distSqr > meshInstance._lodRangeEndSqr)
+        return;
+
 	var worldMatrix = this.getProxiedMatrix(entity);
     // basically, this does 6 frustum tests at once
     var planes = this._octantPlanes;

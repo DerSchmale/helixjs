@@ -10,6 +10,7 @@ import {Messenger} from "../core/Messenger";
  * Entity represents a node in the Scene graph that can have {@linkcode Component} objects added to it, which can
  * define its behavior in a modular way.
  *
+ * @property {Boolean} testFrustum Whether or not this entity should be tested against the frustum or not.
  * @property {BoundingVolume} worldBounds The bounding volume for this entity in world coordinates. This does not include
  * children.
  *
@@ -24,6 +25,7 @@ function Entity(components)
 	SceneNode.call(this);
 
 	this.messenger = new Messenger();
+	this.ignoreSpatialPartition = false;
 
 	// components
 	this._componentHash = new Bitfield();
@@ -140,7 +142,7 @@ Entity.prototype.invalidateBounds = function ()
 Entity.prototype._invalidateWorldBounds = function ()
 {
 	this._worldBoundsInvalid = true;
-	if (this._scene)
+	if (this._scene && !this.ignoreSpatialPartition)
 		this._scene._partitioning.markEntityForUpdate(this);
 };
 

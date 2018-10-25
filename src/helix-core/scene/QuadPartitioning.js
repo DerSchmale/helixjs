@@ -1,5 +1,6 @@
 import {BoundingAABB} from "./BoundingAABB";
 import {Float4} from "../math/Float4";
+import {BoundingVolume} from "./BoundingVolume";
 
 function DummyNode()
 {
@@ -32,8 +33,8 @@ function QuadPartitioning(size, numLevels, minHeight, maxHeight)
 	this._nodes = [];
 	this._size = size;
 	this._numLevels = numLevels || 4;
-	this._minHeight = minHeight || -10000;
-	this._maxHeight = maxHeight || 10000;
+	this._minHeight = minHeight === undefined? -10000 : minHeight;
+	this._maxHeight = maxHeight === undefined? 10000 : maxHeight;
 	this._updateQueue = [];
 
 	var count = 1;
@@ -80,6 +81,7 @@ QuadPartitioning.prototype = {
 
 	_visitNode: function(visitor, index, level, x, y, extent, isMainCollector)
 	{
+		// assume level 0 is always visible, it contains the whole world after all
 		if (level > 0) {
 			min.x = x - extent;
 			max.x = x + extent;
@@ -111,8 +113,8 @@ QuadPartitioning.prototype = {
 
 	markEntityForUpdate: function(entity)
 	{
-		// remove from current node
-		if (!entity._spatialNode)
+		// if spatialPrev is null, it means it was already marked (unregisterEntity)
+		if (entity.ignoreSpatialPartition || !entity._spatialPrev)
 			return;
 
 		this.unregisterEntity(entity);
@@ -121,7 +123,7 @@ QuadPartitioning.prototype = {
 
 	registerEntity: function(entity)
 	{
-		var nodeIndex = this._getNodeIndex(entity.worldBounds);
+		var nodeIndex = entity.ignoreSpatialPartition? 0 : this._getNodeIndex(entity.worldBounds);
 		var node = this._nodes[nodeIndex];
 
 		var next = node._spatialNext;
@@ -143,7 +145,7 @@ QuadPartitioning.prototype = {
 		if (prev) prev._spatialNext = next;
 		if (next) next._spatialPrev = prev;
 
-		entity._spatialNode = null;
+		entity._spatialNext = null;
 		entity._spatialPrev = null;
 	},
 
@@ -174,6 +176,9 @@ QuadPartitioning.prototype = {
 
 	_getNodeIndex: function(bounds)
 	{
+		if (bounds.expanse === BoundingVolume.EXPANSE_INFINITE)
+			return 0;
+
 		var minX = bounds._minimumX;
 		var minY = bounds._minimumY;
 		var maxX = bounds._maximumX;

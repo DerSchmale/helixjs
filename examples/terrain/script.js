@@ -5,14 +5,16 @@ var project = new DemoProject();
 var terrainMaterial;
 var waterMaterial;
 var time = 0;
-var physics = false;
+var physics = true;
 var lights;
+var heightMapSize;
+var heightData;
 
 var worldSize = 20000;
 var waterLevel = 467;
 var minHeight = 0;
 var maxHeight = 4000;
-var treeLine = 3000;
+var treeLine = 1500;
 
 function CenterAtComponent(camera)
 {
@@ -64,7 +66,13 @@ project.onUpdate = function(dt)
     var bound = worldSize * .5 - 100;
     pos.x = HX.MathX.clamp(pos.x, -bound, bound);
     pos.y = HX.MathX.clamp(pos.y, -bound, bound);
-    pos.z = Math.max(pos.z, waterLevel + 0.5);
+
+	var height = waterLevel;
+
+	if (!physics)
+		height = Math.max(height, getValue(pos.x, pos.y, 0, heightData, heightMapSize)  * (maxHeight - minHeight) + minHeight);
+
+    pos.z = Math.max(pos.z, height + 1.7);
 };
 
 window.onload = function ()
@@ -75,7 +83,7 @@ window.onload = function ()
 		options.numShadowCascades = 3;
 	}
     options.hdr = true;
-    options.debug = true;
+    // options.debug = true;
     options.defaultLightingModel = HX.LightingModel.GGX_FULL;
     options.shadowFilter = new HX.VarianceShadowFilter();
     options.shadowFilter.softness = .002;
@@ -190,12 +198,14 @@ function initScene(scene, camera, assetLibrary)
 		terrain.addComponent(rigidBody);
 	}
 
+	heightMapSize = heightMap.width;
+	heightData = HX.TextureUtils.getData(heightMap);
 	initFoliage(terrain, heightMap, terrainMap);
 }
 
 var foliage = {};
-var cellsX = 32;
-var cellsY = 32;
+var cellsX = 64;
+var cellsY = 64;
 var batchEntities = [];
 
 function initBatchEntities()
@@ -225,14 +235,15 @@ function addLOD(name, lodLevel, mesh, material, startRange, endRange)
 	}
 }
 
-function addInstance(name, transform)
+function addInstance(name, transform, dead)
 {
 	var cellX = Math.floor((transform.position.x / worldSize + .5) * cellsX);
 	var cellY = Math.floor((transform.position.y / worldSize + .5) * cellsY);
 	var cellIndex = cellX + cellY * cellsX;
 	var lods = foliage[name];
+	var len = dead? 1 : lods.length;
 
-	for (var i = 0; i < lods.length; ++i) {
+	for (var i = 0; i < len; ++i) {
 		var batch = lods[i][cellIndex];
 		batch.createInstance(transform);
 	}
@@ -245,27 +256,23 @@ function initMango()
 	var leavesMat = mango0.materials["tree_mango_leaves_mat.004"];
 
 	trunkMat.roughness = 0.75;
-	// trunkMat.clipToLODRange = true;
 
 	leavesMat.roughness = 0.75;
-	// leavesMat.clipToLODRange = true;
 	leavesMat.doubleSided = true;
 	leavesMat.alphaThreshold = .5;
 	leavesMat.alpha = 1.0;
 	leavesMat.blendState = HX.BlendState.NORMAL;
 	leavesMat.maskMap = null;
 
-	addLOD("mango", 0, mango0.meshes["Untitled.004"], trunkMat, Number.NEGATIVE_INFINITY, 100.0);
-	addLOD("mango", 0, mango0.meshes["Untitled.004_1"], leavesMat, Number.NEGATIVE_INFINITY, 100.0);
+	addLOD("mango", 0, mango0.meshes["Untitled.004"], trunkMat, 0, 250.0);
+	addLOD("mango", 0, mango0.meshes["Untitled.004_1"], leavesMat, 0, 250.0);
 }
 
 function initFoliage(terrain, heightMap, terrainMap)
 {
 	initBatchEntities();
 
-	var heightData = HX.TextureUtils.getData(heightMap);
 	var terrainData = HX.TextureUtils.getData(terrainMap);
-	var heightMapSize = heightMap.width;
 	var terrainMapSize = terrainMap.width;
 
 	initMango();
@@ -281,6 +288,7 @@ function initFoliage(terrain, heightMap, terrainMap)
 			var xp = x + (Math.random() - .5) * rand;
 			var yp = y + (Math.random() - .5) * rand;
 			var height = getValue(xp, yp, 0, heightData, heightMapSize) * (maxHeight - minHeight) + minHeight;
+			// TODO: get the tangent
 			var rock = getValue(xp, yp, 1, terrainData, terrainMapSize);
 
 			// let's have nothing grow on rock
@@ -288,12 +296,12 @@ function initFoliage(terrain, heightMap, terrainMap)
 
 			if (Math.random() > .75 && height > waterLevel + 20.0 && height < treeLine) {
 				transform.position.set(xp, yp, height);
-				var sc = HX.MathX.lerp(.05, 1.2, Math.random()) * 0.07;
+				var sc = HX.MathX.lerp(.25, 1.2, Math.random()) * 0.07;
 				transform.scale.set(sc, sc, sc);
 				transform.euler.z = Math.random() * Math.PI * 2.0;
 
-				addInstance("mango", transform);
-				// batches["mango_lod_1"][cellIndex].createInstance(transform);
+				var dead = Math.random() > .9;
+				addInstance("mango", transform, dead);
 			}
 		}
 	}
@@ -301,8 +309,8 @@ function initFoliage(terrain, heightMap, terrainMap)
 
 function getValue(x, y, comp, mapData, mapSize)
 {
-	x = (x / worldSize + .5) * (mapSize - 1) + .5;
-	y = (y / worldSize + .5) * (mapSize - 1) + .5;
+	x = (x / worldSize + .5) * mapSize;
+	y = (y / worldSize + .5) * mapSize;
 	var xi = Math.floor(x);
 	var yi = Math.floor(y);
 	var xf = x - xi;

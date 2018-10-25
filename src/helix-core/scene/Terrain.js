@@ -226,6 +226,9 @@ Terrain.prototype._addMesh = function(mesh, x, y, rot)
 	var entity = new Entity();
 	var meshInstance = new MeshInstance(mesh, this._material);
 	entity.addComponent(meshInstance);
+
+	// always add this to the partition's root node
+	entity.ignoreSpatialPartition = true;
 	entity.position.x = x;
 	entity.position.y = y;
 	entity.euler.z = rot * Math.PI * .5;
@@ -253,7 +256,7 @@ Terrain.prototype.acceptVisitor = function(visitor, isMainCollector)
  */
 Terrain.prototype.clone = function()
 {
-    return new Terrain(this._terrainSize, this._minElevation, this._maxElevation, this._numLevels, this._material, this._detail);
+    return new Terrain(this._heightMap, this._terrainSize, this._worldSize, this._minElevation, this._maxElevation, this._material, this._subdivisions);
 };
 
 export { Terrain };

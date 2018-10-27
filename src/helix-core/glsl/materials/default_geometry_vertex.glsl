@@ -1,5 +1,15 @@
 vertex_attribute vec4 hx_position;
 
+#if defined(BILLBOARD_Z) || defined(BILLBOARD_XYZ)
+uniform mat4 hx_worldMatrix;
+uniform mat4 hx_cameraWorldMatrix;
+uniform mat4 hx_viewProjectionMatrix;
+#else
+uniform mat4 hx_wvpMatrix;
+#endif
+
+
+
 // morph positions are offsets re the base position!
 #ifdef HX_USE_MORPHING
 vertex_attribute vec3 hx_morphPosition0;
@@ -51,7 +61,6 @@ vertex_attribute vec4 hx_instanceMatrix1;
 vertex_attribute vec4 hx_instanceMatrix2;
 #endif
 
-uniform mat4 hx_wvpMatrix;
 uniform mat4 hx_worldViewMatrix;
 
 #if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP) || defined(TRANSLUCENCY_MAP)
@@ -133,22 +142,45 @@ void hx_geometry()
     #endif
 #endif
 
+#if defined(BILLBOARD_Z) || defined(BILLBOARD_XYZ)
+    // animPosition contains world-space offset, not absolute position
+    vec3 offsetPos;
+    offsetPos = hx_cameraWorldMatrix[0].xyz * animPosition.x;
+    offsetPos += hx_cameraWorldMatrix[1].xyz * animPosition.y;
+
+    #ifdef BILLBOARD_Z
+        offsetPos.z += animPosition.z;
+    #else
+        offsetPos += hx_cameraWorldMatrix[2].xyz * animPosition.z;
+    #endif
+
+    animPosition.xyz = offsetPos;
+#endif
+
 #ifdef HX_USE_INSTANCING
     // column major initialized by rows, so be post-multiply
     mat4 instanceMatrix = mat4(hx_instanceMatrix0, hx_instanceMatrix1, hx_instanceMatrix2, vec4(0.0, 0.0, 0.0, 1.0));
-    animPosition = animPosition * instanceMatrix;
 
-    #ifndef HX_SKIP_NORMALS
-        mat3 instanceNormalMatrix = mat3(instanceMatrix);
-        animNormal = animNormal * instanceNormalMatrix;
-        #ifdef NORMAL_MAP
-            animTangent = animTangent * instanceNormalMatrix;
+    #if defined(BILLBOARD_Z) || defined(BILLBOARD_XYZ)
+        // only use position from transposed matrix
+        animPosition.x *= length(vec3(instanceMatrix[0].x, instanceMatrix[1].x, instanceMatrix[2].x));
+        animPosition.y *= length(vec3(instanceMatrix[0].y, instanceMatrix[1].y, instanceMatrix[2].y));
+        animPosition.z *= length(vec3(instanceMatrix[0].z, instanceMatrix[1].z, instanceMatrix[2].z));
+        animPosition.x += instanceMatrix[0].w;
+        animPosition.y += instanceMatrix[1].w;
+        animPosition.z += instanceMatrix[2].w;
+    #else
+        animPosition = animPosition * instanceMatrix;
+
+        #ifndef HX_SKIP_NORMALS
+            mat3 instanceNormalMatrix = mat3(instanceMatrix);
+            animNormal = animNormal * instanceNormalMatrix;
+            #ifdef NORMAL_MAP
+                animTangent = animTangent * instanceNormalMatrix;
+            #endif
         #endif
     #endif
 #endif
-
-    // TODO: Should gl_position be handled by the shaders if we only return local position?
-    gl_Position = hx_wvpMatrix * animPosition;
 
 #ifndef HX_SKIP_NORMALS
     normal = normalize(hx_normalWorldViewMatrix * animNormal);
@@ -165,5 +197,24 @@ void hx_geometry()
 
 #ifdef VERTEX_COLORS
     vertexColor = hx_vertexColor;
+#endif
+
+#if defined(BILLBOARD_Z) || defined(BILLBOARD_XYZ)
+    animPosition.x *= length(hx_worldMatrix[0].xyz);
+    animPosition.y *= length(hx_worldMatrix[1].xyz);
+    animPosition.z *= length(hx_worldMatrix[2].xyz);
+    animPosition.xyz += hx_worldMatrix[3].xyz;
+    gl_Position = hx_viewProjectionMatrix * animPosition;
+
+    #ifndef HX_SKIP_NORMALS
+        #if defined(BILLBOARD_XYZ) || defined(BILLBOARD_Z)
+            normal = vec3(0.0, -1.0, 0.0);
+            #ifdef NORMAL_MAP
+                tangent = vec3(1.0, 0.0, 0.0);
+            #endif
+        #endif
+    #endif
+#else
+    gl_Position = hx_wvpMatrix * animPosition;
 #endif
 }

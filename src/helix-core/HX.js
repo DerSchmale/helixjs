@@ -202,6 +202,7 @@ export {BlitTexture} from "./utils/BlitTexture";
 export {EquirectangularTexture} from "./utils/EquirectangularTexture";
 export {HeightMap} from "./utils/HeightMap";
 export {ImageData} from "./utils/ImageData";
+export {Impostor} from "./utils/Impostor";
 export {MergeSpecularTextures} from "./utils/MergeSpecularTextures";
 export {NormalTangentGenerator} from "./utils/NormalTangentGenerator";
 export {Platform} from "./utils/Platform";

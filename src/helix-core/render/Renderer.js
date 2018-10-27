@@ -28,7 +28,7 @@ var probeObject = {};
  * @classdesc
  * Renderer performs the actual rendering of a {@linkcode Scene} as viewed by a {@linkcode Camera} to the screen.
  *
- * @param {RenderTarget} [renderTarget] An optional render target for the Renderer to draw to.
+ * @param {FrameBuffer} [renderTarget] An optional render target for the Renderer to draw to.
  *
  * @property debugMode One of {Renderer.DebugMode}. Causes debug data to be rendered instead of the normal view.
  * @property depthPrepass Defines whether or not a depth pre-pass needs to be performed when rendering. This may improve
@@ -850,6 +850,7 @@ Renderer.prototype =
     _renderToScreen: function ()
     {
         GL.setRenderTarget(this.renderTarget);
+        GL.setClearColor(this._backgroundColor);
         GL.clear();
 
         if (this.debugMode) {

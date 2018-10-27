@@ -24,10 +24,10 @@ function ESMBlurShader(blurRadius)
 
     this.init(vertex, fragment);
 
-    this._textureLocation = gl.getUniformLocation(this.program, "source");
-    this._directionLocation = gl.getUniformLocation(this.program, "direction");
-    this._positionAttributeLocation = gl.getAttribLocation(this.program, "hx_position");
-    this._texCoordAttributeLocation = gl.getAttribLocation(this.program, "hx_texCoord");
+    this._textureLocation = this.getUniformLocation("source");
+    this._directionLocation = this.getUniformLocation("direction");
+    this._positionAttributeLocation = this.getAttributeLocation("hx_position");
+    this._texCoordAttributeLocation = this.getAttributeLocation("hx_texCoord");
 
     gl.useProgram(this.program);
     gl.uniform1i(this._textureLocation, 0);

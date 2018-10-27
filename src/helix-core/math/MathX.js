@@ -36,6 +36,19 @@ var MathX = {
         return value? ((value & -value) === value) : false;
     },
 
+	/**
+	 * Gets the power of two larger or equal to the passed value.
+	 */
+	getNextPowerOfTwo: function(value)
+    {
+        var s = 1;
+
+        while (s < value)
+            s <<= 1;
+
+        return s;
+    },
+
     /**
      * Return the base-2 logarithm.
      */

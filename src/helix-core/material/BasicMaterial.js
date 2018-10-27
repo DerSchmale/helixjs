@@ -11,6 +11,7 @@ import {ShaderLibrary} from "../shader/ShaderLibrary";
  * @property {boolean} doubleSided Defines whether the material is double sided (no back-face culling) or not. An easier-to-read alternative to {@linkcode Material#cullMode}
  * @property {number} alpha The overall transparency of the object. Has no effect without a matching blendState value.
  * @property {boolean} useVertexColors Defines whether the material should use the hx_vertexColor attribute. Only available for meshes that have this attribute.
+ * @property {number} billboardMode Defines whether or not the material renders the geometry aligned to the camera.
  * @property {Color} color The base color of the material. Multiplied with the colorMap if provided.
  * @property {Color} emissiveColor The emission color of the material. Multiplied with the emissionMap if provided.
  * @property {Texture2D} colorMap A {@linkcode Texture2D} object containing color data.
@@ -113,6 +114,7 @@ function BasicMaterial(options)
 	this._normalSpecularReflectance = options.normalSpecularReflectance === undefined? 0.027 : options.normalSpecularReflectance;
     this._alphaThreshold = options.alphaThreshold === undefined? 1.0 : options.alphaThreshold;
     this._useVertexColors = !!options.useVertexColors;
+    this._billboardMode = options.billboardMode || 0;
 
     // trigger assignments
     this.color = this._color;
@@ -135,6 +137,18 @@ BasicMaterial.roughnessFromShininess = function(specularPower)
     return Math.sqrt(2.0/(specularPower + 2.0));
 };
 
+/**
+ * Used for billboardMode to specify the material should render as a default Mesh.
+ */
+BasicMaterial.MESH = 0;
+/**
+ * Used for billboardMode to specify the geometry should be aligned to the camera, but the Z axis still aligns to the world up axis.
+ */
+BasicMaterial.BILLBOARD = 1;
+/**
+ * Used for billboardMode to specify the geometry should be aligned to the camera completely.
+ */
+BasicMaterial.SPRITE = 2;
 /**
  * Used for specularMapMode to specify the specular map only uses roughness data
  */
@@ -181,6 +195,20 @@ BasicMaterial.prototype = Object.create(Material.prototype,
                 this.setUniform("alpha", this._alpha);
             }
         },
+
+		billboardMode: {
+			get: function ()
+			{
+				return this._billboardMode;
+			},
+			set: function (value)
+			{
+				if (this._billboardMode !== value)
+					this._invalidate();
+
+				this._billboardMode = value;
+			}
+		},
 
         useVertexColors: {
             get: function ()
@@ -620,6 +648,15 @@ BasicMaterial.prototype._generateDefines = function()
     if (this._emissionMap) defines.EMISSION_MAP = 1;
     if (this._maskMap) defines.MASK_MAP = 1;
     if (this._alphaThreshold < 1.0) defines.ALPHA_THRESHOLD = 1;
+
+    switch (this._billboardMode) {
+		case BasicMaterial.BILLBOARD:
+			defines.BILLBOARD_Z = 1;
+			break;
+		case BasicMaterial.SPRITE:
+			defines.BILLBOARD_XYZ = 1;
+			break;
+	}
 
     switch (this._specularMapMode) {
         case BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY:

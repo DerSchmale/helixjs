@@ -18,8 +18,8 @@ function CustomCopyShader(fragmentShader)
     var gl = GL.gl;
     var textureLocation = gl.getUniformLocation(this.program, "sampler");
 
-    this._positionAttributeLocation = gl.getAttribLocation(this.program, "hx_position");
-    this._texCoordAttributeLocation = gl.getAttribLocation(this.program, "hx_texCoord");
+    this._positionAttributeLocation = this.getAttributeLocation("hx_position");
+    this._texCoordAttributeLocation = this.getAttributeLocation("hx_texCoord");
 
     gl.useProgram(this.program);
     gl.uniform1i(textureLocation, 0);

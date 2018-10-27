@@ -37,7 +37,7 @@ window.onload = function ()
 		options.numShadowCascades = 3;
 	}
 	options.hdr = true;
-	// options.debug = true;
+	options.debug = true;
 	options.defaultLightingModel = HX.LightingModel.GGX_FULL;
 	options.shadowFilter = new HX.VarianceShadowFilter();
 	options.shadowFilter.blurRadius = 2;
@@ -253,8 +253,16 @@ function initMango(foliage)
 	addLOD(foliage, "mango", mango1.meshes["Untitled"], trunkMat, lodDist, lodDist * 1.5, true);
 	addLOD(foliage, "mango", mango1.meshes["Untitled_1"], leavesMat, lodDist, lodDist * 1.5, true);
 
-	// level 2
-	addLOD(foliage, "mango", prim2, mat, lodDist * 1.5, 2000.0, false);
+	var entity = new HX.Entity();
+	entity.addComponent(new HX.MeshInstance(mango0.meshes["Untitled.004"], trunkMat));
+	entity.addComponent(new HX.MeshInstance(mango0.meshes["Untitled.004_1"], leavesMat));
+	var impostor = HX.Impostor.create(entity, 64, 64);
+	impostor.lodRangeStart = lodDist * 1.5;
+	impostor.lodRangeEnd = 2000.0;
+	impostor.castShadows = false;
+	impostor.material.fixedLights = lights;
+	impostor.material.alphaThreshold = 0.5;
+	foliage.addLOD("mango", impostor);
 }
 
 function initFoliage(heightMap, terrainMap)
@@ -266,7 +274,7 @@ function initFoliage(heightMap, terrainMap)
 
 	initMango(foliage);
 
-	var spacing = 20;
+	var spacing = 15;
 	var rand = spacing * .75;
 	var ext = worldSize * .5 - 10;
 

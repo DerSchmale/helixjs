@@ -388,7 +388,8 @@ function SkinningMatricesSetter()
 
 SkinningMatricesSetter.prototype.execute = function (camera, renderItem)
 {
-    var skeleton = renderItem.skeleton;
+    var meshInstance = renderItem.meshInstance;
+    var skeleton = meshInstance.skeleton;
 
     if (skeleton) {
         // TODO: Could we store the 4x3 format in renderItem.skeletonMatrices?

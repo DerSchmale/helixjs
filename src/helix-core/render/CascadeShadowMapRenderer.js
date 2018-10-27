@@ -8,6 +8,14 @@ import {GL} from "../core/GL";
 import {Float4} from "../math/Float4";
 import {renderPass} from "./RenderUtils";
 
+// work values
+var localNear = new Float4();
+var localFar = new Float4();
+var min = new Float4();
+var max = new Float4();
+var tmp = new Float4();
+var localBounds = new BoundingAABB();
+
 /**
  * @ignore
  * @param light
@@ -23,7 +31,6 @@ function CascadeShadowMapRenderer()
     this._maxY = 0;
     this._numCullPlanes = 0;
     this._cullPlanes = [];
-    this._localBounds = new BoundingAABB();
     this._casterCollector = new CascadeShadowCasterCollector();
     this._shadowMapCameras = initCameras();
 }
@@ -48,8 +55,11 @@ CascadeShadowMapRenderer.prototype =
             var rect = atlas.getNextRect();
             GL.setViewport(rect);
 
-            var m = light._shadowMatrices[c];
             var camera = this._shadowMapCameras[c];
+
+			renderPass(this, camera, passType, this._casterCollector.getRenderList(c));
+
+			var m = light._shadowMatrices[c];
             m.copyFrom(camera.viewProjectionMatrix);
 
             // can probably optimize all the calls above into a simpler multiplication/translation
@@ -61,17 +71,12 @@ CascadeShadowMapRenderer.prototype =
             // transform to tiled size
             m.appendScale(rect.width * atlasSize, rect.height * atlasSize, 1.0);
             m.appendTranslation(rect.x * atlasSize, rect.y * atlasSize, 0.0);
-
-            renderPass(this, camera, passType, this._casterCollector.getRenderList(c));
         }
     },
 
     _updateCollectorCamera: function(light, viewCamera)
     {
         var corners = viewCamera.frustum.corners;
-        var min = new Float4();
-        var max = new Float4();
-        var tmp = new Float4();
 
         this._inverseLightMatrix.transformPoint(corners[0], min);
         max.copyFrom(min);
@@ -104,31 +109,28 @@ CascadeShadowMapRenderer.prototype =
 
     _updateCascadeCameras: function(light, atlas, viewCamera, bounds)
     {
-        this._localBounds.transformFrom(bounds, this._inverseLightMatrix);
-
-        var minBound = this._localBounds.minimum;
-        var maxBound = this._localBounds.maximum;
-
         var scaleSnap = 1.0;	// always scale snap to a meter
-
-        var localNear = new Float4();
-        var localFar = new Float4();
-        var min = new Float4();
-        var max = new Float4();
 
         var corners = viewCamera.frustum.corners;
 
         // camera distances are suboptimal? need to constrain to local near too?
 
         var nearRatio = 0;
-        var numCascades = META.OPTIONS.numShadowCascades
+        var numCascades = META.OPTIONS.numShadowCascades;
+
+		localBounds.transformFrom(bounds, this._inverseLightMatrix);
+
+		// the scene bounds, also used for projection
+		var near = localBounds._minimumY;
+		var far = localBounds._maximumY;
+
         for (var cascade = 0; cascade < numCascades; ++cascade) {
             var farRatio = light._cascadeSplitRatios[cascade];
             var camera = this._shadowMapCameras[cascade];
 
             camera.matrix = light.entity.worldMatrix;
 
-            // figure out frustum bound
+            // figure out frustum bound for the current cascade
             for (var i = 0; i < 4; ++i) {
                 var nearCorner = corners[i];
                 var farCorner = corners[i + 4];
@@ -167,10 +169,10 @@ CascadeShadowMapRenderer.prototype =
             // do not render beyond range of view camera or scene depth
             max.y = Math.min(this._maxY, max.y);
 
-            var left = Math.max(min.x, minBound.x);
-            var right = Math.min(max.x, maxBound.x);
-            var bottom = Math.max(min.z, minBound.z);
-            var top = Math.min(max.z, maxBound.z);
+            var left = Math.max(min.x, localBounds._minimumX);
+            var right = Math.min(max.x, localBounds._maximumX);
+            var bottom = Math.max(min.z, localBounds._minimumZ);
+            var top = Math.min(max.z, localBounds._maximumZ);
 
             var width = right - left;
             var height = top - bottom;
@@ -194,8 +196,8 @@ CascadeShadowMapRenderer.prototype =
             camera.setBounds(left - softness, right + softness, top + softness, bottom - softness);
 
             // cannot clip nearDistance to frustum, because casters in front may cast into this frustum
-            camera.nearDistance = minBound.y;
-            camera.farDistance = max.y;
+            camera.nearDistance = near;
+            camera.farDistance = far;
         }
     },
 

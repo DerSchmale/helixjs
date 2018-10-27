@@ -26,8 +26,8 @@ float hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)
 // view dir is to the lit surface
 void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)
 {
-	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);
-	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI
+	float nDotL = -dot(lightDir, geometry.normal);
+	vec3 irradiance = max(nDotL, 0.0) * lightColor;	// in fact irradiance / PI
 
 	vec3 halfVector = normalize(lightDir + viewDir);
 
@@ -40,6 +40,11 @@ void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in 
 	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);
 
 	diffuseColor = irradiance;
+
+	#ifdef HX_TRANSLUCENCY
+	    // light for flipped normal
+        diffuseColor += geometry.data.xyz * max(-nDotL, 0.0) * lightColor;
+    #endif
 
 	specularColor = irradiance * fresnel * distribution;
 

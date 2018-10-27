@@ -45,15 +45,21 @@ SpotShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
     if (!meshInstance.castShadows || !meshInstance.enabled)
         return;
 
-    var entity = meshInstance.entity;
-    var worldBounds = this.getProxiedBounds(entity);
-	var center = worldBounds.center;
-	var cameraPos = this._viewCameraPos;
-	var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);
-	var distSqr = dx * dx + dy * dy + dz * dz;
+	var lodStart = meshInstance._lodRangeStartSqr;
+	var lodEnd = meshInstance._lodRangeEndSqr;
+	var entity = meshInstance.entity;
+	var worldBounds = this.getProxiedBounds(entity);
 
-	if (distSqr < meshInstance._lodRangeStartSqr || distSqr > meshInstance._lodRangeEndSqr)
-		return;
+	if (lodStart > 0 || lodEnd !== Number.POSITIVE_INFINITY) {
+		lodStart = lodStart || Number.NEGATIVE_INFINITY;
+		var center = worldBounds.center;
+		var cameraPos = this._viewCameraPos;
+		var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);
+		var distSqr = dx * dx + dy * dy + dz * dz;
+
+		if (distSqr < lodStart || distSqr > lodEnd)
+			return;
+	}
 
     var cameraYAxis = this._cameraYAxis;
     var skeleton = meshInstance.skeleton;

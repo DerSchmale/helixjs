@@ -63,6 +63,7 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
     this._geometryVertexShader = geometryVertexShader;
     this._geometryFragmentShader = geometryFragmentShader;
     this._lightingModel = lightingModel || META.OPTIONS.defaultLightingModel;
+	this._useTranslucency = false;
 
     this._initialized = false;
     this._blendState = null;
@@ -105,21 +106,25 @@ Material.prototype =
                 vertex = "#define HX_USE_NORMAL_MORPHING\n" + vertex;
         }
 
-        if (!this._lightingModel) {
+        var lightingModel = this._lightingModel;
+        if (lightingModel && this._useTranslucency)
+            lightingModel = "#define HX_TRANSLUCENCY\n" + lightingModel;
+
+        if (!lightingModel) {
             this._renderPath = RenderPath.FORWARD_FIXED;
             var pass = new UnlitPass(vertex, fragment);
             this.setPass(MaterialPass.BASE_PASS, pass);
             this.setPass(MaterialPass.BASE_PASS_PROBES, pass);
         }
         else if (this._fixedLights) {
-            pass = new FixedLitPass(vertex, fragment, this._lightingModel, this._fixedLights);
+            pass = new FixedLitPass(vertex, fragment, lightingModel, this._fixedLights);
             this._renderPath = RenderPath.FORWARD_FIXED;
             this.setPass(MaterialPass.BASE_PASS, pass);
             this.setPass(MaterialPass.BASE_PASS_PROBES, pass);
         }
         else if (capabilities.WEBGL_2) {
             this._renderPath = RenderPath.FORWARD_DYNAMIC;
-            var pass = new TiledLitPass(vertex, fragment, this._lightingModel, null);
+            var pass = new TiledLitPass(vertex, fragment, lightingModel, null);
             this.setPass(MaterialPass.BASE_PASS, pass);
             this.setPass(MaterialPass.BASE_PASS_PROBES, pass);
         }
@@ -128,9 +133,9 @@ Material.prototype =
 
             this.setPass(MaterialPass.BASE_PASS, new DynamicLitBasePass(vertex, fragment));
 
-            this.setPass(MaterialPass.DIR_LIGHT_PASS, new DirectionalLightingPass(vertex, fragment, this._lightingModel));
-            this.setPass(MaterialPass.POINT_LIGHT_PASS, new PointLightingPass(vertex, fragment, this._lightingModel));
-            this.setPass(MaterialPass.SPOT_LIGHT_PASS, new SpotLightingPass(vertex, fragment, this._lightingModel));
+            this.setPass(MaterialPass.DIR_LIGHT_PASS, new DirectionalLightingPass(vertex, fragment, lightingModel));
+            this.setPass(MaterialPass.POINT_LIGHT_PASS, new PointLightingPass(vertex, fragment, lightingModel));
+            this.setPass(MaterialPass.SPOT_LIGHT_PASS, new SpotLightingPass(vertex, fragment, lightingModel));
 
 			this.setPass(MaterialPass.BASE_PASS_PROBES, new DynamicLitBaseProbesPass(vertex, fragment));
         }

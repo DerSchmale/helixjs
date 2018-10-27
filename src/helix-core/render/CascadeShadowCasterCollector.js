@@ -35,13 +35,13 @@ CascadeShadowCasterCollector.prototype.collect = function(camera, scene, viewCam
     this.reset();
 	camera.worldMatrix.getColumn(1, this._cameraYAxis);
 	viewCamera.worldMatrix.getColumn(3, this._viewCameraPos);
-	this._bounds.clear();
+
     this._renderItemPool.reset();
+	this._bounds.clear();
 
     var numCascades = META.OPTIONS.numShadowCascades;
-    for (var i = 0; i < numCascades; ++i) {
+    for (var i = 0; i < numCascades; ++i)
         this._renderList[i] = [];
-    }
 
     scene.acceptVisitor(this);
 
@@ -70,25 +70,32 @@ CascadeShadowCasterCollector.prototype.visitMeshInstance = function (meshInstanc
 	if (!meshInstance.castShadows || !meshInstance.enabled)
 		return;
 
+	var lodStart = meshInstance._lodRangeStartSqr;
+	var lodEnd = meshInstance._lodRangeEndSqr;
 	var entity = meshInstance.entity;
-	var cameraPos = this._viewCameraPos;
 	var worldBounds = this.getProxiedBounds(entity);
-	var center = worldBounds.center;
-	var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);
-	var distSqr = dx * dx + dy * dy + dz * dz;
+	var center = worldBounds._center;
 
-	if (distSqr < meshInstance._lodRangeStartSqr || distSqr > meshInstance._lodRangeEndSqr)
-    	return;
+	if (lodStart > 0 || lodEnd !== Number.POSITIVE_INFINITY) {
+		lodStart = lodStart || Number.NEGATIVE_INFINITY;
 
-    var skeleton = meshInstance.skeleton;
+		var cameraPos = this._viewCameraPos;
+		var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);
+		var distSqr = dx * dx + dy * dy + dz * dz;
+
+		if (distSqr < lodStart || distSqr > lodEnd)
+			return;
+	}
+
+	var skeleton = meshInstance.skeleton;
 	var skeletonMatrices = meshInstance.skeletonMatrices;
-
-    this._bounds.growToIncludeBound(worldBounds);
 
     var passIndex = MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS;
     var numCascades = META.OPTIONS.numShadowCascades;
     var cameraYAxis = this._cameraYAxis;
     var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
+
+	this._bounds.growToIncludeBound(worldBounds);
 
     for (var cascade = 0; cascade < numCascades; ++cascade) {
         var renderList = this._renderList[cascade];
@@ -107,7 +114,6 @@ CascadeShadowCasterCollector.prototype.visitMeshInstance = function (meshInstanc
                 renderItem.material = material;
                 renderItem.skeleton = skeleton;
                 renderItem.skeletonMatrices = skeletonMatrices;
-                var center = worldBounds._center;
                 renderItem.renderOrderHint = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
                 renderItem.worldBounds = worldBounds;
 
@@ -126,7 +132,7 @@ CascadeShadowCasterCollector.prototype.qualifiesBounds = function(bounds)
 
 CascadeShadowCasterCollector.prototype.qualifies = function(object, forceBounds)
 {
-        return object.hierarchyVisible && (forceBounds || object.worldBounds.intersectsConvexSolid(this._cullPlanes, this._numCullPlanes));
+	return object.hierarchyVisible && (forceBounds || object.worldBounds.intersectsConvexSolid(this._cullPlanes, this._numCullPlanes));
 };
 
 export { CascadeShadowCasterCollector };

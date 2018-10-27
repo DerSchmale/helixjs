@@ -56,8 +56,10 @@ export {SceneNode} from "./scene/SceneNode";
 export {Scene} from "./scene/Scene";
 export {SceneVisitor} from "./scene/SceneVisitor";
 export {Skybox} from "./scene/Skybox";
-export {Terrain} from "./scene/Terrain";
 export {QuadPartitioning} from "./scene/QuadPartitioning";
+
+export {Foliage} from "./terrain/Foliage";
+export {Terrain} from "./terrain/Terrain";
 
 export {Entity} from "./entity/Entity";
 export {EntityProxy} from "./entity/EntityProxy";

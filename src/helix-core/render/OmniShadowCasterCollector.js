@@ -70,15 +70,22 @@ OmniShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
 	if (!meshInstance.castShadows || !meshInstance.enabled)
 		return;
 
+	// 0 means always visible
+	var lodStart = meshInstance._lodRangeStartSqr;
+	var lodEnd = meshInstance._lodRangeEndSqr;
 	var entity = meshInstance.entity;
 	var worldBounds = this.getProxiedBounds(entity);
-	var cameraPos = this._viewCameraPos;
-	var center = worldBounds.center;
-	var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);
-	var distSqr = dx * dx + dy * dy + dz * dz;
 
-    if (distSqr < meshInstance._lodRangeStartSqr || distSqr > meshInstance._lodRangeEndSqr)
-        return;
+	if (lodStart > 0 || lodEnd !== Number.POSITIVE_INFINITY) {
+		lodStart = lodStart || Number.NEGATIVE_INFINITY;
+		var cameraPos = this._viewCameraPos;
+		var center = worldBounds.center;
+		var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);
+		var distSqr = dx * dx + dy * dy + dz * dz;
+
+		if (distSqr < lodStart || distSqr > lodEnd)
+			return;
+	}
 
 	var worldMatrix = this.getProxiedMatrix(entity);
     // basically, this does 6 frustum tests at once

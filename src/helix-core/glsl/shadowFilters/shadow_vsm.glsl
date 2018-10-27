@@ -24,7 +24,7 @@ float hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)
     shadowMapCoord.z += depthBias;
 
     float variance = moments.y - moments.x * moments.x;
-    variance = max(variance, HX_VSM_MIN_VARIANCE);
+    variance = clamp(variance + HX_VSM_MIN_VARIANCE, 0.0, 1.0);
 
     float diff = shadowMapCoord.z - moments.x;
     float upperBound = 1.0;

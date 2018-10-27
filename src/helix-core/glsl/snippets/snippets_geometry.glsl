@@ -7,5 +7,5 @@ struct HX_GeometryData
     float roughness;
     float occlusion;
     vec3 emission;
-    vec4 data;  // this can be anything the lighting model requires (only works with forward rendering)
+    vec4 data;  // this can be anything the lighting model requires
 };

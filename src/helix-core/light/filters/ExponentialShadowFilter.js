@@ -2,7 +2,6 @@ import {ShadowFilter} from "./ShadowFilter";
 import {ShaderLibrary} from "../../shader/ShaderLibrary";
 import {CullMode, DataType, TextureFilter, TextureFormat} from "../../Helix";
 import {ESMBlurShader} from "../shaders/ESMBlurShader";
-import {VarianceShadowFilter} from "./VarianceShadowFilter";
 
 /**
  * @classdesc
@@ -24,7 +23,6 @@ import {VarianceShadowFilter} from "./VarianceShadowFilter";
 function ExponentialShadowFilter()
 {
     ShadowFilter.call(this);
-    this.shadowMapFilter = TextureFilter.BILINEAR_NOMIP;
     this._expScaleFactor = 80;
     this._blurRadius = 1;
     this._darkeningFactor = .35;

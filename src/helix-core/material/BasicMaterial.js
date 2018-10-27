@@ -18,6 +18,7 @@ import {ShaderLibrary} from "../shader/ShaderLibrary";
  * @property {Texture2D} occlusionMap A {@linkcode Texture2D} object containing baked ambient occlusion.
  * @property {Texture2D} emissionMap A {@linkcode Texture2D} object containing color emission.
  * @property {Texture2D} specularMap A texture containing specular reflection data. The contents of the map depend on {@linkcode BasicMaterial#specularMapMode}. The roughness in the specular map is encoded as shininess; ie: lower values result in higher roughness to reflect the apparent brighness of the reflection. This is visually more intuitive.
+ * @property {Texture2D} translucencyMap A texture containing translucency data
  * @property {Texture2D} maskMap A {@linkcode Texture2D} object containing transparency data. Requires a matching blendState.
  * @property {Float2} colorMapScale A {@linkcode Float2} with which the uv coordinates are scaled.
  * @property {Float2} colorMapOffset A {@linkcode Float2} with which the uv coordinates are offset.
@@ -27,6 +28,8 @@ import {ShaderLibrary} from "../shader/ShaderLibrary";
  * @property {Float2} specularMapOffset A {@linkcode Float2} with which the uv coordinates are offset.
  * @property {Float2} emissionMapScale A {@linkcode Float2} with which the uv coordinates are scaled.
  * @property {Float2} emissionMapOffset A {@linkcode Float2} with which the uv coordinates are offset.
+ * @property {Float2} translucencyMapScale A {@linkcode Float2} with which the uv coordinates are scaled.
+ * @property {Float2} translucencyMapOffset A {@linkcode Float2} with which the uv coordinates are offset.
  * @property {Float2} maskMapScale A {@linkcode Float2} with which the uv coordinates are scaled.
  * @property {Float2} maskMapOffset A {@linkcode Float2} with which the uv coordinates are offset.
  * @property {number} specularMapMode Defines the contents of the specular map. One of the following:
@@ -41,6 +44,7 @@ import {ShaderLibrary} from "../shader/ShaderLibrary";
  * @property {number} roughness The microfacet roughness of the material. Higher values will result in dimmer but larger highlights.
  * @property {number} roughnessRange Represents the range at which the roughness map operates. When using a roughness texture, roughness represents the middle roughness, range the deviation from there. So textured roughness ranges from [roughness - roughnessRange, roughness + roughnessRange]
  * @property {number} alphaThreshold The alpha threshold that prevents pixels with opacity below this from being rendered. This is not recommended on certain mobile platforms due to depth buffer hierarchy performance.
+ * @property {Color} translucency The translucency color for the material. This causes lighting from the back to come through.
  *
  * @constructor
  *
@@ -48,13 +52,16 @@ import {ShaderLibrary} from "../shader/ShaderLibrary";
  *
  * <ul>
  * <li>color: {@linkcode Color} or hexcode Number</li>
- * <li>colorMap: {@linkcode Texture2D}</li>
  * <li>doubleSided: Boolean</li>
+ * <li>colorMap: {@linkcode Texture2D}</li>
  * <li>normalMap: {@linkcode Texture2D}</li>
  * <li>specularMap: {@linkcode Texture2D}</li>
  * <li>maskMap: {@linkcode Texture2D}</li>
+ * <li>translucencyMap: {@linkcode Texture2D}</li>
+ * <li>occlusionMap: {@linkcode Texture2D}</li>
  * <li>specularMapMode: {@linkcode BasicMaterial#SPECULAR_MAP_ROUGHNESS_ONLY}</li>
  * <li>metallicness: Number</li>
+ * <li>translucency: Color</li>
  * <li>alpha: Number</li>
  * <li>roughness: Number</li>
  * <li>roughnessRange: Number</li>
@@ -83,6 +90,7 @@ function BasicMaterial(options)
 	this.normalMap = options.normalMap || null;
 	this.specularMap = options.specularMap || null;
 	this.maskMap = options.maskMap || null;
+	this.translucencyMap = options.translucencyMap || null;
 	this.occlusionMap = options.occlusionMap || null;
 	this._colorMapScale = null;
 	this._colorMapOffset = null;
@@ -94,12 +102,15 @@ function BasicMaterial(options)
 	this._maskMapOffset = null;
 	this._emissionMapScale = null;
 	this._emissionMapOffset = null;
+	this._translucencyMapScale = null;
+	this._translucencyMapOffset = null;
 
 	this._metallicness = options.metallicness === undefined? 0.0 : options.metallicness;
     this._alpha = options.alpha === undefined? 1.0 : options.alpha;
     this._roughness = options.roughness === undefined ? 0.5 : options.roughness;
     this._roughnessRange = options.roughnessRange === undefined? .5 : options.roughnessRange;
-    this._normalSpecularReflectance = options.normalSpecularReflectance === undefined? 0.027 : options.normalSpecularReflectance;
+	this._translucency = options.translucency || null;
+	this._normalSpecularReflectance = options.normalSpecularReflectance === undefined? 0.027 : options.normalSpecularReflectance;
     this._alphaThreshold = options.alphaThreshold === undefined? 1.0 : options.alphaThreshold;
     this._useVertexColors = !!options.useVertexColors;
 
@@ -307,6 +318,23 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
+		translucencyMap: {
+			get: function ()
+			{
+				return this._translucencyMap;
+			},
+
+			set: function (value)
+			{
+				if (!!this._translucencyMap !== !!value)
+					this._invalidate();
+
+				this._translucencyMap = value;
+
+				this.setTexture("translucencyMap", value);
+			}
+		},
+
         specularMapMode: {
             get: function ()
             {
@@ -344,6 +372,27 @@ BasicMaterial.prototype = Object.create(Material.prototype,
                 this.setUniform("normalSpecularReflectance", this._normalSpecularReflectance);
             }
         },
+
+		translucency:
+            {
+				get: function ()
+				{
+					return this._translucency;
+				},
+
+				set: function(value)
+				{
+				    value = isNaN(value)? value : new Color(value);
+
+					if (!!this._translucency !== !!value)
+					    this._invalidate();
+
+					this._useTranslucency = !!value;
+					this._translucency = value;
+
+					this.setUniform("translucency", this._translucency);
+				}
+            },
 
         roughness:
             {
@@ -398,6 +447,32 @@ BasicMaterial.prototype = Object.create(Material.prototype,
                     this._handleTexProp("colorMap", "Offset", value);
                 }
             },
+
+		translucencyMapScale:
+			{
+				get: function()
+				{
+					return this._translucencyMapScale;
+				},
+
+				set: function(value)
+				{
+					this._handleTexProp("translucencyMap", "Scale", value);
+				}
+			},
+
+		translucencyMapOffset:
+			{
+				get: function()
+				{
+					return this._translucencyMapOffset;
+				},
+
+				set: function(value)
+				{
+					this._handleTexProp("translucencyMap", "Offset", value);
+				}
+			},
 
 		normalMapScale:
             {
@@ -538,6 +613,7 @@ BasicMaterial.prototype._generateDefines = function()
 {
     var defines = {};
     if (this._colorMap) defines.COLOR_MAP = 1;
+    if (this._translucency && this._translucencyMap) defines.TRANSLUCENCY_MAP = 1;
     if (this._useVertexColors) defines.VERTEX_COLORS = 1;
     if (this._normalMap) defines.NORMAL_MAP = 1;
     if (this._occlusionMap) defines.OCCLUSION_MAP = 1;
@@ -567,6 +643,9 @@ BasicMaterial.prototype._generateDefines = function()
 
     if (this._colorMapOffset || this._colorMapScale)
         defines.COLOR_MAP_SCALE_OFFSET = 1;
+
+    if (this._translucencyMapOffset || this._translucencyMapScale)
+        defines.TRANSLUCENCY_MAP_SCALE_OFFSET = 1;
 
     if (this._normalMapOffset || this._normalMapScale)
         defines.NORMAL_MAP_SCALE_OFFSET = 1;

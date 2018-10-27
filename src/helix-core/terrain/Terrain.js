@@ -1,15 +1,15 @@
 import {BoundingVolume} from "../scene/BoundingVolume";
 import {Float4} from "../math/Float4";
 import {Mesh} from "../mesh/Mesh";
-import {SceneNode} from "./SceneNode";
+import {SceneNode} from "../scene/SceneNode";
 import {Component} from "../entity/Component";
-import {BoundingAABB} from "./BoundingAABB";
+import {BoundingAABB} from "../scene/BoundingAABB";
 import {MathX} from "../math/MathX";
 import {MeshInstance} from "../mesh/MeshInstance";
 import {Entity} from "../entity/Entity";
 
 /**
- * Terrain provides a paged terrain engine with dynamic LOD. The heightmapping itself happens in the Material.
+ * Terrain provides a terrain with dynamic LOD. The heightmapping itself happens in the Material.
  *
  * @property {number} terrainSize The world size for the entire terrain.
  *

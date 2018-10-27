@@ -46,7 +46,7 @@ PhysicsSystem.prototype = Object.create(HX.EntitySystem.prototype, {
             if (value instanceof HX.Float4)
                 this._world.gravity.set(value.x, value.y, value.z);
             else
-                this._world.gravity.set(0, value, 0);
+                this._world.gravity.set(0, 0, value);
         }
     },
 

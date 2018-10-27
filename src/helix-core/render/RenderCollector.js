@@ -95,7 +95,7 @@ RenderCollector.prototype.visitEffect = function(effect)
     this.effects.push(effect);
 };
 
-RenderCollector.prototype.visitMeshInstance = function (meshInstance, entity)
+RenderCollector.prototype.visitMeshInstance = function (meshInstance)
 {
 	if (!meshInstance.enabled) return;
 

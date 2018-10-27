@@ -238,6 +238,7 @@ MeshBatch.prototype.updateRenderState = function(passType)
 	this._vertexBuffer.bind();
 
 	var offs = 0;
+
 	for (var r = 0; r < 3; ++r) {
 		var loc = attribLocs[r];
 		gl.vertexAttribPointer(loc, 4, gl.FLOAT, false, 48, offs);

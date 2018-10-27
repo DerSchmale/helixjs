@@ -54,7 +54,7 @@ vertex_attribute vec4 hx_instanceMatrix2;
 uniform mat4 hx_wvpMatrix;
 uniform mat4 hx_worldViewMatrix;
 
-#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)
+#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP) || defined(TRANSLUCENCY_MAP)
 vertex_attribute vec2 hx_texCoord;
 varying_out vec2 texCoords;
 #endif

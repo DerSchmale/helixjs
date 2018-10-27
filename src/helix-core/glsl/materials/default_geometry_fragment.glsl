@@ -2,7 +2,7 @@ uniform vec3 color;
 uniform vec3 emissiveColor;
 uniform float alpha;
 
-#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(METALLIC_ROUGHNESS_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)
+#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(METALLIC_ROUGHNESS_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP) || defined(TRANSLUCENCY_MAP)
     varying_in vec2 texCoords;
 #endif
 
@@ -12,6 +12,17 @@ uniform float alpha;
     #ifdef COLOR_MAP_SCALE_OFFSET
         uniform vec2 colorMapScale;
         uniform vec2 colorMapOffset;
+    #endif
+#endif
+
+#ifdef HX_TRANSLUCENCY
+    uniform vec3 translucency;
+    #ifdef TRANSLUCENCY_MAP
+        uniform sampler2D translucencyMap;
+        #ifdef MASK_MAP_SCALE_OFFSET
+            uniform vec2 translucencyMapScale;
+            uniform vec2 translucencyMapOffset;
+        #endif
     #endif
 #endif
 
@@ -114,6 +125,17 @@ HX_GeometryData hx_geometry()
         if (outputColor.w < alphaThreshold) discard;
     #endif
 
+    #ifdef HX_TRANSLUCENCY
+        vec3 translucencyColor = translucency;
+        #ifdef TRANSLUCENCY_MAP
+            uv = texCoords;
+            #ifdef TRANSLUCENCY_MAP_SCALE_OFFSET
+                uv = uv * translucencyMapScale + translucencyMapOffset;
+            #endif
+        translucencyColor *= texture2D(translucencyMap, uv);
+    #endif
+    data.data.xyz = hx_gammaToLinear(translucencyColor);
+    #endif
     data.color = hx_gammaToLinear(outputColor);
 
 #ifndef HX_SKIP_SPECULAR

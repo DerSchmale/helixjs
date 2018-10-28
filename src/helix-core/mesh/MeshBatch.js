@@ -351,11 +351,12 @@ MeshBatch.prototype._initVertexLayouts = function()
 
 	this._attribLocations = [];
 	for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
-		var shader = this._material.getPass(i);
+		var pass = this._material.getPass(i);
+		if (!pass) continue;
 		var arr = [
-			shader.getAttributeLocation("hx_instanceMatrix0"),
-			shader.getAttributeLocation("hx_instanceMatrix1"),
-			shader.getAttributeLocation("hx_instanceMatrix2")
+			pass.getAttributeLocation("hx_instanceMatrix0"),
+			pass.getAttributeLocation("hx_instanceMatrix1"),
+			pass.getAttributeLocation("hx_instanceMatrix2")
 		];
 
 		if (arr[0] < 0 || arr[1] < 0 || arr[2] < 0)

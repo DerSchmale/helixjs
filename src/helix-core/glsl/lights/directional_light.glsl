@@ -17,25 +17,24 @@ void hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3
 	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);
 }
 
-int hx_getCascadeIndex(HX_DirectionalLight light, vec3 viewPos)
+mat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)
 {
     #if HX_NUM_SHADOW_CASCADES > 1
         // not very efficient :(
         for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {
             if (viewPos.y < light.splitDistances[i])
-                return i;
+                return light.shadowMapMatrices[i];
         }
-        return HX_NUM_SHADOW_CASCADES - 1;
+        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];
     #else
-        return 0;
+        return light.shadowMapMatrices[0];
     #endif
 }
 
 #ifdef HX_FRAGMENT_SHADER
 float hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)
 {
-    int cascade = hx_getCascadeIndex(light, viewPos);
-    mat4 shadowMatrix = light.shadowMapMatrices[cascade];
+    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);
     vec4 shadowMapCoord = shadowMatrix * vec4(viewPos, 1.0);
     float shadow = hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);
 

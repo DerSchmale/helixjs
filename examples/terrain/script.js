@@ -176,6 +176,8 @@ function initTerrain(heightMap, terrainMap)
 	var terrainMaterial = assetLibrary.get("terrain-material");
 	terrainMaterial.setTexture("terrainMap", terrainMap);
 	terrainMaterial.fixedLights = lights;
+	// terrain is the main occluder, so render it first
+	terrainMaterial.renderOrder = -10;
 
 	var subdiv = HX.Platform.isMobile? 32 : 128;
 	terrain.addComponent(new HX.Terrain(heightMap, camera.farDistance * 2.5, worldSize, minHeight, maxHeight, terrainMaterial, subdiv));
@@ -257,6 +259,8 @@ function initMango(foliage)
 	impostor.lodRangeEnd = 2000.0;
 	impostor.castShadows = false;
 	impostor.material.fixedLights = lights;
+	impostor.material.translucency = leavesMat.translucency;
+	impostor.material.color = 0xb0b0b0;	// make it a bit darker (accounts for shadowing)
 	// impostor.material.debugMode = HX.Material.DEBUG_NORMALS;
 	foliage.addLOD("mango", impostor);
 }

@@ -15,33 +15,37 @@ import {Mesh} from "../mesh/Mesh";
 import {Entity} from "../entity/Entity";
 import {Color} from "../core/Color";
 import {MathX} from "../math/MathX";
-import {TextureFilter, TextureWrapMode} from "../Helix";
+import {META, TextureFilter, TextureWrapMode} from "../Helix";
 import {OrthographicOffCenterCamera} from "../camera/OrthographicOffCenterCamera";
+import {Material} from "../material/Material";
 
 export var Impostor = {
 	/**
 	 * Generates an impostor MeshInstance.
-	 * @param entity The texture to be used as the mesh's texture.
-	 * @param texWidth The width of the texture to contain the impostor texture.
-	 * @param texHeight The height of the texture to contain the impostor texture.
+	 * @param {Entity} entity The entity from which to generate the impostor.
+	 * @param {Number} texWidth The width of the texture to contain the impostor textures.
+	 * @param {Number} texHeight The height of the texture to contain the impostor textures.
+	 * @param {Boolean} normals Whether or not a normal map should be generated.
 	 * @returns {MeshInstance} A billboard.
 	 */
-	create: function(entity, texWidth, texHeight)
+	create: function(entity, texWidth, texHeight, normals)
 	{
 		var scene = new Scene();
 		var camera = new OrthographicOffCenterCamera();
-		var instances = entity.getComponentsByType(MeshInstance);
+		var srcInstances = entity.getComponentsByType(MeshInstance);
 		var alphaThreshold = 1.0;
 		entity = new Entity();
-		for (var i = 0; i < instances.length; ++i) {
-			var srcMaterial = instances[i].material;
+
+		for (var i = 0; i < srcInstances.length; ++i) {
+			var srcMaterial = srcInstances[i].material;
 			var renderMaterial = new BasicMaterial();
 			renderMaterial.alphaThreshold = srcMaterial.alphaThreshold;
-			if (alphaThreshold < srcMaterial.alphaThreshold)
+			if (srcMaterial.alphaThreshold < alphaThreshold)
 				alphaThreshold = srcMaterial.alphaThreshold;
 			renderMaterial.lightingModel = LightingModel.Unlit;
 			renderMaterial.colorMap = srcMaterial.colorMap;
-			entity.addComponent(new MeshInstance(instances[i].mesh, renderMaterial));
+			renderMaterial.normalMap = srcMaterial.normalMap;
+			entity.addComponent(new MeshInstance(srcInstances[i].mesh, renderMaterial));
 		}
 
 		scene.attach(entity);
@@ -65,14 +69,14 @@ export var Impostor = {
 				texHeight = Math.floor(texHeight);
 		}
 
-		var targetTex = new Texture2D();
-		targetTex.initEmpty(texWidth, texHeight);
-		targetTex.wrapMode = TextureWrapMode.CLAMP;
+		var colorMap = new Texture2D();
+		colorMap.initEmpty(texWidth, texHeight);
+		colorMap.wrapMode = TextureWrapMode.CLAMP;
 
 		var depthBuffer = new WriteOnlyDepthBuffer();
 		depthBuffer.init(texWidth, texHeight, false);
 
-		var fbo = new FrameBuffer(targetTex, depthBuffer);
+		var fbo = new FrameBuffer(colorMap, depthBuffer);
 		fbo.init();
 
 		var renderer = new Renderer(fbo);
@@ -80,18 +84,45 @@ export var Impostor = {
 		renderer.render(camera, scene, 0);
 
 		if (MathX.isPowerOfTwo(texWidth) && MathX.isPowerOfTwo(texHeight))
-			targetTex.generateMipmap();
+			colorMap.generateMipmap();
 		else
-			targetTex.filter = TextureFilter.BILINEAR_NOMIP;
+			colorMap.filter = TextureFilter.BILINEAR_NOMIP;
+
+		if (normals) {
+			var normalMap = new Texture2D();
+			normalMap.initEmpty(texWidth, texHeight);
+			normalMap.wrapMode = TextureWrapMode.CLAMP;
+
+			fbo = new FrameBuffer(normalMap, depthBuffer);
+			fbo.init();
+
+			renderer.renderTarget = fbo;
+
+			var len = entity._components.length;
+			for (i = 0; i < len; ++i) {
+				var instance = entity._components[i];
+				instance.material.debugMode = Material.DEBUG_NORMALS;
+			}
+
+			renderer.backgroundColor = 0x8080ff;
+			renderer.render(camera, scene, 0);
+
+			if (MathX.isPowerOfTwo(texWidth) && MathX.isPowerOfTwo(texHeight))
+				normalMap.generateMipmap();
+			else
+				normalMap.filter = TextureFilter.BILINEAR_NOMIP;
+		}
 
 		return new MeshInstance(
 			createMesh(bounds),
 			new BasicMaterial(
 				{
-					colorMap: targetTex,
+					colorMap: colorMap,
+					normalMap: normalMap,
 					alphaThreshold: alphaThreshold,
 					roughness: 1.0,
-					billboardMode: BasicMaterial.BILLBOARD
+					billboardMode: BasicMaterial.BILLBOARD,
+					lightingModel: META.OPTIONS.defaultLightingModel? LightingModel.Lambert : LightingModel.Unlit
 				}
 			)
 		);

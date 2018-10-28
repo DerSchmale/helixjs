@@ -14,7 +14,6 @@ import {NormalDepthPass} from "./passes/NormalDepthPass";
 import {RenderPath} from "../render/RenderPath";
 import {PointShadowPass} from "./passes/PointShadowPass";
 import {DynamicLitBaseProbesPass} from "./passes/DynamicLitBaseProbesPass";
-import {ArrayUtils} from "../utils/ArrayUtils";
 
 /**
  * @ignore
@@ -43,6 +42,7 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
 
 	this.name = "hx_material_" + MATERIAL_ID_COUNTER;
     this._cullMode = CullMode.BACK;
+    this._debugMode = 0;
     this._writeDepth = true;
     this._writeColor = true;
     this._passes = new Array(Material.NUM_PASS_TYPES);
@@ -77,6 +77,9 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
 
 Material.ID_COUNTER = 0;
 
+Material.DEBUG_NONE = 0;
+Material.DEBUG_NORMALS = 1;
+
 Material.prototype =
 {
     /**
@@ -92,6 +95,9 @@ Material.prototype =
 
         var vertex = this._geometryVertexShader;
         var fragment = this._geometryFragmentShader;
+
+        if (this._debugMode === 1)
+            fragment = "#define HX_DEBUG_NORMALS\n" + fragment;
 
         if (this._useSkinning)
             vertex = "#define HX_USE_SKINNING\n" + vertex;
@@ -110,9 +116,9 @@ Material.prototype =
         if (lightingModel && this._useTranslucency)
             lightingModel = "#define HX_TRANSLUCENCY\n" + lightingModel;
 
-        if (!lightingModel) {
+        if (!lightingModel || this._debugMode) {
             this._renderPath = RenderPath.FORWARD_FIXED;
-            var pass = new UnlitPass(vertex, fragment);
+            var pass = new UnlitPass(vertex, fragment, this._debugMode);
             this.setPass(MaterialPass.BASE_PASS, pass);
             this.setPass(MaterialPass.BASE_PASS_PROBES, pass);
         }
@@ -156,6 +162,22 @@ Material.prototype =
      * @ignore
      */
     get initialized() { return this._initialized; },
+
+	/**
+     * Allows setting the output to something different than the lit material, such as normals.
+	 */
+	get debugMode()
+    {
+        return this._debugMode;
+    },
+
+    set debugMode(value)
+    {
+        if (this._debugMode !== value)
+            this._invalidate();
+
+        this._debugMode = value;
+    },
 
     /**
      * The blend state used for this material.

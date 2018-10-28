@@ -42,6 +42,10 @@ float hx_getProbeWeight(HX_DiffuseProbe probe, vec3 viewPos)
 
 vec3 hx_calculateSpecularProbeLight(HX_SpecularProbe probe, samplerCube texture, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)
 {
+    #ifdef HX_SKIP_SPECULAR
+        return vec3(0.0);
+    #endif
+
     #if defined(HX_TEXTURE_LOD) || defined (HX_GLSL_300_ES)
     // knald method:
         float power = 2.0/(roughness * roughness) - 2.0;

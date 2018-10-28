@@ -119,6 +119,7 @@ function BasicMaterial(options)
     // trigger assignments
     this.color = this._color;
     this.emissiveColor = this._emissiveColor;
+    this.alphaThreshold = this._alphaThreshold;
     this.alpha = this._alpha;
     this.metallicness = this._metallicness;
     this.roughness = this._roughness;
@@ -611,6 +612,7 @@ BasicMaterial.prototype = Object.create(Material.prototype,
                 get: function() { return this._alphaThreshold; },
                 set: function(value) {
                     value = MathX.saturate(value);
+
                     if ((this._alphaThreshold === 1.0) !== (value === 1.0))
                         this._invalidate();
 
@@ -674,9 +676,6 @@ BasicMaterial.prototype._generateDefines = function()
 
     if (this._doubleSided)
         defines.DOUBLE_SIDED = 1;
-
-    if (this._roughness === 1.0 && !this._specularMap && this._metallicness === 0.0)
-        defines.HX_SKIP_SPECULAR = 1;
 
     if (this._colorMapOffset || this._colorMapScale)
         defines.COLOR_MAP_SCALE_OFFSET = 1;

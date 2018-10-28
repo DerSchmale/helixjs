@@ -38,7 +38,7 @@ window.onload = function ()
 	}
 	options.hdr = true;
 	options.debug = true;
-	options.defaultLightingModel = HX.LightingModel.GGX_FULL;
+	options.defaultLightingModel = HX.LightingModel.GGX;
 	options.shadowFilter = new HX.VarianceShadowFilter();
 	options.shadowFilter.blurRadius = 2;
 	options.shadowFilter.lightBleedReduction = .7;
@@ -238,10 +238,6 @@ function initMango(foliage)
 	leavesMat.maskMap = null;
 	leavesMat.translucency = new HX.Color(0.8, 0.8, 0.7);	// slightly yellowish light comes through
 
-	// var prim = new HX.CylinderPrimitive({radius: 10, height: mango0.meshes["Untitled.004_1"].bounds.maximum.z * 2.0});
-	var prim2 = new HX.CylinderPrimitive({numSegmentsW: 3, radius: 10, height: mango0.meshes["Untitled.004"].bounds.maximum.z});
-	var mat = new HX.BasicMaterial({roughness: 1.0});
-
 	var cellSize = worldSize / numFoliageCells;
 	var lodDist = cellSize * .75;
 
@@ -256,12 +252,12 @@ function initMango(foliage)
 	var entity = new HX.Entity();
 	entity.addComponent(new HX.MeshInstance(mango0.meshes["Untitled.004"], trunkMat));
 	entity.addComponent(new HX.MeshInstance(mango0.meshes["Untitled.004_1"], leavesMat));
-	var impostor = HX.Impostor.create(entity, 64, 64);
+	var impostor = HX.Impostor.create(entity, 64, 64, true);
 	impostor.lodRangeStart = lodDist * 1.5;
 	impostor.lodRangeEnd = 2000.0;
 	impostor.castShadows = false;
 	impostor.material.fixedLights = lights;
-	impostor.material.alphaThreshold = 0.5;
+	// impostor.material.debugMode = HX.Material.DEBUG_NORMALS;
 	foliage.addLOD("mango", impostor);
 }
 
@@ -274,7 +270,7 @@ function initFoliage(heightMap, terrainMap)
 
 	initMango(foliage);
 
-	var spacing = 15;
+	var spacing = 17;
 	var rand = spacing * .75;
 	var ext = worldSize * .5 - 10;
 

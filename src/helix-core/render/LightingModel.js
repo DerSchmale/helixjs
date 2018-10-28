@@ -22,6 +22,8 @@ export var LightingModel =
     GGX: ShaderLibrary.get("lighting_ggx.glsl"),
     /** Full GGX shading applied (includes visibility term) */
     GGX_FULL: "#define HX_VISIBILITY_TERM\n" + ShaderLibrary.get("lighting_ggx.glsl"),
+    /** Lambertian diffuse lighting only */
+    Lambert: ShaderLibrary.get("lighting_lambert.glsl"),
     /** Empty brdf */
-    DEBUG: ShaderLibrary.get("lighting_debug.glsl")
+    Debug: ShaderLibrary.get("lighting_debug.glsl")
 };

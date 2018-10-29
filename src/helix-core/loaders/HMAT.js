@@ -144,6 +144,9 @@ HMAT.prototype._processMaterial = function(data, material)
         material.init();
     }
 
+    if (data.translucency)
+        material._useTranslucency = true;
+
     if (data.lightingModel in HMAT._PROPERTY_MAP)
 		material.lightingModel = HMAT._PROPERTY_MAP[data.lightingModel];
 	else if (data.lightingModel)
@@ -310,7 +313,8 @@ HMAT._initPropertyMap = function() {
         unlit: LightingModel.Unlit,
         ggx: LightingModel.GGX,
         ggx_full: LightingModel.GGX_FULL,
-        blinn: LightingModel.BlinnPhong
+        blinn: LightingModel.BlinnPhong,
+        lambert: LightingModel.Lambert
     };
 };
 

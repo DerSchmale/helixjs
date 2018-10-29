@@ -217,7 +217,7 @@ var PropertyTypes = {
 	ROUGHNESS: 66,						// float32
 	ROUGHNESS_RANGE: 67,				// float32
 	ALPHA_THRESHOLD: 68,				// float32
-	LIGHTING_MODEL: 69,					// uint8: 0 = UNLIT, 1 = GGX, 2 = GGX_FULL, 3 = BLINN_PHONG. If omitted, uses InitOptions default
+	LIGHTING_MODEL: 69,					// uint8: 0 = UNLIT, 1 = GGX, 2 = GGX_FULL, 3 = BLINN_PHONG, 4 = LAMBERT. If omitted, uses InitOptions default
 	CULL_MODE: 70,						// uint8: 0 = None, 1 = front, 2 = back, 3 = all
 	BLEND_STATE: 71,					// uint8: 0 = None, 2 = Add, 3 = Multiply, 4 = Alpha. If omitted, blend state can still be linked from an object definition
 	WRITE_DEPTH: 72,					// bool
@@ -816,6 +816,7 @@ function parseLightingModel(data)
 	if (id === 1) return LightingModel.GGX;
 	if (id === 2) return LightingModel.GGX_FULL;
 	if (id === 3) return LightingModel.BlinnPhong;
+	if (id === 4) return LightingModel.Lambert;
 }
 
 function parseColor(data, target)

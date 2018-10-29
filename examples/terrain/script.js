@@ -5,7 +5,6 @@
 var project = new DemoProject();
 var physics = true;
 var lights;
-var heightMapSize;
 var heightData;
 
 var worldSize = 20000;
@@ -16,6 +15,7 @@ var treeLineStart = 1000;
 var treeLineEnd = 2000;
 var terrain = null;
 var numFoliageCells = 64;
+var grassEntity;
 
 project.queueAssets = function(assetLibrary)
 {
@@ -27,6 +27,8 @@ project.queueAssets = function(assetLibrary)
     assetLibrary.queueAsset("water-material", "terrain/material/waterMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
     assetLibrary.queueAsset("mango-lod-0", "terrain/models/mango_lod_0.hx", HX.AssetLibrary.Type.ASSET, HX.HX);
     assetLibrary.queueAsset("mango-lod-1", "terrain/models/mango_lod_1.hx", HX.AssetLibrary.Type.ASSET, HX.HX);
+    assetLibrary.queueAsset("grass", "terrain/models/grass.hx", HX.AssetLibrary.Type.ASSET, HX.HX);
+    assetLibrary.queueAsset("grass-material", "terrain/material/grassMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
 };
 
 window.onload = function ()
@@ -69,9 +71,12 @@ project.onUpdate = function(dt)
 	var height = waterLevel;
 
 	if (!physics)
-		height = Math.max(height, getValue(pos.x, pos.y, 0, heightData, heightMapSize)  * (maxHeight - minHeight) + minHeight);
+		height = Math.max(height, heightData.getValue(pos.x, pos.y, 0)  * (maxHeight - minHeight) + minHeight);
 
     pos.z = Math.max(pos.z, height + 1.7);
+
+    // z will be assigned in the shader
+	grassEntity.position.set(pos.x, pos.y, 0.0);
 };
 
 function initCamera()
@@ -152,8 +157,7 @@ function initScene()
 	heightMap.wrapMode = HX.TextureWrapMode.CLAMP;
 	terrainMap.wrapMode = HX.TextureWrapMode.CLAMP;
 
-	heightMapSize = heightMap.width;
-	heightData = HX.TextureUtils.getData(heightMap);
+	heightData = new TextureData(heightMap);
 
 	initTerrain(heightMap, terrainMap);
 	initWater();
@@ -223,6 +227,56 @@ function addLOD(foliage, name, mesh, material, startRange, endRange, castShadows
 	foliage.addLOD(name, meshInstance);
 }
 
+function initGrass(heightMap, terrainMap)
+{
+	var size = 80;
+	var spacing = 1;
+
+	var count = size / spacing;
+
+	var grass = project.assetLibrary.get("grass");
+	var material = project.assetLibrary.get("grass-material");
+	var mesh = grass.meshes["grass02"];
+	material.lightingModel = HX.LightingModel.Lambert;
+	material.fixedLights = lights;
+	material.setUniform("worldSize", worldSize);
+	material.setUniform("range", size * .5);
+	material.setUniform("snapSize", spacing);
+	material.setUniform("minHeight", minHeight);
+	material.setUniform("maxHeight", maxHeight);
+	material.setUniform("heightMapSize", heightMap.width);
+	material.setUniform("terrainMapSize", terrainMap.width);
+
+	material.setTexture("heightMap", heightMap);
+	material.setTexture("terrainMap", terrainMap);
+
+	var radSqr = size * size * .25;
+	var tr = new HX.Transform();
+	// tr.scale.set(.1, .1, .1);
+	var batch = new HX.MeshBatch(mesh, material, false);
+
+	for (var x = 0; x < count; ++x) {
+		for (var y = 0; y < count; ++y) {
+			// these will be offsets in the shader
+			var xp = (x / count - .5) * size;
+			var yp = (y / count - .5) * size;
+
+			// keep limited to circle
+			if (xp * xp + yp * yp < radSqr) {
+				tr.position.x = xp;
+				tr.position.y = yp;
+				batch.createInstance(tr);
+			}
+		}
+	}
+
+	batch.bounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
+
+	grassEntity = new HX.Entity();
+	grassEntity.addComponent(batch);
+	project.scene.attach(grassEntity);
+}
+
 function initMango(foliage)
 {
 	var mango0 = project.assetLibrary.get("mango-lod-0");
@@ -232,13 +286,14 @@ function initMango(foliage)
 
 	trunkMat.roughness = 0.75;
 
-	leavesMat.roughness = 0.75;
+	leavesMat.lightingModel = HX.LightingModel.GGX_FULL;
+	leavesMat.roughness = 0.7;
 	leavesMat.doubleSided = true;
 	leavesMat.alphaThreshold = .5;
 	leavesMat.alpha = 1.0;
-	leavesMat.blendState = HX.BlendState.NORMAL;
+	leavesMat.blendState = null;
 	leavesMat.maskMap = null;
-	leavesMat.translucency = new HX.Color(0.8, 0.8, 0.7);	// slightly yellowish light comes through
+	leavesMat.translucency = new HX.Color(0.7, 0.75, 0.6);	// slightly yellowish light comes through
 
 	var cellSize = worldSize / numFoliageCells;
 	var lodDist = cellSize * .75;
@@ -268,12 +323,18 @@ function initMango(foliage)
 function initFoliage(heightMap, terrainMap)
 {
 	var foliage = new HX.Foliage(worldSize, numFoliageCells);
-
-	var terrainData = HX.TextureUtils.getData(terrainMap);
-	var terrainMapSize = terrainMap.width;
+	var terrainData = new TextureData(terrainMap);
 
 	initMango(foliage);
+	initGrass(heightMap, terrainMap);
 
+	populateTrees(foliage, terrainData);
+
+	terrain.addComponent(foliage);
+}
+
+function populateTrees(foliage, terrainData)
+{
 	var spacing = 17;
 	var rand = spacing * .75;
 	var ext = worldSize * .5 - 10;
@@ -285,53 +346,43 @@ function initFoliage(heightMap, terrainMap)
 		return batch.name === "leaves"? Math.random() < .9 : true;
 	}
 
-	for (var y = -ext; y < ext; y += spacing) {
-		for (var x = -ext; x < ext; x += spacing) {
-			var xp = x + (Math.random() - .5) * rand;
-			var yp = y + (Math.random() - .5) * rand;
-			var height = getValue(xp, yp, 0, heightData, heightMapSize) * (maxHeight - minHeight) + minHeight;
-			// TODO: get the tangent
-			var rock = getValue(xp, yp, 1, terrainData, terrainMapSize);
+	var y = -ext;
 
-			// let's have nothing grow on rock
-			if (rock > 0.7) continue;
+	function placeRows()
+	{
+		// place 20 rows at once
+		for (var i = 0; i < 20; ++i) {
+			for (var x = -ext; x < ext; x += spacing) {
+				var xp = x + (Math.random() - .5) * rand;
+				var yp = y + (Math.random() - .5) * rand;
+				var height = heightData.getValue(xp, yp, 0) * (maxHeight - minHeight) + minHeight;
+				// TODO: get the tangent
+				var rock = terrainData.getValue(xp, yp, 1);
 
-			var treeLine = HX.MathX.saturate((height - treeLineStart) / (treeLineEnd - treeLineStart));
+				// let's have nothing grow on rock
+				if (rock > 0.7) continue;
 
-			var odds = HX.MathX.lerp(0.75, 1.0, treeLine);
-			if (Math.random() > odds && height > waterLevel + 20.0) {
-				transform.position.set(xp, yp, height);
-				var sc = HX.MathX.lerp(.25, 1.2, Math.random()) * 0.07;
-				transform.scale.set(sc, sc, sc);
-				transform.euler.z = Math.random() * Math.PI * 2.0;
+				var treeLine = HX.MathX.saturate((height - treeLineStart) / (treeLineEnd - treeLineStart));
 
-				foliage.createInstance("mango", transform, filterLeaves);
+				var odds = HX.MathX.lerp(0.75, 1.0, treeLine);
+				if (Math.random() > odds && height > waterLevel + 20.0) {
+					transform.position.set(xp, yp, height);
+					var sc = HX.MathX.lerp(.25, 1.2, Math.random()) * 0.07;
+					transform.scale.set(sc, sc, sc);
+					transform.euler.z = Math.random() * Math.PI * 2.0;
+
+					foliage.createInstance("mango", transform, filterLeaves);
+				}
 			}
+
+			y += spacing;
+
+			if (y >= ext)
+				return;
 		}
+
+		setTimeout(placeRows, 0);
 	}
 
-	terrain.addComponent(foliage);
-}
-
-function getValue(x, y, comp, mapData, mapSize)
-{
-	x = (x / worldSize + .5) * mapSize;
-	y = (y / worldSize + .5) * mapSize;
-	var xi = Math.floor(x);
-	var yi = Math.floor(y);
-	var xf = x - xi;
-	var yf = y - yi;
-	var tl = getHeightPixel(xi, yi, comp, mapData, mapSize);
-	var tr = getHeightPixel(xi + 1, yi, comp, mapData, mapSize);
-	var bl = getHeightPixel(xi, yi + 1, comp, mapData, mapSize);
-	var br = getHeightPixel(xi + 1, yi + 1, comp, mapData, mapSize);
-	var t = HX.MathX.lerp(tl, tr, xf);
-	var b = HX.MathX.lerp(bl, br, xf);
-	return HX.MathX.lerp(t, b, yf);
-}
-
-function getHeightPixel(xi, yi, comp, mapData, mapSize)
-{
-	return mapData[((xi + yi * mapSize) << 2) + comp];
-	return mapData[((xi + yi * mapSize) << 2) + comp];
+	placeRows();
 }

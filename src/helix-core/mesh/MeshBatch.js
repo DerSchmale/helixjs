@@ -97,7 +97,8 @@ MeshBatch.prototype.createInstance = function(transform)
 		matrix: matrix.clone()	// need to clone so that we could use the same object multiple times
 	});
 
-	this.entity.invalidateBounds();
+	if (this.entity)
+		this.entity.invalidateBounds();
 
 	++this._numInstances;
 

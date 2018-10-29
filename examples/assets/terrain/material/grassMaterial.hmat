@@ -1,0 +1,22 @@
+{
+    "version": "0.1.0",
+
+    "geometry": {
+        "vertexShader": "glsl/grass_vertex.glsl",
+        "fragmentShader": "glsl/grass_fragment.glsl"
+    },
+
+    "uniforms": {
+        "translucency": [ 0.8, 0.8, 0.8 ],
+        "alphaThreshold": 0.5
+    },
+
+    "cullMode": "none",
+    "lightingModel": "lambert",
+    "translucency": true,
+
+
+    "textures": {
+        "colorMap": "../textures/grass01.png"
+    }
+}

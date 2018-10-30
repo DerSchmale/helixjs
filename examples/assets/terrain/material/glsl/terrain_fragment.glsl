@@ -33,7 +33,7 @@ vec3 getSandColor()
 
 vec3 getSandNormal()
 {
-    return texture2D(sandNormals, uv * sandScale).xyz;
+    return texture2D(sandNormals, uv * sandScale * 0.2).xyz;
 }
 
 vec3 getGrassColor(float detail)

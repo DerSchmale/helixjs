@@ -9,6 +9,7 @@ uniform mat3 hx_normalWorldViewMatrix;
 uniform mat4 hx_worldMatrix;
 uniform mat4 hx_viewProjectionMatrix;
 uniform mat4 hx_viewMatrix;
+uniform mat4 hx_cameraWorldMatrix;
 
 varying_out vec2 uv;
 varying_out vec3 normal;
@@ -68,8 +69,12 @@ void hx_geometry()
     float t = hx_time / 1000.0;
     vec2 wind = vec2(sin(worldPos.x * .1 + t), cos(worldPos.y * .1 + t));
 
+    // skewing the top of the mesh when looking down hides the billboard effect
+    // trick from Horizon Zero Dawn
+    vec3 fwd = hx_cameraWorldMatrix[1].xyz;
+    vec2 skew = max(-fwd.z, 0.0) * normalize(fwd.xy);
+    worldPos.xy += (wind * .05 + skew) * hx_position.z;
     worldPosition = worldPos;
-    worldPos.xy += wind * hx_position.z * .05;
 
     uv = hx_texCoord;
     normal = hx_normalWorldViewMatrix * hx_normal;

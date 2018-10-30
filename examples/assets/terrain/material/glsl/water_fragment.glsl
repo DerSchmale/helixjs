@@ -64,8 +64,8 @@ HX_GeometryData hx_geometry()
     data.normal = normal;
     data.metallicness = 0.0;
     data.normalSpecularReflectance = 0.027;
-    data.roughness = roughness; // todo: add z falloff?
-    data.occlusion = 1.0;
+    data.roughness = roughness;
+    data.occlusion = alpha; // this causes probes not to affect the edges as much, just blends in nicely without requiring real (slow) blending
     data.emission = backColor.xyz * scatter * absorb;
     // in this case, the lighting model expects the data object to contain the water's absorption properties and the distance of the ray between surface and bottom
     return data;

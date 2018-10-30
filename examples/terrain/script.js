@@ -201,20 +201,20 @@ function initTerrain(heightMap, terrainMap)
 
 function initWater()
 {
-	var assetLibrary = project.assetLibrary;
-	var scene = project.scene;
 	var plane = new HX.PlanePrimitive({width: 8000, height: 8000, numSegmentsW: 40, numSegmentsH: 40});
 	var water = new HX.Entity();
 	water.position.z = waterLevel;
 
-	var waterMaterial = assetLibrary.get("water-material");
+	var waterMaterial = project.assetLibrary.get("water-material");
 	waterMaterial.fixedLights = lights;
 	waterMaterial.renderOrder = 50; // make sure water renders last, since most of it will be under the terrain
 
-	water.addComponent(new HX.MeshInstance(plane, waterMaterial));
+	var meshInstance = new HX.MeshInstance(plane, waterMaterial);
+	meshInstance.castShadows = false;
+	water.addComponent(meshInstance);
 	water.addComponent(new WaterAnimator(project.camera));
 
-	scene.attach(water);
+	project.scene.attach(water);
 }
 
 function addLOD(foliage, name, mesh, material, startRange, endRange, castShadows)

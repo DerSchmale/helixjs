@@ -9,21 +9,16 @@
     "lightingModel": "../lighting/water_lighting_model.glsl",
 
     "uniforms": {
-        "roughness": 0.01,
+        "roughness": 0.001,
         "normalScale": 0.003,
         "normalScale1": 0.03,
         "normalScale2": 0.2,
         "normalOffset1": [ 0.0, 0.0 ],
         "normalOffset2": [ 0.0, 0.0 ],
-        "inScatterDensity": 0.01,
-        "absorbDensity": [ 0.2, 0.1, 0.09 ],
+        "inScatterDensity": 0.001,
+        "absorbDensity": [ 0.15, 0.1, 0.09 ],
         "indexOfRefraction": 1.33,
         "color": [ 0.01, 0.07, 0.16 ]
-    },
-
-    "blend": {
-        "source": "sourceAlpha",
-        "destination": "oneMinusSourceAlpha"
     },
 
     "textures": {

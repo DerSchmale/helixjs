@@ -5,6 +5,7 @@ uniform mat4 hx_viewProjectionMatrix;
 uniform mat4 hx_viewMatrix;
 uniform float hx_cameraNearPlaneDistance;
 uniform float hx_rcpCameraFrustumRange;
+uniform float hx_time;
 
 varying_out vec2 uv1;
 varying_out vec2 uv2;
@@ -19,6 +20,7 @@ uniform vec2 normalOffset2;
 void hx_geometry()
 {
     vec4 worldPos = hx_worldMatrix * hx_position;
+    worldPos.z += sin(hx_time / 1800.0);
     viewPos = (hx_viewMatrix * worldPos).xyz;
     // snap to cell size is required to not get a floating interpolated landscape
     uv1 = (worldPos.xy + normalOffset1) * normalScale1;

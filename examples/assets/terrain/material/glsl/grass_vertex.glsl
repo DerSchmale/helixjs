@@ -17,13 +17,14 @@ varying_out vec4 viewPosition;
 
 uniform sampler2D heightMap;
 uniform sampler2D terrainMap;
-uniform float time;
+uniform float hx_time;
 uniform float worldSize;
 uniform float snapSize;
 uniform float heightMapSize;
 uniform float terrainMapSize;
 uniform float minHeight;
 uniform float maxHeight;
+uniform float randomizer;
 
 // Noise functions:
 //	<https://www.shadertoy.com/view/4dS3Wd>
@@ -47,7 +48,7 @@ void hx_geometry()
     vec2 offs;
     offs.x = noise(centerPos.x * 1000.0);
     offs.y = noise(centerPos.y * 1000.0);
-    centerPos.xy += (offs - .5) * snapSize * .25;
+    centerPos.xy += (offs - .5) * snapSize * randomizer;
 
     float angle = noise((centerPos.y + centerPos.x) * 1000.0) * 2.0 * HX_PI;
     float cosA = cos(angle);
@@ -58,14 +59,13 @@ void hx_geometry()
     rot[2] = vec3(0.0, 0.0, 1.0);
 
     vec4 worldPos = centerPos;
-    // include some sideways scaling to make the object look bigger
 
-    worldPos.xyz += rot * (hx_position.xyz * vec3(snapSize, snapSize, 1.0));
+    worldPos.xyz += rot * hx_position.xyz;
 
     vec2 heightUV = worldPos.xy / worldSize + .5 + .5 / heightMapSize;
     worldPos.z += texture2D(heightMap, heightUV).x * (maxHeight - minHeight) + minHeight;
 
-    float t = time / 1000.0;
+    float t = hx_time / 1000.0;
     vec2 wind = vec2(sin(worldPos.x * .1 + t), cos(worldPos.y * .1 + t));
 
     worldPosition = worldPos;

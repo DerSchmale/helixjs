@@ -85,7 +85,8 @@ HX_GeometryData hx_geometry()
     tangentX = normalize(tangentX);
     tangentY = normalize(tangentY);
 
-    float grassRoughness = .8;
+    float grassRoughness = .7;
+    float sandRoughness = .8;
     float rockRoughness = .7;
     float snowRoughness = .5;
 
@@ -110,7 +111,8 @@ HX_GeometryData hx_geometry()
     color = mix(color, sand, terrain.x);
     color = hx_gammaToLinear(color);
 
-    float roughness = mix(grassRoughness, snowRoughness, terrain.z);
+    float roughness = mix(grassRoughness, sandRoughness, terrain.x);
+    roughness = mix(roughness, snowRoughness, terrain.z);
     roughness = mix(roughness, rockRoughness, terrain.y);
 
     vec3 localNorm = mix(grassNormal, snowNormal, terrain.z);

@@ -5,10 +5,8 @@
 var project = new DemoProject();
 var physics = false;
 var lights;
-var time = 0;
 var heightData;
 
-var grassMaterial;
 var worldSize = 20000;
 var waterLevel = 467;
 var minHeight = 0;
@@ -31,6 +29,7 @@ project.queueAssets = function(assetLibrary)
     assetLibrary.queueAsset("mango-lod-1", "terrain/models/mango_lod_1.hx", HX.AssetLibrary.Type.ASSET, HX.HX);
     assetLibrary.queueAsset("grass", "terrain/models/grass.hx", HX.AssetLibrary.Type.ASSET, HX.HX);
     assetLibrary.queueAsset("grass-material", "terrain/material/grassMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
+    assetLibrary.queueAsset("flower-material", "terrain/material/flowerMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
 };
 
 window.onload = function ()
@@ -41,8 +40,8 @@ window.onload = function ()
 		options.numShadowCascades = 3;
 	}
 	options.hdr = true;
-	options.debug = true;
-	options.defaultLightingModel = HX.LightingModel.GGX;
+	// options.debug = true;
+	options.defaultLightingModel = HX.LightingModel.GGX_FULL;
 	options.shadowFilter = new HX.VarianceShadowFilter();
 	options.shadowFilter.blurRadius = 2;
 	options.shadowFilter.lightBleedReduction = .7;
@@ -79,9 +78,6 @@ project.onUpdate = function(dt)
 
     // z will be assigned in the shader
 	grassEntity.position.set(pos.x, pos.y, 0.0);
-
-	time += dt;
-	grassMaterial.setUniform("time", time);
 };
 
 function initCamera()
@@ -129,7 +125,7 @@ function initScene()
 	var scene = project.scene;
 	var assetLibrary = project.assetLibrary;
 
-	scene.partitioning = new HX.QuadPartitioning(worldSize, 5);
+	scene.partitioning = new HX.QuadPartitioning(worldSize, 4);
 
     var dirLight = new HX.DirectionalLight();
 	dirLight.setCascadeRatios(.01, .05, 1.0);	// shift more shadow detail closer to the camera
@@ -232,34 +228,26 @@ function addLOD(foliage, name, mesh, material, startRange, endRange, castShadows
 	foliage.addLOD(name, meshInstance);
 }
 
-function initGrass(heightMap, terrainMap)
+function initGrass(heightMap, terrainMap, mesh, material, size, spacing)
 {
-	var size = 100;
-	var spacing = 1;
-
 	var count = size / spacing;
 
-	var grass = project.assetLibrary.get("grass");
-	var mesh = grass.meshes["grass02"];
-	grassMaterial = project.assetLibrary.get("grass-material");
-	grassMaterial.lightingModel = HX.LightingModel.Lambert;
-	grassMaterial.fixedLights = lights;
-	grassMaterial.setUniform("time", 0);
-	grassMaterial.setUniform("worldSize", worldSize);
-	grassMaterial.setUniform("range", size * .5);
-	grassMaterial.setUniform("snapSize", spacing);
-	grassMaterial.setUniform("minHeight", minHeight);
-	grassMaterial.setUniform("maxHeight", maxHeight);
-	grassMaterial.setUniform("heightMapSize", heightMap.width);
-	grassMaterial.setUniform("terrainMapSize", terrainMap.width);
-
-	grassMaterial.setTexture("heightMap", heightMap);
-	grassMaterial.setTexture("terrainMap", terrainMap);
+	material.lightingModel = HX.LightingModel.Lambert;
+	material.fixedLights = lights;
+	material.setUniform("worldSize", worldSize);
+	material.setUniform("range", size * .5);
+	material.setUniform("snapSize", spacing);
+	material.setUniform("minHeight", minHeight);
+	material.setUniform("maxHeight", maxHeight);
+	material.setUniform("heightMapSize", heightMap.width);
+	material.setUniform("terrainMapSize", terrainMap.width);
+	material.setTexture("heightMap", heightMap);
+	material.setTexture("terrainMap", terrainMap);
 
 	var radSqr = size * size * .25;
 	var tr = new HX.Transform();
 	// tr.scale.set(.1, .1, .1);
-	var batch = new HX.MeshBatch(mesh, grassMaterial, false);
+	var batch = new HX.MeshBatch(mesh, material, false);
 
 	for (var x = 0; x < count; ++x) {
 		for (var y = 0; y < count; ++y) {
@@ -277,10 +265,9 @@ function initGrass(heightMap, terrainMap)
 	}
 
 	batch.bounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
+	batch.castShadows = false;
 
-	grassEntity = new HX.Entity();
 	grassEntity.addComponent(batch);
-	project.scene.attach(grassEntity);
 }
 
 function initMango(foliage)
@@ -332,7 +319,12 @@ function initFoliage(heightMap, terrainMap)
 	var terrainData = new TextureData(terrainMap);
 
 	initMango(foliage);
-	initGrass(heightMap, terrainMap);
+
+	var grass = project.assetLibrary.get("grass");
+	grassEntity = new HX.Entity();
+	project.scene.attach(grassEntity);
+	initGrass(heightMap, terrainMap, grass.meshes["grass02"], project.assetLibrary.get("grass-material"), 100, 1);
+	initGrass(heightMap, terrainMap, new HX.ImpostorPrimitive(), project.assetLibrary.get("flower-material"), 50, 5);
 
 	populateTrees(foliage, terrainData);
 
@@ -341,7 +333,7 @@ function initFoliage(heightMap, terrainMap)
 
 function populateTrees(foliage, terrainData)
 {
-	var spacing = 17;
+	var spacing = 20;
 	var rand = spacing * .75;
 	var ext = worldSize * .5 - 10;
 

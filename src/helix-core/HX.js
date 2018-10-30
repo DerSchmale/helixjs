@@ -176,6 +176,7 @@ export {SpherePrimitive} from "./mesh/primitives/SpherePrimitive";
 export {BoxPrimitive} from "./mesh/primitives/BoxPrimitive";
 export {Primitive} from "./mesh/primitives/Primitive";
 export {ConePrimitive} from "./mesh/primitives/ConePrimitive";
+export {ImpostorPrimitive} from "./mesh/primitives/ImpostorPrimitive";
 export {CylinderPrimitive} from "./mesh/primitives/CylinderPrimitive";
 export {PlanePrimitive} from "./mesh/primitives/PlanePrimitive";
 export {TorusPrimitive} from "./mesh/primitives/TorusPrimitive";

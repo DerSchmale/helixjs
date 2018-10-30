@@ -71,6 +71,7 @@ export var UniformSetter = {
         UniformSetter._passTable.hx_renderTargetResolution = RenderTargetResolutionSetter;
         UniformSetter._passTable.hx_rcpRenderTargetResolution = RCPRenderTargetResolutionSetter;
         UniformSetter._passTable.hx_dither2DTextureScale = Dither2DTextureScaleSetter;
+        UniformSetter._passTable.hx_time = TimeSetter;
         UniformSetter._passTable["hx_poissonDisk[0]"] = PoissonDiskSetter;
         UniformSetter._passTable["hx_poissonSphere[0]"] = PoissonSphereSetter;
     }
@@ -339,6 +340,15 @@ function Dither2DTextureScaleSetter()
 Dither2DTextureScaleSetter.prototype.execute = function ()
 {
     GL.gl.uniform2f(this.location, 1.0 / DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.width, 1.0 / DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.height);
+};
+
+function TimeSetter()
+{
+}
+
+TimeSetter.prototype.execute = function ()
+{
+    GL.gl.uniform1f(this.location, META.TIME);
 };
 
 function PoissonDiskSetter()

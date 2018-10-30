@@ -30,7 +30,7 @@ window.onload = function ()
     options.useSkinningTexture = true;
     options.defaultLightingModel = HX.LightingModel.GGX;
     options.ambientOcclusion = new HX.SSAO();
-    options.ambientOcclusion.radius = 4.0;
+    options.ambientOcclusion.sampleRadius = 4.0;
     options.ambientOcclusion.fallOffDistance = 6.0;
     project.init(document.getElementById('webglContainer'), options);
 };

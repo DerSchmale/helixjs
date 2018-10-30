@@ -105,6 +105,7 @@ QuadPartitioning.prototype = {
 
 		extent *= .5;
 		index = (index << 2) + 1;
+
 		this._visitNode(visitor, index, level, x - extent, y - extent, extent, isMainCollector);
 		this._visitNode(visitor, index + 1, level, x + extent, y - extent, extent, isMainCollector);
 		this._visitNode(visitor, index + 2, level, x - extent, y + extent, extent, isMainCollector);

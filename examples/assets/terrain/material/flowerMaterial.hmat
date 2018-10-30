@@ -7,9 +7,9 @@
     },
 
     "uniforms": {
-        "translucency": [ 0.8, 0.8, 0.8 ],
+        "translucency": [ 0.6, 0.6, 0.6 ],
         "alphaThreshold": 0.5,
-        "randomizer": 0.25
+        "randomizer": 1.0
     },
 
     "cullMode": "none",
@@ -17,6 +17,6 @@
     "translucency": true,
 
     "textures": {
-        "colorMap": "../textures/grass01.png"
+        "colorMap": "../textures/flowers.png"
     }
 }

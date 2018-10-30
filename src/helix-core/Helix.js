@@ -67,7 +67,12 @@ export var META =
 		/**
          * The current frame mark. Used for usage checking in cached programs.
 		 */
-		CURRENT_FRAME_MARK: 0
+		CURRENT_FRAME_MARK: 0,
+
+		/**
+		 * The current frame time
+		 */
+		TIME: 0
 	};
 
 /**
@@ -729,6 +734,7 @@ export function init(canvas, options)
 function _onFrameTick(dt)
 {
 	++META.CURRENT_FRAME_MARK;
+	META.TIME += dt;
 
 	ProgramCache.purge(META.CURRENT_FRAME_MARK);
 

@@ -1,5 +1,6 @@
 varying_in vec2 uv;
 varying_in vec3 normal;
+varying_in vec4 worldPosition;
 varying_in vec4 viewPosition;
 
 uniform sampler2D colorMap;
@@ -7,18 +8,8 @@ uniform vec3 translucency;
 uniform float alphaThreshold;
 uniform float range;
 
-// Noise functions:
-//	<https://www.shadertoy.com/view/4dS3Wd>
-//	By Morgan McGuire @morgan3d, http://graphicscodex.com
-//
-float hash(float n) { return fract(sin(n) * 1e4); }
-float hash(vec2 p) { return fract(1e4 * sin(17.0 * p.x + p.y * 0.1) * (0.1 + abs(sin(p.y * 13.0 + p.x)))); }
-
-float noise(float x) {
-	float i = floor(x);
-	float f = fract(x);
-	float u = f * f * (3.0 - 2.0 * f);
-	return mix(hash(i), hash(i + 1.0), u);
+float rand(vec2 co){
+    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
 }
 
 HX_GeometryData hx_geometry()
@@ -26,10 +17,10 @@ HX_GeometryData hx_geometry()
     vec4 albedo = texture2D(colorMap, uv);
     if (albedo.w < alphaThreshold) discard;
 
-    albedo.w *= 1.0 - hx_linearStep(range * .5, range, length(viewPosition));
+    albedo.w *= 1.0 - hx_linearStep(range * .8, range, length(viewPosition));
 
     // dithering is faster than blending
-    if (albedo.w < noise((viewPosition.x + viewPosition.y) * 100000.0))
+    if (albedo.w <= rand(worldPosition.xy))
         discard;
 
     HX_GeometryData data;

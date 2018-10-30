@@ -3,10 +3,12 @@
  */
 
 var project = new DemoProject();
-var physics = true;
+var physics = false;
 var lights;
+var time = 0;
 var heightData;
 
+var grassMaterial;
 var worldSize = 20000;
 var waterLevel = 467;
 var minHeight = 0;
@@ -77,6 +79,9 @@ project.onUpdate = function(dt)
 
     // z will be assigned in the shader
 	grassEntity.position.set(pos.x, pos.y, 0.0);
+
+	time += dt;
+	grassMaterial.setUniform("time", time);
 };
 
 function initCamera()
@@ -235,25 +240,26 @@ function initGrass(heightMap, terrainMap)
 	var count = size / spacing;
 
 	var grass = project.assetLibrary.get("grass");
-	var material = project.assetLibrary.get("grass-material");
 	var mesh = grass.meshes["grass02"];
-	material.lightingModel = HX.LightingModel.Lambert;
-	material.fixedLights = lights;
-	material.setUniform("worldSize", worldSize);
-	material.setUniform("range", size * .5);
-	material.setUniform("snapSize", spacing);
-	material.setUniform("minHeight", minHeight);
-	material.setUniform("maxHeight", maxHeight);
-	material.setUniform("heightMapSize", heightMap.width);
-	material.setUniform("terrainMapSize", terrainMap.width);
+	grassMaterial = project.assetLibrary.get("grass-material");
+	grassMaterial.lightingModel = HX.LightingModel.Lambert;
+	grassMaterial.fixedLights = lights;
+	grassMaterial.setUniform("time", 0);
+	grassMaterial.setUniform("worldSize", worldSize);
+	grassMaterial.setUniform("range", size * .5);
+	grassMaterial.setUniform("snapSize", spacing);
+	grassMaterial.setUniform("minHeight", minHeight);
+	grassMaterial.setUniform("maxHeight", maxHeight);
+	grassMaterial.setUniform("heightMapSize", heightMap.width);
+	grassMaterial.setUniform("terrainMapSize", terrainMap.width);
 
-	material.setTexture("heightMap", heightMap);
-	material.setTexture("terrainMap", terrainMap);
+	grassMaterial.setTexture("heightMap", heightMap);
+	grassMaterial.setTexture("terrainMap", terrainMap);
 
 	var radSqr = size * size * .25;
 	var tr = new HX.Transform();
 	// tr.scale.set(.1, .1, .1);
-	var batch = new HX.MeshBatch(mesh, material, false);
+	var batch = new HX.MeshBatch(mesh, grassMaterial, false);
 
 	for (var x = 0; x < count; ++x) {
 		for (var y = 0; y < count; ++y) {

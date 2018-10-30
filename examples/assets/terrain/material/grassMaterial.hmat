@@ -15,7 +15,6 @@
     "lightingModel": "lambert",
     "translucency": true,
 
-
     "textures": {
         "colorMap": "../textures/grass01.png"
     }

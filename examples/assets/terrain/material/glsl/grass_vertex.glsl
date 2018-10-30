@@ -12,10 +12,12 @@ uniform mat4 hx_viewMatrix;
 
 varying_out vec2 uv;
 varying_out vec3 normal;
+varying_out vec4 worldPosition;
 varying_out vec4 viewPosition;
 
 uniform sampler2D heightMap;
 uniform sampler2D terrainMap;
+uniform float time;
 uniform float worldSize;
 uniform float snapSize;
 uniform float heightMapSize;
@@ -43,11 +45,11 @@ void hx_geometry()
     vec4 centerPos = hx_worldMatrix * instancePos;
     centerPos.xy = round(centerPos.xy / snapSize) * snapSize;
     vec2 offs;
-    offs.x = noise(centerPos.x);
-    offs.y = noise(centerPos.y);
+    offs.x = noise(centerPos.x * 1000.0);
+    offs.y = noise(centerPos.y * 1000.0);
     centerPos.xy += (offs - .5) * snapSize * .25;
 
-    float angle = noise(centerPos.y + centerPos.x) * 2.0 * HX_PI;
+    float angle = noise((centerPos.y + centerPos.x) * 1000.0) * 2.0 * HX_PI;
     float cosA = cos(angle);
     float sinA = sin(angle);
     mat3 rot;
@@ -57,10 +59,17 @@ void hx_geometry()
 
     vec4 worldPos = centerPos;
     // include some sideways scaling to make the object look bigger
+
     worldPos.xyz += rot * (hx_position.xyz * vec3(snapSize, snapSize, 1.0));
 
     vec2 heightUV = worldPos.xy / worldSize + .5 + .5 / heightMapSize;
     worldPos.z += texture2D(heightMap, heightUV).x * (maxHeight - minHeight) + minHeight;
+
+    float t = time / 1000.0;
+    vec2 wind = vec2(sin(worldPos.x * .1 + t), cos(worldPos.y * .1 + t));
+
+    worldPosition = worldPos;
+    worldPos.xy += wind * hx_position.z * .05;
 
     uv = hx_texCoord;
     normal = hx_normalWorldViewMatrix * hx_normal;

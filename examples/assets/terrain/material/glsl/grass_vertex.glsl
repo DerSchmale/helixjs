@@ -44,7 +44,7 @@ void hx_geometry()
 {
     vec4 instancePos = vec4(hx_instanceMatrix0.w, hx_instanceMatrix1.w, hx_instanceMatrix2.w, 1.0);
     vec4 centerPos = hx_worldMatrix * instancePos;
-    centerPos.xy = round(centerPos.xy / snapSize) * snapSize;
+    centerPos.xy = floor(centerPos.xy / snapSize) * snapSize;
     vec2 offs;
     offs.x = noise(centerPos.x * 1000.0);
     offs.y = noise(centerPos.y * 1000.0);

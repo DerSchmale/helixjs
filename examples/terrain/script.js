@@ -234,7 +234,7 @@ function addLOD(foliage, name, mesh, material, startRange, endRange, castShadows
 
 function initGrass(heightMap, terrainMap)
 {
-	var size = 80;
+	var size = 100;
 	var spacing = 1;
 
 	var count = size / spacing;

@@ -6,6 +6,7 @@ import {META} from "../Helix";
 import {RenderItem} from "./RenderItem";
 import {RenderSortFunctions} from "./RenderSortFunctions";
 import {Float4} from "../math/Float4";
+import {BoundingVolume} from "../scene/BoundingVolume";
 
 /**
  * @ignore
@@ -95,7 +96,9 @@ CascadeShadowCasterCollector.prototype.visitMeshInstance = function (meshInstanc
     var cameraYAxis = this._cameraYAxis;
     var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
 
-	this._bounds.growToIncludeBound(worldBounds);
+    // don't grow for "infinite" meshes
+    if (worldBounds.expanse === BoundingVolume.EXPANSE_FINITE)
+		this._bounds.growToIncludeBound(worldBounds);
 
     for (var cascade = 0; cascade < numCascades; ++cascade) {
         var renderList = this._renderList[cascade];

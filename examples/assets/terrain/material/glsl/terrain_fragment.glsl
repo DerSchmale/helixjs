@@ -73,14 +73,20 @@ vec3 getSnowNormal()
 // but it'd be pretty heavy
 HX_GeometryData hx_geometry()
 {
-    float detailFactor = smoothstep(detailFadeNear, detailFadeFar, viewPosition.y);
-    float height = texture2D(hx_heightMap, uv).x;
-    float stepSize = max(max(fwidth(uv.x), fwidth(uv.y)), 1.0 / hx_heightMapSize);
-    vec3 tangentX = vec3(stepSize * hx_worldSize, 0.0, 0.0);
-    vec3 tangentY = vec3(0.0, stepSize * hx_worldSize, 0.0);
+    float detailFactor = hx_linearStep(detailFadeNear, detailFadeFar, viewPosition.y);
+    vec2 dUV = abs(dFdx(uv));
+    float stepSize = max(max(dUV.x, dUV.y), 1.0 / hx_heightMapSize);
 
-    tangentX.z = (texture2D(hx_heightMap, uv + vec2(stepSize, 0.0)).x - height) * hx_elevationScale;
-    tangentY.z = (texture2D(hx_heightMap, uv + vec2(0.0, stepSize)).x - height) * hx_elevationScale;
+    // all normal/tangent calculations are in world space
+    vec3 tangentX = vec3(2.0 * stepSize * hx_worldSize, 0.0, 0.0);
+    vec3 tangentY = vec3(0.0, 2.0 * stepSize * hx_worldSize, 0.0);
+
+    float h_r = texture2D(hx_heightMap, uv + vec2(stepSize, 0.0)).x;
+    float h_l = texture2D(hx_heightMap, uv - vec2(stepSize, 0.0)).x;
+    float h_t = texture2D(hx_heightMap, uv + vec2(0.0, stepSize)).x;
+    float h_b = texture2D(hx_heightMap, uv - vec2(0.0, stepSize)).x;
+    tangentX.z = (h_r - h_l) * hx_elevationScale;
+    tangentY.z = (h_t - h_b) * hx_elevationScale;
 
     tangentX = normalize(tangentX);
     tangentY = normalize(tangentY);

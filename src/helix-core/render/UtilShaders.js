@@ -112,4 +112,15 @@ function ApplyGammaShader()
 
 ApplyGammaShader.prototype = Object.create(CustomCopyShader.prototype);
 
+function EncFloatShader(channel)
+{
+	channel = channel || "x";
+
+	var define = "#define extractChannels(src) ((src)." + channel + ")\n";
+	CustomCopyShader.call(this, define + ShaderLibrary.get("rgbe_enc.glsl"));
+}
+
+EncFloatShader.prototype = Object.create(CustomCopyShader.prototype);
+
+
 export { CustomCopyShader, CopyChannelsShader, BlendColorCopyShader, ApplyGammaShader };

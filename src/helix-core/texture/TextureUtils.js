@@ -1,9 +1,13 @@
 import {GL} from "../core/GL";
-import {capabilities, DataType, DEFAULTS, TextureFormat} from "../Helix";
+import {DataType, DEFAULTS, TextureFormat} from "../Helix";
 import {RectMesh} from "../mesh/RectMesh";
 import {BlitTexture} from "../utils/BlitTexture";
 import {Texture2D} from "./Texture2D";
 import {FrameBuffer} from "./FrameBuffer";
+import {CustomCopyShader} from "../render/UtilShaders";
+import {ShaderLibrary} from "../shader/ShaderLibrary";
+
+var toRGBA8;
 
 /**
  * @ignore
@@ -104,18 +108,20 @@ export var TextureUtils =
 
     /**
      * Returns the raw image data from a texture. This can be very slow, so use with care.
+     *
+     * @param texture The texture to read back from
+     * @param rgbaEnc True if the texture contains greyscale float data.
      */
-    getData: function(texture)
+    getData: function(texture, rgbaEnc)
     {
         var w = texture.width;
         var h = texture.height;
-        var dataType = texture.dataType;
+        var dataType = DataType.UNSIGNED_BYTE;
 
         // There's a problem with Safari here, since it doesn't support readPixels with FLOAT types
-        if (dataType === DataType.HALF_FLOAT || dataType === DataType.FLOAT)
-            dataType = DataType.FLOAT;
-        else
-            dataType = DataType.UNSIGNED_BYTE;
+        if (!rgbaEnc && (texture.dataType === DataType.HALF_FLOAT || texture.dataType === DataType.FLOAT)) {
+            throw new Error("Reading float textures is not supported on all platforms (Safari)!");
+		}
 
         var tex = new Texture2D();
         tex.initEmpty(w, h, TextureFormat.RGBA, dataType);
@@ -125,7 +131,14 @@ export var TextureUtils =
 
         GL.setRenderTarget(fbo);
         GL.clear();
-        BlitTexture.execute(texture);
+
+        if (rgbaEnc) {
+            if (!toRGBA8)
+			    toRGBA8 = new CustomCopyShader(ShaderLibrary.get("greyscale_to_rgba8.glsl"));
+			toRGBA8.execute(RectMesh.DEFAULT, texture);
+        }
+        else
+            BlitTexture.execute(texture);
 
         var len = w * h * 4;
 

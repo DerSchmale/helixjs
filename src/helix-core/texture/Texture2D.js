@@ -76,7 +76,7 @@ Texture2D.prototype = Object.create(Texture.prototype, {
  * @param width The width of the texture.
  * @param height The height of the texture.
  * @param {TextureFormat} format The texture's format.
- * @param {DataType} dataType The texture's data format.
+ * @param {number} dataType The texture's data format.
  */
 Texture2D.prototype.initEmpty = function(width, height, format, dataType)
 {

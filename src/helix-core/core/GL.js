@@ -445,6 +445,14 @@ var GL = {
                     gl.blendColor(color.r, color.g, color.b, color.a);
             }
         }
+    },
+
+	/**
+     * Clears any previous errors from the GL context.
+	 */
+	flushErrors: function()
+    {
+        while (gl.getError()) {}
     }
 };
 

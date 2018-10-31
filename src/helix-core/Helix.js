@@ -899,6 +899,7 @@ function _initGLProperties()
 
 function _tryHalfFloatTexUpload()
 {
+	GL.flushErrors();
     var tex = new Texture2D();
     var data = new Uint16Array([0xffff, 0xffff, 0xffff]);
     try {

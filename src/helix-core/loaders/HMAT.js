@@ -141,7 +141,6 @@ HMAT.prototype._processMaterial = function(data, material)
 
         material._geometryVertexShader = geometryVertex;
         material._geometryFragmentShader = geometryFragment;
-        material.init();
     }
 
     if (data.translucency)
@@ -180,6 +179,8 @@ HMAT.prototype._processMaterial = function(data, material)
 
         material.blendState = blendState;
     }
+
+	material.init();
 };
 
 HMAT.prototype._applyProperties = function(data, material)

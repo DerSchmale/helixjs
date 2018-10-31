@@ -89,6 +89,7 @@ function initScene(scene, assetLibrary)
 	material = new HX.BasicMaterial();
 	material.color = 0x8050ff;
 	material.roughness = 0.4;
+	material.fixedLights = lights;
 
 	var ball = new HX.Entity();
 	ball.position.y = 1.5;

@@ -4,6 +4,7 @@ import {Shader} from "../../shader/Shader";
 import {GL} from "../../core/GL";
 import {Float4} from "../../math/Float4";
 import {META} from "../../Helix";
+import {ShaderUtils} from "../../utils/ShaderUtils";
 
 /**
  * @ignore
@@ -14,9 +15,9 @@ import {META} from "../../Helix";
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function PointLightingPass(geometryVertex, geometryFragment, lightingModel)
+function PointLightingPass(geometryVertex, geometryFragment, lightingModel, defines)
 {
-    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel));
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, defines));
 
     this._colorLocation = this.getUniformLocation("hx_pointLight.color");
     this._posLocation = this.getUniformLocation("hx_pointLight.position");
@@ -70,14 +71,15 @@ PointLightingPass.prototype.updatePassRenderState = function(camera, renderer, l
     }
 }();
 
-PointLightingPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel)
+PointLightingPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel, defines)
 {
-    var defines = {};
+	defines = ShaderUtils.processDefines(defines);
 
-    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_fwd_point_vertex.glsl", defines);
+    var vertexShader = defines + geometryVertex + "\n" + ShaderLibrary.get("material_fwd_point_vertex.glsl");
 
     var fragmentShader =
-        ShaderLibrary.get("snippets_geometry.glsl", defines) + "\n" +
+		defines +
+        ShaderLibrary.get("snippets_geometry.glsl") + "\n" +
         lightingModel + "\n\n\n" +
         META.OPTIONS.shadowFilter.getGLSL() + "\n" +
         ShaderLibrary.get("point_light.glsl") + "\n" +

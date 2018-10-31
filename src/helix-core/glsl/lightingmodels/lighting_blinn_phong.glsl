@@ -30,9 +30,9 @@ void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in 
 	// to the 5th power
 	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*pow(cosAngle, 5.0);
 
-    #ifdef HX_TRANSLUCENCY
+    #ifdef HX_USE_TRANSLUCENCY
 	    // light for flipped normal
-        diffuseColor += geometry.data.xyz * max(-nDotL, 0.0) * lightColor;
+        diffuseColor += geometry.translucency * max(-nDotL, 0.0) * lightColor;
     #endif
 
 // / PI factor is encoded in light colour

@@ -57,7 +57,6 @@ HX_GeometryData hx_geometry()
     absorb.y = exp(-absorbDensity.y * dist);
     absorb.z = exp(-absorbDensity.z * dist);
 
-
     HX_GeometryData data;
     // there's no diffuse colour here, or light probes would add in light here
     data.color = vec4(color * (1.0 - scatter), alpha);

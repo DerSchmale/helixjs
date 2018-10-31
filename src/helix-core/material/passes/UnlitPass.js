@@ -1,6 +1,7 @@
 import {MaterialPass} from "../MaterialPass";
 import {ShaderLibrary} from "../../shader/ShaderLibrary";
 import {Shader} from "../../shader/Shader";
+import {ShaderUtils} from "../../utils/ShaderUtils";
 
 /**
  * @ignore
@@ -10,21 +11,18 @@ import {Shader} from "../../shader/Shader";
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function UnlitPass(geometryVertex, geometryFragment, debugMode)
+function UnlitPass(geometryVertex, geometryFragment, debugMode, defines)
 {
-    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, debugMode));
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, debugMode, defines));
 }
 
 UnlitPass.prototype = Object.create(MaterialPass.prototype);
 
-UnlitPass.prototype._generateShader = function(geometryVertex, geometryFragment, debugMode)
+UnlitPass.prototype._generateShader = function(geometryVertex, geometryFragment, debugMode, defines)
 {
-    var defines = "";
-
-    if (!debugMode) {
-		defines =   "#define HX_SKIP_NORMALS\n" +
-                    "#define HX_SKIP_SPECULAR\n";
-	}
+	defines =
+		ShaderUtils.processDefines(defines) +
+		"#define HX_SKIP_NORMALS\n#define HX_SKIP_SPECULAR\n";
 
 
     var fragmentShader = defines + ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_unlit_fragment.glsl");

@@ -1,7 +1,7 @@
 import {GLSLIncludes} from "./GLSLIncludes";
 import {Debug} from "../debug/Debug";
 import {GL} from "../core/GL";
-import {META} from "../Helix";
+import {capabilities, META} from "../Helix";
 import {CachedProgram} from "./CachedProgram";
 
 var cache = {};
@@ -110,7 +110,12 @@ function processExtensions(code, regEx, extension)
 {
 	var index = code.search(regEx);
 	if (index < 0) return code;
-	code = "#extension " + extension + " : enable\n" + code.replace(regEx, "");
+
+	if (extension)
+		code = "#extension " + extension + " : enable\n" + code.replace(regEx, "");
+	else
+		code = code.replace(regEx, "");
+
 	return code;
 }
 
@@ -193,7 +198,10 @@ function getShader(code, type)
 
 function processShaderCode(code)
 {
-	code = processExtensions(code, /^\s*#derivatives\s*$/gm, "GL_OES_standard_derivatives");
+	if (capabilities.WEBGL_2)
+		code = processExtensions(code, /^\s*#derivatives\s*$/gm, null);
+	else
+		code = processExtensions(code, /^\s*#derivatives\s*$/gm, "GL_OES_standard_derivatives");
 	code = processExtensions(code, /^\s*#texturelod\s*$/gm, "GL_EXT_shader_texture_lod");
 	code = processExtensions(code, /^\s*#drawbuffers\s*$/gm, "GL_EXT_draw_buffers");
 	code = guard(code, /^\s*uniform\s+\w+\s+hx_\w+(\[\w+])?\s*;/gm);

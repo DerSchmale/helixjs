@@ -31,6 +31,6 @@ HX_GeometryData hx_geometry()
     data.roughness = 0.5;
     data.occlusion = 1.0;
     data.emission = vec3(0.0);
-    data.data = vec4(translucency, 1.0);
+    data.translucency = translucency;
     return data;
 }

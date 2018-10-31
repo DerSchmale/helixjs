@@ -95,61 +95,63 @@ Material.prototype =
 
         var vertex = this._geometryVertexShader;
         var fragment = this._geometryFragmentShader;
+        var defines = {};
 
         if (this._debugMode === 1)
-            fragment = "#define HX_DEBUG_NORMALS\n" + fragment;
+			defines.HX_DEBUG_NORMALS = 1;
 
         if (this._useSkinning)
-            vertex = "#define HX_USE_SKINNING\n" + vertex;
+			defines.HX_USE_SKINNING = 1;
 
         if (this._useInstancing)
-            vertex = "#define HX_USE_INSTANCING\n" + vertex;
+			defines.HX_USE_INSTANCING = 1;
 
         if (this._useMorphing) {
-            vertex = "#define HX_USE_MORPHING\n" + vertex;
+			defines.HX_USE_MORPHING = 1;
 
             if (this._useNormalMorphing)
-                vertex = "#define HX_USE_NORMAL_MORPHING\n" + vertex;
+				defines.HX_USE_NORMAL_MORPHING = 1;
         }
 
         var lightingModel = this._lightingModel;
-        if (lightingModel && this._useTranslucency)
-            lightingModel = "#define HX_TRANSLUCENCY\n" + lightingModel;
+
+        if (this._useTranslucency)
+			defines.HX_USE_TRANSLUCENCY = 1;
 
         if (!lightingModel || this._debugMode) {
             this._renderPath = RenderPath.FORWARD_FIXED;
-            var pass = new UnlitPass(vertex, fragment, this._debugMode);
+            var pass = new UnlitPass(vertex, fragment, this._debugMode, defines);
             this.setPass(MaterialPass.BASE_PASS, pass);
             this.setPass(MaterialPass.BASE_PASS_PROBES, pass);
         }
         else if (this._fixedLights) {
-            pass = new FixedLitPass(vertex, fragment, lightingModel, this._fixedLights);
+            pass = new FixedLitPass(vertex, fragment, lightingModel, this._fixedLights, defines);
             this._renderPath = RenderPath.FORWARD_FIXED;
             this.setPass(MaterialPass.BASE_PASS, pass);
             this.setPass(MaterialPass.BASE_PASS_PROBES, pass);
         }
         else if (capabilities.WEBGL_2) {
             this._renderPath = RenderPath.FORWARD_DYNAMIC;
-            var pass = new TiledLitPass(vertex, fragment, lightingModel, null);
+            var pass = new TiledLitPass(vertex, fragment, lightingModel, defines);
             this.setPass(MaterialPass.BASE_PASS, pass);
             this.setPass(MaterialPass.BASE_PASS_PROBES, pass);
         }
         else {
             this._renderPath = RenderPath.FORWARD_DYNAMIC;
 
-            this.setPass(MaterialPass.BASE_PASS, new DynamicLitBasePass(vertex, fragment));
+            this.setPass(MaterialPass.BASE_PASS, new DynamicLitBasePass(vertex, fragment, defines));
 
-            this.setPass(MaterialPass.DIR_LIGHT_PASS, new DirectionalLightingPass(vertex, fragment, lightingModel));
-            this.setPass(MaterialPass.POINT_LIGHT_PASS, new PointLightingPass(vertex, fragment, lightingModel));
-            this.setPass(MaterialPass.SPOT_LIGHT_PASS, new SpotLightingPass(vertex, fragment, lightingModel));
+            this.setPass(MaterialPass.DIR_LIGHT_PASS, new DirectionalLightingPass(vertex, fragment, lightingModel, defines));
+            this.setPass(MaterialPass.POINT_LIGHT_PASS, new PointLightingPass(vertex, fragment, lightingModel, defines));
+            this.setPass(MaterialPass.SPOT_LIGHT_PASS, new SpotLightingPass(vertex, fragment, lightingModel, defines));
 
-			this.setPass(MaterialPass.BASE_PASS_PROBES, new DynamicLitBaseProbesPass(vertex, fragment));
+			this.setPass(MaterialPass.BASE_PASS_PROBES, new DynamicLitBaseProbesPass(vertex, fragment, defines));
         }
 
-        this.setPass(MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS, new DirectionalShadowPass(vertex, fragment));
-        this.setPass(MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS, new PointShadowPass(vertex, fragment));
+        this.setPass(MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS, new DirectionalShadowPass(vertex, fragment, defines));
+        this.setPass(MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS, new PointShadowPass(vertex, fragment, defines));
 
-        this.setPass(MaterialPass.NORMAL_DEPTH_PASS, new NormalDepthPass(vertex, fragment));
+        this.setPass(MaterialPass.NORMAL_DEPTH_PASS, new NormalDepthPass(vertex, fragment, defines));
 
         // We will also need to order per shader
         this._shaderRenderOrderHint = this._passes[MaterialPass.BASE_PASS].shader.renderOrderHint;

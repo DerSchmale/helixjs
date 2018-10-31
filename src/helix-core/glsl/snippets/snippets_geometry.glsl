@@ -8,4 +8,7 @@ struct HX_GeometryData
     float occlusion;
     vec3 emission;
     vec4 data;  // this can be anything the lighting model requires
+    #ifdef HX_USE_TRANSLUCENCY
+    vec3 translucency;
+    #endif
 };

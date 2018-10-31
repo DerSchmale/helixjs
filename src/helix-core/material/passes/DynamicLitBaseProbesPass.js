@@ -5,6 +5,7 @@ import {META} from "../../Helix";
 import {Float4} from "../../math/Float4";
 import {GL} from "../../core/GL";
 import {TextureCube} from "../../texture/TextureCube";
+import {ShaderUtils} from "../../utils/ShaderUtils";
 
 var pos = new Float4();
 
@@ -17,9 +18,9 @@ var pos = new Float4();
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function DynamicLitBaseProbesPass(geometryVertex, geometryFragment)
+function DynamicLitBaseProbesPass(geometryVertex, geometryFragment, defines)
 {
-    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, defines));
 	this._initLocations();
 	this._specProbeTextures = [];
 	this._MP_updatePassRenderState = MaterialPass.prototype.updatePassRenderState;
@@ -27,18 +28,21 @@ function DynamicLitBaseProbesPass(geometryVertex, geometryFragment)
 
 DynamicLitBaseProbesPass.prototype = Object.create(MaterialPass.prototype);
 
-DynamicLitBaseProbesPass.prototype._generateShader = function(geometryVertex, geometryFragment)
+DynamicLitBaseProbesPass.prototype._generateShader = function(geometryVertex, geometryFragment, defines)
 {
-    // no normals or specular are needed
-    var probeDefines = {
-		HX_NUM_DIFFUSE_PROBES: META.OPTIONS.maxDiffuseProbes,
-		HX_NUM_SPECULAR_PROBES: META.OPTIONS.maxSpecularProbes
-	};
+	defines =
+		ShaderUtils.processDefines(defines) +
+		ShaderUtils.processDefines({
+			HX_NUM_DIFFUSE_PROBES: META.OPTIONS.maxDiffuseProbes,
+			HX_NUM_SPECULAR_PROBES: META.OPTIONS.maxSpecularProbes
+		});
+
     var extensions = "#texturelod\n";
-	var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_fwd_base_vertex.glsl", probeDefines);
-	var fragmentShader = 	extensions + ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" +
+	var vertexShader = defines + geometryVertex + "\n" + ShaderLibrary.get("material_fwd_base_vertex.glsl");
+	var fragmentShader = 	extensions + defines +
+							ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" +
 							ShaderLibrary.get("light_probe.glsl") + "\n" +
-							ShaderLibrary.get("material_fwd_base_fragment.glsl", probeDefines);
+							ShaderLibrary.get("material_fwd_base_fragment.glsl");
 
     return new Shader(vertexShader, fragmentShader);
 };

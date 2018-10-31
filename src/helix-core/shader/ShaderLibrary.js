@@ -5,6 +5,8 @@
  * @ignore
  * @author derschmale <http://www.derschmale.com>
  */
+import {ShaderUtils} from "../utils/ShaderUtils";
+
 export var ShaderLibrary = {
     _files: {},
     /**
@@ -17,16 +19,6 @@ export var ShaderLibrary = {
      */
     get: function(filename, defines)
     {
-        var defineString = "";
-
-        for (var key in defines) {
-            if (defines.hasOwnProperty(key)) {
-                defineString += "#ifndef " + key + "\n";
-                defineString += "#define " + key + " " + defines[key] + "\n";
-				defineString += "#endif\n";
-			}
-        }
-
-        return defineString + ShaderLibrary._files[filename];
+        return ShaderUtils.processDefines(defines) + ShaderLibrary._files[filename];
     }
 };

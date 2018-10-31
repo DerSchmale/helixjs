@@ -15,7 +15,7 @@ uniform float alpha;
     #endif
 #endif
 
-#ifdef HX_TRANSLUCENCY
+#ifdef HX_USE_TRANSLUCENCY
     uniform vec3 translucency;
     #ifdef TRANSLUCENCY_MAP
         uniform sampler2D translucencyMap;
@@ -125,7 +125,7 @@ HX_GeometryData hx_geometry()
         if (outputColor.w < alphaThreshold) discard;
     #endif
 
-    #ifdef HX_TRANSLUCENCY
+    #ifdef HX_USE_TRANSLUCENCY
         vec3 translucencyColor = translucency;
         #ifdef TRANSLUCENCY_MAP
             uv = texCoords;
@@ -133,8 +133,8 @@ HX_GeometryData hx_geometry()
                 uv = uv * translucencyMapScale + translucencyMapOffset;
             #endif
         translucencyColor *= texture2D(translucencyMap, uv);
-    #endif
-    data.data.xyz = hx_gammaToLinear(translucencyColor);
+        #endif
+        data.translucency = hx_gammaToLinear(translucencyColor);
     #endif
     data.color = hx_gammaToLinear(outputColor);
 

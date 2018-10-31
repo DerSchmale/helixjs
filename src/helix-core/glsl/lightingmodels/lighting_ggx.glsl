@@ -41,9 +41,9 @@ void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in 
 
 	diffuseColor = irradiance;
 
-	#ifdef HX_TRANSLUCENCY
+	#ifdef HX_USE_TRANSLUCENCY
 	    // light for flipped normal
-        diffuseColor += geometry.data.xyz * max(-nDotL, 0.0) * lightColor;
+        diffuseColor += geometry.translucency * max(-nDotL, 0.0) * lightColor;
     #endif
 
 	specularColor = irradiance * fresnel * distribution;

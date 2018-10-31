@@ -5,6 +5,7 @@ import {GL} from "../../core/GL";
 import {Float4} from "../../math/Float4";
 import {Matrix4x4} from "../../math/Matrix4x4";
 import {META} from "../../Helix";
+import {ShaderUtils} from "../../utils/ShaderUtils";
 
 /**
  * @ignore
@@ -16,9 +17,9 @@ import {META} from "../../Helix";
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function DirectionalLightingPass(geometryVertex, geometryFragment, lightingModel)
+function DirectionalLightingPass(geometryVertex, geometryFragment, lightingModel, defines)
 {
-    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel));
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, defines));
 
     this._colorLocation = this.getUniformLocation("hx_directionalLight.color");
     this._dirLocation = this.getUniformLocation("hx_directionalLight.direction");
@@ -75,13 +76,14 @@ DirectionalLightingPass.prototype.updatePassRenderState = function(camera, rende
     }
 }();
 
-DirectionalLightingPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel, shadows)
+DirectionalLightingPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel, defines)
 {
-    var defines = {};
-    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_fwd_dir_vertex.glsl", defines);
+    defines = ShaderUtils.processDefines(defines);
+    var vertexShader = defines + geometryVertex + "\n" + ShaderLibrary.get("material_fwd_dir_vertex.glsl");
 
     var fragmentShader =
-        ShaderLibrary.get("snippets_geometry.glsl", defines) + "\n" +
+		defines +
+		ShaderLibrary.get("snippets_geometry.glsl") + "\n" +
         lightingModel + "\n\n\n" +
         META.OPTIONS.shadowFilter.getGLSL() + "\n" +
         ShaderLibrary.get("directional_light.glsl") + "\n" +

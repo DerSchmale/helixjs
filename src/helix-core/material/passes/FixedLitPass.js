@@ -9,6 +9,7 @@ import {Shader} from "../../shader/Shader";
 import {GL} from "../../core/GL";
 import {SpotLight} from "../../light/SpotLight";
 import {LightProbe} from "../../light/LightProbe";
+import {ShaderUtils} from "../../utils/ShaderUtils";
 
 // work values
 var pos = new Float4();
@@ -30,7 +31,7 @@ var tiles = new Float32Array(24);
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function FixedLitPass(geometryVertex, geometryFragment, lightingModel, lights)
+function FixedLitPass(geometryVertex, geometryFragment, lightingModel, lights, defines)
 {
     this._dirLights = null;
     this._pointLights = null;
@@ -38,7 +39,7 @@ function FixedLitPass(geometryVertex, geometryFragment, lightingModel, lights)
     this._diffuseProbes = null;
     this._specularProbes = null;
 
-	MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, lights));
+	MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, lights, defines));
 
 	this._getUniformLocations();
 
@@ -61,7 +62,7 @@ FixedLitPass.prototype.updatePassRenderState = function (camera, renderer)
 	this._MP_updatePassRenderState(camera, renderer);
 };
 
-FixedLitPass.prototype._generateShader = function (geometryVertex, geometryFragment, lightingModel, lights)
+FixedLitPass.prototype._generateShader = function (geometryVertex, geometryFragment, lightingModel, lights, defines)
 {
     this._dirLights = [];
     this._pointLights = [];
@@ -92,27 +93,27 @@ FixedLitPass.prototype._generateShader = function (geometryVertex, geometryFragm
 
     var extensions = [];
 
-    var numDiffProbes = this._diffuseProbes.length;
-    var numSpecProbes = this._specularProbes.length;
-    var defines = {
-        HX_NUM_DIR_LIGHTS: this._dirLights.length,
-        HX_NUM_POINT_LIGHTS: this._pointLights.length,
-        HX_NUM_SPOT_LIGHTS: this._spotLights.length,
-        HX_NUM_DIFFUSE_PROBES: numDiffProbes,
-        HX_NUM_SPECULAR_PROBES: numSpecProbes
-    };
+	defines =
+		ShaderUtils.processDefines(defines) +
+		ShaderUtils.processDefines({
+			HX_NUM_DIR_LIGHTS: this._dirLights.length,
+			HX_NUM_POINT_LIGHTS: this._pointLights.length,
+			HX_NUM_SPOT_LIGHTS: this._spotLights.length,
+			HX_NUM_DIFFUSE_PROBES: this._diffuseProbes.length,
+			HX_NUM_SPECULAR_PROBES: this._specularProbes.length
+		});
 
     if (capabilities.EXT_SHADER_TEXTURE_LOD)
         extensions += "#texturelod\n";
 
-    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_fwd_fixed_vertex.glsl", defines);
+    var vertexShader = defines + geometryVertex + "\n" + ShaderLibrary.get("material_fwd_fixed_vertex.glsl");
 
     var fragmentShader =
-        extensions +
-        ShaderLibrary.get("snippets_geometry.glsl") + "\n" +
+		extensions + defines +
+		ShaderLibrary.get("snippets_geometry.glsl") + "\n" +
         lightingModel + "\n\n\n" +
         META.OPTIONS.shadowFilter.getGLSL() + "\n" +
-        ShaderLibrary.get("directional_light.glsl", defines) + "\n" +
+        ShaderLibrary.get("directional_light.glsl") + "\n" +
         ShaderLibrary.get("point_light.glsl") + "\n" +
         ShaderLibrary.get("spot_light.glsl") + "\n" +
         ShaderLibrary.get("light_probe.glsl") + "\n" +

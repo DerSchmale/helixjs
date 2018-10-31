@@ -22,14 +22,14 @@ project.queueAssets = function(assetLibrary)
     assetLibrary.queueAsset("skybox-specular", "skyboxes/daylight-mips/skybox_specular.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
     assetLibrary.queueAsset("skybox-irradiance", "skyboxes/daylight-mips/irradiance_sh.ash", HX.AssetLibrary.Type.ASSET, HX.ASH);
     assetLibrary.queueAsset("heightMap", "terrain/textures/heightmap.dds", HX.AssetLibrary.Type.ASSET, HX.DDS);
-    assetLibrary.queueAsset("terrainMap", "terrain/textures/terrainMap.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("terrain-material", "terrain/material/terrainMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
-    assetLibrary.queueAsset("water-material", "terrain/material/waterMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
-    assetLibrary.queueAsset("mango-lod-0", "terrain/models/mango_lod_0.hx", HX.AssetLibrary.Type.ASSET, HX.HX);
-    assetLibrary.queueAsset("mango-lod-1", "terrain/models/mango_lod_1.hx", HX.AssetLibrary.Type.ASSET, HX.HX);
-    assetLibrary.queueAsset("grass", "terrain/models/grass.hx", HX.AssetLibrary.Type.ASSET, HX.HX);
-    assetLibrary.queueAsset("grass-material", "terrain/material/grassMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
-    assetLibrary.queueAsset("flower-material", "terrain/material/flowerMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
+	assetLibrary.queueAsset("terrainMap", "terrain/textures/terrainMap.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+	assetLibrary.queueAsset("terrain-material", "terrain/material/terrainMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
+	assetLibrary.queueAsset("water-material", "terrain/material/waterMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
+	assetLibrary.queueAsset("mango-lod-0", "terrain/models/mango_lod_0.hx", HX.AssetLibrary.Type.ASSET, HX.HX);
+	assetLibrary.queueAsset("mango-lod-1", "terrain/models/mango_lod_1.hx", HX.AssetLibrary.Type.ASSET, HX.HX);
+	assetLibrary.queueAsset("grass", "terrain/models/grass.hx", HX.AssetLibrary.Type.ASSET, HX.HX);
+	assetLibrary.queueAsset("grass-material", "terrain/material/grassMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
+	assetLibrary.queueAsset("flower-material", "terrain/material/flowerMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
 };
 
 window.onload = function ()
@@ -40,8 +40,8 @@ window.onload = function ()
 		options.numShadowCascades = 3;
 	}
 	options.hdr = true;
-	// options.debug = true;
-	options.defaultLightingModel = HX.LightingModel.GGX_FULL;
+	options.debug = true;
+	options.defaultLightingModel = HX.LightingModel.GGX;
 	options.shadowFilter = new HX.VarianceShadowFilter();
 	options.shadowFilter.blurRadius = 2;
 	options.shadowFilter.lightBleedReduction = .7;
@@ -54,7 +54,7 @@ window.onload = function ()
 project.onInit = function()
 {
 	initCamera();
-    initScene();
+	initScene();
 
 	if (physics) {
 		var system = new HX_PHYS.PhysicsSystem();

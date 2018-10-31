@@ -8,19 +8,18 @@ uniform vec3 translucency;
 uniform float alphaThreshold;
 uniform float range;
 
-float rand(vec2 co){
-    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+// https://gist.github.com/patriciogonzalezvivo/670c22f3966e662d2f83
+float rand(vec2 n) {
+	return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453);
 }
 
 HX_GeometryData hx_geometry()
 {
     vec4 albedo = texture2D(colorMap, uv);
-    if (albedo.w < alphaThreshold) discard;
+    float tr = 1.0 - hx_linearStep(range * .8, range, length(viewPosition));
+    float dither = rand(worldPosition.xy);
 
-    albedo.w *= 1.0 - hx_linearStep(range * .8, range, length(viewPosition));
-
-    // dithering is faster than blending
-    if (albedo.w <= rand(worldPosition.xy))
+    if (albedo.w < alphaThreshold || tr <= dither)
         discard;
 
     HX_GeometryData data;

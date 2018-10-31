@@ -27,31 +27,21 @@ uniform float minHeight;
 uniform float maxHeight;
 uniform float randomizer;
 
-// Noise functions:
-//	<https://www.shadertoy.com/view/4dS3Wd>
-//	By Morgan McGuire @morgan3d, http://graphicscodex.com
-//
-float hash(float n) { return fract(sin(n) * 1e4); }
-float hash(vec2 p) { return fract(1e4 * sin(17.0 * p.x + p.y * 0.1) * (0.1 + abs(sin(p.y * 13.0 + p.x)))); }
-
-float noise(float x) {
-	float i = floor(x);
-	float f = fract(x);
-	float u = f * f * (3.0 - 2.0 * f);
-	return mix(hash(i), hash(i + 1.0), u);
-}
+// https://gist.github.com/patriciogonzalezvivo/670c22f3966e662d2f83
+float rand(float n){return fract(sin(n) * 43758.5453123);}
 
 void hx_geometry()
 {
     vec4 instancePos = vec4(hx_instanceMatrix0.w, hx_instanceMatrix1.w, hx_instanceMatrix2.w, 1.0);
     vec4 centerPos = hx_worldMatrix * instancePos;
     centerPos.xy = floor(centerPos.xy / snapSize) * snapSize;
+
     vec2 offs;
-    offs.x = noise(centerPos.x * 1000.0);
-    offs.y = noise(centerPos.y * 1000.0);
+    offs.x = rand(centerPos.x);
+    offs.y = rand(centerPos.y);
     centerPos.xy += (offs - .5) * snapSize * randomizer;
 
-    float angle = noise((centerPos.y + centerPos.x) * 1000.0) * 2.0 * HX_PI;
+    float angle = rand((centerPos.y + centerPos.x) * 1000.0) * 2.0 * HX_PI;
     float cosA = cos(angle);
     float sinA = sin(angle);
     mat3 rot;
@@ -66,6 +56,10 @@ void hx_geometry()
     vec2 heightUV = worldPos.xy / worldSize + .5 + .5 / heightMapSize;
     worldPos.z += texture2D(heightMap, heightUV).x * (maxHeight - minHeight) + minHeight;
 
+    // worldPosition is only used for the dithered blending, and it doesn't look great if the wind affects it
+    // which is why we assign it before applying that
+    worldPosition = worldPos;
+
     float t = hx_time / 1000.0;
     vec2 wind = vec2(sin(worldPos.x * .1 + t), cos(worldPos.y * .1 + t));
 
@@ -74,7 +68,6 @@ void hx_geometry()
     vec3 fwd = hx_cameraWorldMatrix[1].xyz;
     vec2 skew = max(-fwd.z, 0.0) * normalize(fwd.xy);
     worldPos.xy += (wind * .05 + skew) * hx_position.z;
-    worldPosition = worldPos;
 
     uv = hx_texCoord;
     normal = hx_normalWorldViewMatrix * hx_normal;
@@ -87,7 +80,7 @@ void hx_geometry()
     vec4 terrain = texture2D(terrainMap, terrainUV);
     float grass = 1.0 - terrain.x - terrain.y - terrain.z;
     // just move it out of the viewport
-    float rand = noise(10.0 * centerPos.x - centerPos.y) * .5 + .5;
+    float rand = rand(10.0 * centerPos.x - centerPos.y) * .5 + .5;
     if (grass < rand)
         gl_Position = vec4(500.0, 500.0, 500.0, 1.0);
 }

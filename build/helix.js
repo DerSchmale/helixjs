@@ -2325,18 +2325,6 @@
 	var SENSOR_FREQUENCY = 60;
 	var X_AXIS = new Vector3(1, 0, 0);
 	var Z_AXIS = new Vector3(0, 0, 1);
-	var orientation = {};
-	if (screen.orientation) {
-	  orientation = screen.orientation;
-	} else if (screen.msOrientation) {
-	  orientation = screen.msOrientation;
-	} else {
-	  Object.defineProperty(orientation, 'angle', {
-	    get: function get$$1() {
-	      return window.orientation || 0;
-	    }
-	  });
-	}
 	var SENSOR_TO_VR = new Quaternion();
 	SENSOR_TO_VR.setFromAxisAngle(X_AXIS, -Math.PI / 2);
 	SENSOR_TO_VR.multiply(new Quaternion().setFromAxisAngle(Z_AXIS, Math.PI / 2));
@@ -2350,12 +2338,9 @@
 	    this.api = null;
 	    this.errors = [];
 	    this._sensorQ = new Quaternion();
-	    this._worldToScreenQ = new Quaternion();
 	    this._outQ = new Quaternion();
 	    this._onSensorRead = this._onSensorRead.bind(this);
 	    this._onSensorError = this._onSensorError.bind(this);
-	    this._onOrientationChange = this._onOrientationChange.bind(this);
-	    this._onOrientationChange();
 	    this.init();
 	  }
 	  createClass(PoseSensor, [{
@@ -2363,7 +2348,10 @@
 	    value: function init() {
 	      var sensor = null;
 	      try {
-	        sensor = new RelativeOrientationSensor({ frequency: SENSOR_FREQUENCY });
+	        sensor = new RelativeOrientationSensor({
+	          frequency: SENSOR_FREQUENCY,
+	          referenceFrame: 'screen'
+	        });
 	        sensor.addEventListener('error', this._onSensorError);
 	      } catch (error) {
 	        this.errors.push(error);
@@ -2383,7 +2371,6 @@
 	        this.sensor.addEventListener('reading', this._onSensorRead);
 	        this.sensor.start();
 	      }
-	      window.addEventListener('orientationchange', this._onOrientationChange);
 	    }
 	  }, {
 	    key: 'useDeviceMotion',
@@ -2412,7 +2399,6 @@
 	      var out = this._outQ;
 	      out.copy(SENSOR_TO_VR);
 	      out.multiply(this._sensorQ);
-	      out.multiply(this._worldToScreenQ);
 	      if (this.config.YAW_ONLY) {
 	        out.x = out.z = 0;
 	        out.normalize();
@@ -2439,12 +2425,6 @@
 	  }, {
 	    key: '_onSensorRead',
 	    value: function _onSensorRead() {}
-	  }, {
-	    key: '_onOrientationChange',
-	    value: function _onOrientationChange() {
-	      var angle = -orientation.angle * Math.PI / 180;
-	      this._worldToScreenQ.setFromAxisAngle(Z_AXIS, angle);
-	    }
 	  }]);
 	  return PoseSensor;
 	}();
@@ -3396,7 +3376,7 @@
 	});
 	var CardboardVRDisplay = unwrapExports$$1(cardboardVrDisplay);
 
-	var version = "0.10.6";
+	var version = "0.10.7";
 
 	var DefaultConfig = {
 	  ADDITIONAL_VIEWERS: [],
@@ -3408,7 +3388,6 @@
 	  DPDB_URL: 'https://dpdb.webvr.rocks/dpdb.json',
 	  K_FILTER: 0.98,
 	  PREDICTION_TIME_S: 0.040,
-	  TOUCH_PANNER_DISABLED: true,
 	  CARDBOARD_UI_DISABLED: false,
 	  ROTATE_INSTRUCTIONS_DISABLED: false,
 	  YAW_ONLY: false,
@@ -3448,7 +3427,6 @@
 	      CARDBOARD_UI_DISABLED: this.config.CARDBOARD_UI_DISABLED,
 	      K_FILTER: this.config.K_FILTER,
 	      PREDICTION_TIME_S: this.config.PREDICTION_TIME_S,
-	      TOUCH_PANNER_DISABLED: this.config.TOUCH_PANNER_DISABLED,
 	      ROTATE_INSTRUCTIONS_DISABLED: this.config.ROTATE_INSTRUCTIONS_DISABLED,
 	      YAW_ONLY: this.config.YAW_ONLY,
 	      BUFFER_SCALE: this.config.BUFFER_SCALE,
@@ -3675,6 +3653,18 @@
 
 	ShaderLibrary._files['sh_skybox_fragment.glsl'] = 'varying_in vec3 viewWorldDir;\n\nuniform vec3 hx_sh[9];\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n    data.color = vec4(hx_evaluateSH(hx_sh, normalize(viewWorldDir.xzy)), 1.0);\n    data.emission = vec3(0.0);\n    return data;\n}';
 
+	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
+
+	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
+
+	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
+
+	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
+
+	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
+
 	ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	hx_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
 	ShaderLibrary._files['bloom_composite_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
@@ -3704,18 +3694,6 @@
 	ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	hx_FragColor = vec4(l, l, l, 1.0);\n}';
 
 	ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	hx_FragColor = color / (1.0 + lum);\n}';
-
-	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
-
-	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
-
-	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
-
-	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
-
-	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
 
 	ShaderLibrary._files['esm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readValue(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readValue(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValue(uv + offset) + readValue(uv - offset);\n	}\n\n//	hx_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	hx_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
 
@@ -4452,6 +4430,7 @@
 		code = processShaderCode(code);
 
 		var shader = GL.gl.createShader(type);
+		console.log(shader);
 		if (!initShader(shader, code)) {
 			if (META.OPTIONS.throwOnShaderError) {
 				throw new Error("Failed generating shader: \n" + code);
@@ -7555,6 +7534,7 @@
 	        var h = texture.height;
 	        var dataType = texture.dataType;
 
+	        // There's a problem with Safari here, since it doesn't support readPixels with FLOAT types
 	        if (dataType === DataType.HALF_FLOAT || dataType === DataType.FLOAT)
 	            dataType = DataType.FLOAT;
 	        else
@@ -13617,7 +13597,7 @@
 	    if (capabilities.EXT_HALF_FLOAT_TEXTURES) {
 	        defines += "#define HX_HALF_FLOAT_TEXTURES\n";
 	        DataType.HALF_FLOAT = capabilities.WEBGL_2? gl.HALF_FLOAT : capabilities.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES;
-	        capabilities.CAN_UPLOAD_HALF_FLOAT = _tryHalfFloatTexUpload(DataType.HALF_FLOAT);
+	        capabilities.CAN_UPLOAD_HALF_FLOAT = _tryHalfFloatTexUpload();
 	    }
 
 	    if (capabilities.WEBGL_2 || capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR)
@@ -13850,7 +13830,12 @@
 	{
 	    var tex = new Texture2D();
 	    var data = new Uint16Array([0xffff, 0xffff, 0xffff]);
-	    tex.uploadData(data, 1, 1, false, TextureFormat.RGB, DataType.HALF_FLOAT, 0);
+	    try {
+	        tex.uploadData(data, 1, 1, false, TextureFormat.RGB, DataType.HALF_FLOAT, 0);
+	    }
+	    catch(err) {
+	        return false;
+	    }
 	    return GL.gl.getError() === 0;
 	}
 
@@ -28655,6 +28640,11 @@
 		this._height = data[3];
 		this._width = data[4];
 		this._parseInternalFormat(data[21]);
+
+		// Safari doesn't support uploading half float textures for some inane reason -_-
+	    if (this._dataType === DataType.HALF_FLOAT && !capabilities.CAN_UPLOAD_HALF_FLOAT)
+	        this._dataType = "Float16";
+
 		this._parseMipLevels(data);
 	};
 
@@ -28875,9 +28865,6 @@
 				this._blockSize = 4;
 				this._format = TextureFormat.RGBA;
 				this._dataType = DataType.HALF_FLOAT || "Float16";
-				// Safari -_-
-				if (!capabilities.CAN_UPLOAD_HALF_FLOAT)
-	                this._dataType = "Float16";
 				break;
 			default:
 	            this._notifyFailure("Unsupported DX10 format!");
@@ -29749,7 +29736,7 @@
 
 	        material.blendState = blendState;
 	    }
-	    
+
 		material.init();
 	};
 

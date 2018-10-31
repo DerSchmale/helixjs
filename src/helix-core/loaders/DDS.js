@@ -104,6 +104,11 @@ DDS.prototype._parseHeader = function()
 	this._height = data[3];
 	this._width = data[4];
 	this._parseInternalFormat(data[21]);
+
+	// Safari doesn't support uploading half float textures for some inane reason -_-
+    if (this._dataType === DataType.HALF_FLOAT && !capabilities.CAN_UPLOAD_HALF_FLOAT)
+        this._dataType = "Float16";
+
 	this._parseMipLevels(data);
 };
 
@@ -324,9 +329,6 @@ DDS.prototype._parseDX10Header = function()
 			this._blockSize = 4;
 			this._format = TextureFormat.RGBA;
 			this._dataType = DataType.HALF_FLOAT || "Float16";
-			// Safari -_-
-			if (!capabilities.CAN_UPLOAD_HALF_FLOAT)
-                this._dataType = "Float16";
 			break;
 		default:
             this._notifyFailure("Unsupported DX10 format!");

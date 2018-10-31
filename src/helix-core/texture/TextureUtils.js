@@ -1,5 +1,5 @@
 import {GL} from "../core/GL";
-import {DataType, DEFAULTS, TextureFormat} from "../Helix";
+import {capabilities, DataType, DEFAULTS, TextureFormat} from "../Helix";
 import {RectMesh} from "../mesh/RectMesh";
 import {BlitTexture} from "../utils/BlitTexture";
 import {Texture2D} from "./Texture2D";
@@ -111,6 +111,7 @@ export var TextureUtils =
         var h = texture.height;
         var dataType = texture.dataType;
 
+        // There's a problem with Safari here, since it doesn't support readPixels with FLOAT types
         if (dataType === DataType.HALF_FLOAT || dataType === DataType.FLOAT)
             dataType = DataType.FLOAT;
         else

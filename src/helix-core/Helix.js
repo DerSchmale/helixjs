@@ -668,7 +668,7 @@ export function init(canvas, options)
     if (capabilities.EXT_HALF_FLOAT_TEXTURES) {
         defines += "#define HX_HALF_FLOAT_TEXTURES\n";
         DataType.HALF_FLOAT = capabilities.WEBGL_2? gl.HALF_FLOAT : capabilities.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES;
-        capabilities.CAN_UPLOAD_HALF_FLOAT = _tryHalfFloatTexUpload(DataType.HALF_FLOAT);
+        capabilities.CAN_UPLOAD_HALF_FLOAT = _tryHalfFloatTexUpload();
     }
 
     if (capabilities.WEBGL_2 || capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR)
@@ -901,7 +901,12 @@ function _tryHalfFloatTexUpload()
 {
     var tex = new Texture2D();
     var data = new Uint16Array([0xffff, 0xffff, 0xffff]);
-    tex.uploadData(data, 1, 1, false, TextureFormat.RGB, DataType.HALF_FLOAT, 0);
+    try {
+        tex.uploadData(data, 1, 1, false, TextureFormat.RGB, DataType.HALF_FLOAT, 0);
+    }
+    catch(err) {
+        return false;
+    }
     return GL.gl.getError() === 0;
 }
 

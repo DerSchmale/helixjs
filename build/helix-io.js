@@ -711,7 +711,7 @@
             joint.parentIndex = node !== skelNode && node.parent? node.parent._jointIndex : -1;
         }
 
-        var instances = target.getComponentsByType(HX.MeshInstance);
+        var instances = target.components.meshInstance;
         for (i = 0; i < instances.length; ++i) {
     		var instance = instances[i];
     		instance.skeleton = skeleton;
@@ -967,7 +967,7 @@
                 layers = [];
 
                 for (var i = 0; i < clips.length; ++i)
-                    layers.push(new HX.AnimationLayerMorphTarget(target.getFirstComponentByType(HX.MorphAnimation).name, "morphTarget_" + i, clips[i]));
+                    layers.push(new HX.AnimationLayerMorphTarget(target.components.morphAnimation[0].name, "morphTarget_" + i, clips[i]));
 
                 break;
             default:

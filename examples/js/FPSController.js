@@ -53,7 +53,7 @@ FPSController.prototype.onUpdate = function(dt)
 
 	return function(dt)
 	{
-		this._rigidBody = this._rigidBody || this.entity.getFirstComponentByType(HX_PHYS.RigidBody);
+		this._rigidBody = this._rigidBody || this.entity.components.rigidBody[0];
 		this._updateLook();
 
 		var moveX = this._input.getValue("moveX");
@@ -83,7 +83,7 @@ FPSController.prototype._onAction = function(name, value)
 	return function(name, value) {
 		if (name !== "jump" || value === 0) return;
 		f.z = this.jumpForce * value;
-		this._rigidBody = this._rigidBody || this.entity.getFirstComponentByType(HX_PHYS.RigidBody);
+		this._rigidBody = this._rigidBody || this.entity.components.rigidBody[0];
 		this._rigidBody.addImpulse(f);
 	}
 }();

@@ -10,7 +10,7 @@ WaterAnimator.prototype = Object.create(HX.Component.prototype);
 
 WaterAnimator.prototype.onAdded = function()
 {
-	var meshInstance = this.entity.getFirstComponentByType(HX.MeshInstance);
+	var meshInstance = this.entity.components.meshInstance[0];
 	this._material = meshInstance.material;
 };
 

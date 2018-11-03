@@ -3607,6 +3607,10 @@
 	    }
 	};
 
+	ShaderLibrary._files['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    hx_FragColor = color;\n}';
+
+	ShaderLibrary._files['debug_bounds_vertex.glsl'] = '\nvertex_attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
+
 	ShaderLibrary._files['lighting_blinn_phong.glsl'] = '/*// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}*/\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = -dot(lightDir, geometry.normal);\n	vec3 irradiance = max(nDotL, 0.0) * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*pow(cosAngle, 5.0);\n\n    #ifdef HX_USE_TRANSLUCENCY\n	    // light for flipped normal\n        diffuseColor += geometry.translucency * max(-nDotL, 0.0) * lightColor;\n    #endif\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
 
 	ShaderLibrary._files['lighting_debug.glsl'] = 'void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	diffuseColor = vec3(0.0);\n	specularColor = vec3(0.0);\n}';
@@ -3614,10 +3618,6 @@
 	ShaderLibrary._files['lighting_ggx.glsl'] = '#ifdef HX_VISIBILITY_TERM\nfloat hx_geometryTerm(vec3 normal, vec3 dir, float k)\n{\n    float d = max(-dot(normal, dir), 0.0);\n    return d / (d * (1.0 - k) + k);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness)\n{\n	float k = roughness + 1.0;\n	k = k * k * .125;\n	return hx_geometryTerm(normal, viewDir, k) * hx_geometryTerm(normal, lightDir, k);\n}\n#endif\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = -dot(lightDir, geometry.normal);\n	vec3 irradiance = max(nDotL, 0.0) * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n    float mappedRoughness =  geometry.roughness * geometry.roughness;\n\n	float distribution = hx_ggxDistribution(mappedRoughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);\n\n	diffuseColor = irradiance;\n\n	#ifdef HX_USE_TRANSLUCENCY\n	    // light for flipped normal\n        diffuseColor += geometry.translucency * max(-nDotL, 0.0) * lightColor;\n    #endif\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef HX_VISIBILITY_TERM\n    specularColor *= hx_lightVisibility(geometry.normal, viewDir, lightDir, geometry.roughness);\n#endif\n}';
 
 	ShaderLibrary._files['lighting_lambert.glsl'] = '// also make sure specular probes are ignores\n#define HX_SKIP_SPECULAR\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = -dot(lightDir, geometry.normal);\n    diffuseColor = max(nDotL, 0.0) * lightColor;\n\n	#ifdef HX_USE_TRANSLUCENCY\n	    // light for flipped normal\n        diffuseColor += geometry.translucency * max(-nDotL, 0.0) * lightColor;\n    #endif\n\n	specularColor = vec3(0.0);\n}';
-
-	ShaderLibrary._files['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    hx_FragColor = color;\n}';
-
-	ShaderLibrary._files['debug_bounds_vertex.glsl'] = '\nvertex_attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
 
 	ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    int castShadows;\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            if (viewPos.y < light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    vec4 shadowMapCoord = shadowMatrix * vec4(viewPos, 1.0);\n    float shadow = hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n\n    // this can occur when meshInstance.castShadows = false, or using inherited bounds\n    bool isOutside = max(shadowMapCoord.x, shadowMapCoord.y) > 1.0 || min(shadowMapCoord.x, shadowMapCoord.y) < 0.0;\n    if (isOutside) shadow = 1.0;\n\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.y > light.maxShadowDistance));\n}\n#endif';
 
@@ -16508,7 +16508,9 @@
 	 * Entity represents a node in the Scene graph that can have {@linkcode Component} objects added to it, which can
 	 * define its behavior in a modular way.
 	 *
-	 * @property {Boolean} testFrustum Whether or not this entity should be tested against the frustum or not.
+	 * @property {Array} components The components added to this Entity. They are accessible as properties with the name they
+	 * were given when registered with HX.Component.register(name, componentType). For example:
+	 * `entity.components.meshInstance` contains the array of all {@linkcode MeshInstance} components.
 	 * @property {BoundingVolume} worldBounds The bounding volume for this entity in world coordinates. This does not include
 	 * children.
 	 *
@@ -16527,7 +16529,8 @@
 
 		// components
 		this._componentHash = new Bitfield();
-		this._components = [];
+		this.components = {};	// the public API to find components by name
+		this._components = [];	// the private API for looping
 		this._requiresUpdates = false;
 		this._onComponentsChange = new Signal();
 
@@ -16616,6 +16619,14 @@
 
 		if (component.bounds)
 			this.invalidateBounds();
+
+		var arr = this.components[component.COMPONENT_NAME];
+		if (!arr) {
+			arr = [];
+			this.components[component.COMPONENT_NAME] = arr;
+		}
+
+		arr.push(component);
 
 		this._onComponentsChange.dispatch(this, oldHash);
 	};
@@ -16709,6 +16720,10 @@
 
 		if (component.bounds)
 			this.invalidateBounds();
+
+		var arr = this.components[component.COMPONENT_NAME];
+		var index = arr.indexOf(component);
+		arr.splice(index, 1);
 	};
 
 	/**
@@ -16744,41 +16759,7 @@
 
 
 	/**
-	 * Returns whether or not the Entity has a component of a given type assigned to it.
-	 */
-	Entity.prototype.hasComponentType = function(type)
-	{
-		return this._componentHash.contains(type.COMPONENT_ID);
-	};
-
-	/**
-	 * Returns the first Component of a given type
-	 */
-	Entity.prototype.getFirstComponentByType = function(type)
-	{
-		for (var i = 0, len = this._components.length; i < len; ++i) {
-			var comp = this._components[i];
-			if (comp instanceof type)
-				return comp;
-		}
-		return null;
-	};
-
-	/**
-	 * Returns an array of all Components with a given type.
-	 */
-	Entity.prototype.getComponentsByType = function(type)
-	{
-		var collection = [];
-		for (var i = 0, len = this._components.length; i < len; ++i) {
-			var comp = this._components[i];
-			if (comp instanceof type) collection.push(comp);
-		}
-		return collection;
-	};
-
-	/**
-	 * Return the Component with a given name.
+	 * Returns the Component with a given name.
 	 */
 	Entity.prototype.getComponentByName = function(name)
 	{
@@ -22918,16 +22899,20 @@
 			targets[node.name] = node;
 
 			if (node instanceof Entity) {
-				var meshInstances = node.getComponentsByType(MeshInstance);
+				var meshInstances = node.components.meshInstance;
 
-				for (var i = 0, len = meshInstances.length; i < len; ++i) {
-					targets[meshInstances[i].name] = meshInstances[i];
-					this._collectPotentialJoints(meshInstances[i], targets);
+				if (meshInstances) {
+					for (var i = 0, len = meshInstances.length; i < len; ++i) {
+						targets[meshInstances[i].name] = meshInstances[i];
+						this._collectPotentialJoints(meshInstances[i], targets);
+					}
 				}
 
-				var morphAnimations = node.getComponentsByType(MorphAnimation);
-				for (i = 0, len = morphAnimations.length; i < len; ++i) {
-					targets[morphAnimations[i].name] = morphAnimations[i];
+				var morphAnimations = node.components.morphAnimation;
+				if (morphAnimations) {
+					for (i = 0, len = morphAnimations.length; i < len; ++i) {
+						targets[morphAnimations[i].name] = morphAnimations[i];
+					}
 				}
 			}
 		}
@@ -31191,10 +31176,10 @@
 		this._lights = [];
 		this._meshSet = this.getEntitySet([MeshInstance]);
 		this._meshSet.onEntityAdded.bind(this._onMeshInstanceAdded, this);
-		this._pointSet = this._initSet(PointLight);
-		this._spotSet = this._initSet(SpotLight);
-		this._dirSet = this._initSet(DirectionalLight);
-		this._probeSet = this._initSet(LightProbe);
+		this._pointSet = this._initSet(PointLight, "pointLight");
+		this._spotSet = this._initSet(SpotLight, "spotLight");
+		this._dirSet = this._initSet(DirectionalLight, "directionalLight");
+		this._probeSet = this._initSet(LightProbe, "lightProbe");
 		this._assignLights();
 	};
 
@@ -31216,14 +31201,14 @@
 	 * @ignore
 	 * @private
 	 */
-	FixedLightsSystem.prototype._initSet = function(type)
+	FixedLightsSystem.prototype._initSet = function(type, name)
 	{
 		var set = this.getEntitySet([type]);
-		this._onLightAddedFuncs[type] = this._onLightAdded.bind(this, type);
-		this._onLightRemovedFuncs[type] = this._onLightRemoved.bind(this, type);
+		this._onLightAddedFuncs[type] = this._onLightAdded.bind(this, name);
+		this._onLightRemovedFuncs[type] = this._onLightRemoved.bind(this, name);
 		set.onEntityAdded.bind(this._onLightAddedFuncs[type]);
 		set.onEntityRemoved.bind(this._onLightRemovedFuncs[type]);
-		addLights(this._lights, set, type);
+		addLights(this._lights, set, name);
 		return set;
 	};
 
@@ -31242,16 +31227,16 @@
 	/**
 	 * @ignore
 	 */
-	FixedLightsSystem.prototype._onLightAdded = function(lightType, entity)
+	FixedLightsSystem.prototype._onLightAdded = function(lightName, entity)
 	{
-		var light = entity.getFirstComponentByType(lightType);
+		var light = entity.components[lightName][0];
 		this._lights.push(light);
 		this._assignLights();
 	};
 
-	FixedLightsSystem.prototype._onLightRemoved = function(lightType, entity)
+	FixedLightsSystem.prototype._onLightRemoved = function(lightName, entity)
 	{
-		var light = entity.getFirstComponentByType(lightType);
+		var light = entity.components[lightName][0];
 		var index = this._lights.indexOf(light);
 		this._lights.splice(index, 1);
 		this._assignLights();
@@ -31292,7 +31277,7 @@
 
 		// if material isn't initialized, it's okay to assign lights directly, since the material will be compiled on render
 		// anyway
-		var meshInstance = entity.getFirstComponentByType(MeshInstance);
+		var meshInstance = entity.components.meshInstance[0];
 		var material = meshInstance.material;
 		if (material._initialized)
 			this._queue.queue(assignLights, material, this._lights);
@@ -31309,10 +31294,10 @@
 		material.init();
 	}
 
-	function addLights(lights, set, componentType)
+	function addLights(lights, set, lightName)
 	{
 		for (var i = 0, len = set.numEntities; i < len; ++i) {
-			var light = set.getEntity(i).getFirstComponentByType(componentType);
+			var light = set.getEntity(i).components[lightName][0];
 			lights.push(light);
 		}
 	}
@@ -34801,7 +34786,7 @@
 		{
 			var scene = new Scene();
 			var camera = new OrthographicOffCenterCamera();
-			var srcInstances = entity.getComponentsByType(MeshInstance);
+			var srcInstances = entity.components.meshInstance;
 			var alphaThreshold = 1.0;
 			entity = new Entity();
 

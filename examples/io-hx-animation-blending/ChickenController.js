@@ -16,7 +16,7 @@ ChickenController.prototype.onAdded = function()
 	this._input.enable(this._mouse);
 	this._input.enable(this._touch);
 	this._input.onAction.bind(this._onAction, this);
-	this._animation = this.entity.getFirstComponentByType(HX.SkeletonAnimation);
+	this._animation = this.entity.components.skeletonAnimation[0];
 	this._animation.animationNode.fadeTo("Idle", 0);
 };
 

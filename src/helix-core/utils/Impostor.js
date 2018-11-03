@@ -32,7 +32,7 @@ export var Impostor = {
 	{
 		var scene = new Scene();
 		var camera = new OrthographicOffCenterCamera();
-		var srcInstances = entity.getComponentsByType(MeshInstance);
+		var srcInstances = entity.components.meshInstance;
 		var alphaThreshold = 1.0;
 		entity = new Entity();
 

@@ -11,7 +11,7 @@ BounceComponent.prototype = Object.create(HX.Component.prototype);
 
 BounceComponent.prototype.onAdded = function()
 {
-	var bounds = this.entity.getFirstComponentByType(HX.MeshInstance).bounds;
+	var bounds = this.entity.components.meshInstance[0].bounds;
 	this._min = this._bounds.minimum;
 	this._max = this._bounds.maximum;
 	this._min.add(bounds.halfExtent);

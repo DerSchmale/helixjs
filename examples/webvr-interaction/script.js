@@ -158,12 +158,10 @@ function destroyController(gamepad)
     input.disable(gamepad);
 
     if (gamepad.hand === HX.Gamepad.HAND_LEFT && leftController) {
-        console.log("Destroying left");
         project.vrCamera.detach(leftController);
         leftController = null;
     }
     else if (gamepad.hand === HX.Gamepad.HAND_RIGHT && rightController) {
-        console.log("Destroying right");
         project.vrCamera.detach(rightController);
         rightController = null;
     }

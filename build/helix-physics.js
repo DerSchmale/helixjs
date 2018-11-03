@@ -507,8 +507,8 @@
 	{
 	    var entity = this.entity;
 
-	    var meshInstances = entity.getComponentsByType(HX.MeshInstance);
-	    var numMeshes = meshInstances.length;
+	    var meshInstances = entity.components.meshInstance;
+	    var numMeshes = meshInstances? meshInstances.length : 0;
 
 	    // use the same bounding type if it's the only mesh
 		var bounds = numMeshes === 1? meshInstances[0].mesh.bounds : entity.bounds;
@@ -680,7 +680,7 @@
 
 	PhysicsSystem.prototype._onEntityAdded = function(entity)
 	{
-	    var component = entity.getFirstComponentByType(RigidBody);
+	    var component = entity.components.rigidBody[0];
 	    // for faster access
 	    this._components.push(component);
 
@@ -689,7 +689,7 @@
 
 	PhysicsSystem.prototype._onEntityRemoved = function(entity)
 	{
-	    var component = entity.getFirstComponentByType(RigidBody);
+	    var component = entity.components.rigidBody[0];
 	    this._world.removeBody(component.body);
 	    var index = this._components.indexOf(component);
 	    this._components.splice(index, 1);

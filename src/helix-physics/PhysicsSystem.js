@@ -94,7 +94,7 @@ PhysicsSystem.prototype.onStopped = function()
 
 PhysicsSystem.prototype._onEntityAdded = function(entity)
 {
-    var component = entity.getFirstComponentByType(RigidBody);
+    var component = entity.components.rigidBody[0];
     // for faster access
     this._components.push(component);
 
@@ -103,7 +103,7 @@ PhysicsSystem.prototype._onEntityAdded = function(entity)
 
 PhysicsSystem.prototype._onEntityRemoved = function(entity)
 {
-    var component = entity.getFirstComponentByType(RigidBody);
+    var component = entity.components.rigidBody[0];
     this._world.removeBody(component.body);
     var index = this._components.indexOf(component);
     this._components.splice(index, 1);

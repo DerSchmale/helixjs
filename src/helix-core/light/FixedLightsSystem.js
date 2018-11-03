@@ -33,10 +33,10 @@ FixedLightsSystem.prototype.onStarted = function()
 	this._lights = [];
 	this._meshSet = this.getEntitySet([MeshInstance]);
 	this._meshSet.onEntityAdded.bind(this._onMeshInstanceAdded, this);
-	this._pointSet = this._initSet(PointLight);
-	this._spotSet = this._initSet(SpotLight);
-	this._dirSet = this._initSet(DirectionalLight);
-	this._probeSet = this._initSet(LightProbe);
+	this._pointSet = this._initSet(PointLight, "pointLight");
+	this._spotSet = this._initSet(SpotLight, "spotLight");
+	this._dirSet = this._initSet(DirectionalLight, "directionalLight");
+	this._probeSet = this._initSet(LightProbe, "lightProbe");
 	this._assignLights();
 };
 
@@ -58,14 +58,14 @@ FixedLightsSystem.prototype.onStopped = function()
  * @ignore
  * @private
  */
-FixedLightsSystem.prototype._initSet = function(type)
+FixedLightsSystem.prototype._initSet = function(type, name)
 {
 	var set = this.getEntitySet([type]);
-	this._onLightAddedFuncs[type] = this._onLightAdded.bind(this, type);
-	this._onLightRemovedFuncs[type] = this._onLightRemoved.bind(this, type);
+	this._onLightAddedFuncs[type] = this._onLightAdded.bind(this, name);
+	this._onLightRemovedFuncs[type] = this._onLightRemoved.bind(this, name);
 	set.onEntityAdded.bind(this._onLightAddedFuncs[type]);
 	set.onEntityRemoved.bind(this._onLightRemovedFuncs[type]);
-	addLights(this._lights, set, type);
+	addLights(this._lights, set, name);
 	return set;
 };
 
@@ -84,16 +84,16 @@ FixedLightsSystem.prototype._destroySet = function(set, type)
 /**
  * @ignore
  */
-FixedLightsSystem.prototype._onLightAdded = function(lightType, entity)
+FixedLightsSystem.prototype._onLightAdded = function(lightName, entity)
 {
-	var light = entity.getFirstComponentByType(lightType);
+	var light = entity.components[lightName][0];
 	this._lights.push(light);
 	this._assignLights();
 };
 
-FixedLightsSystem.prototype._onLightRemoved = function(lightType, entity)
+FixedLightsSystem.prototype._onLightRemoved = function(lightName, entity)
 {
-	var light = entity.getFirstComponentByType(lightType);
+	var light = entity.components[lightName][0];
 	var index = this._lights.indexOf(light);
 	this._lights.splice(index, 1);
 	this._assignLights();
@@ -134,7 +134,7 @@ FixedLightsSystem.prototype._queueOrAssign = function(entity)
 
 	// if material isn't initialized, it's okay to assign lights directly, since the material will be compiled on render
 	// anyway
-	var meshInstance = entity.getFirstComponentByType(MeshInstance);
+	var meshInstance = entity.components.meshInstance[0];
 	var material = meshInstance.material;
 	if (material._initialized)
 		this._queue.queue(assignLights, material, this._lights);
@@ -151,10 +151,10 @@ function assignLights(material, lights)
 	material.init();
 }
 
-function addLights(lights, set, componentType)
+function addLights(lights, set, lightName)
 {
 	for (var i = 0, len = set.numEntities; i < len; ++i) {
-		var light = set.getEntity(i).getFirstComponentByType(componentType);
+		var light = set.getEntity(i).components[lightName][0];
 		lights.push(light);
 	}
 }

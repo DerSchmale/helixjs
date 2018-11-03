@@ -10,7 +10,9 @@ import {Messenger} from "../core/Messenger";
  * Entity represents a node in the Scene graph that can have {@linkcode Component} objects added to it, which can
  * define its behavior in a modular way.
  *
- * @property {Boolean} testFrustum Whether or not this entity should be tested against the frustum or not.
+ * @property {Array} components The components added to this Entity. They are accessible as properties with the name they
+ * were given when registered with HX.Component.register(name, componentType). For example:
+ * `entity.components.meshInstance` contains the array of all {@linkcode MeshInstance} components.
  * @property {BoundingVolume} worldBounds The bounding volume for this entity in world coordinates. This does not include
  * children.
  *
@@ -29,7 +31,8 @@ function Entity(components)
 
 	// components
 	this._componentHash = new Bitfield();
-	this._components = [];
+	this.components = {};	// the public API to find components by name
+	this._components = [];	// the private API for looping
 	this._requiresUpdates = false;
 	this._onComponentsChange = new Signal();
 
@@ -118,6 +121,14 @@ Entity.prototype.addComponent = function(component)
 
 	if (component.bounds)
 		this.invalidateBounds();
+
+	var arr = this.components[component.COMPONENT_NAME];
+	if (!arr) {
+		arr = [];
+		this.components[component.COMPONENT_NAME] = arr;
+	}
+
+	arr.push(component);
 
 	this._onComponentsChange.dispatch(this, oldHash);
 };
@@ -211,6 +222,10 @@ Entity.prototype.removeComponent = function(component)
 
 	if (component.bounds)
 		this.invalidateBounds();
+
+	var arr = this.components[component.COMPONENT_NAME];
+	var index = arr.indexOf(component);
+	arr.splice(index, 1);
 };
 
 /**
@@ -246,41 +261,7 @@ Entity.prototype.destroy = function()
 
 
 /**
- * Returns whether or not the Entity has a component of a given type assigned to it.
- */
-Entity.prototype.hasComponentType = function(type)
-{
-	return this._componentHash.contains(type.COMPONENT_ID);
-};
-
-/**
- * Returns the first Component of a given type
- */
-Entity.prototype.getFirstComponentByType = function(type)
-{
-	for (var i = 0, len = this._components.length; i < len; ++i) {
-		var comp = this._components[i];
-		if (comp instanceof type)
-			return comp;
-	}
-	return null;
-};
-
-/**
- * Returns an array of all Components with a given type.
- */
-Entity.prototype.getComponentsByType = function(type)
-{
-	var collection = [];
-	for (var i = 0, len = this._components.length; i < len; ++i) {
-		var comp = this._components[i];
-		if (comp instanceof type) collection.push(comp);
-	}
-	return collection;
-};
-
-/**
- * Return the Component with a given name.
+ * Returns the Component with a given name.
  */
 Entity.prototype.getComponentByName = function(name)
 {

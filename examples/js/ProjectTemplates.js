@@ -117,7 +117,6 @@ SimpleProject.prototype =
 
 		showError: function(message)
         {
-            console.log(document.getElementById("errorContainer"));
             document.getElementById("errorContainer").classList.remove("hidden");
             document.getElementById("errorMessage").innerHTML = message;
         },

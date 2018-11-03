@@ -141,16 +141,20 @@ LayeredAnimation.prototype._collectPotentialTargets = function()
 		targets[node.name] = node;
 
 		if (node instanceof Entity) {
-			var meshInstances = node.getComponentsByType(MeshInstance);
+			var meshInstances = node.components.meshInstance;
 
-			for (var i = 0, len = meshInstances.length; i < len; ++i) {
-				targets[meshInstances[i].name] = meshInstances[i];
-				this._collectPotentialJoints(meshInstances[i], targets);
+			if (meshInstances) {
+				for (var i = 0, len = meshInstances.length; i < len; ++i) {
+					targets[meshInstances[i].name] = meshInstances[i];
+					this._collectPotentialJoints(meshInstances[i], targets);
+				}
 			}
 
-			var morphAnimations = node.getComponentsByType(MorphAnimation);
-			for (i = 0, len = morphAnimations.length; i < len; ++i) {
-				targets[morphAnimations[i].name] = morphAnimations[i];
+			var morphAnimations = node.components.morphAnimation;
+			if (morphAnimations) {
+				for (i = 0, len = morphAnimations.length; i < len; ++i) {
+					targets[morphAnimations[i].name] = morphAnimations[i];
+				}
 			}
 		}
 	}

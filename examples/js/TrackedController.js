@@ -16,7 +16,7 @@ TrackedController.prototype = Object.create(HX.Component.prototype);
 
 TrackedController.prototype.onAdded = function()
 {
-    this._rigidBody = this.entity.getFirstComponentByType(HX_PHYS.RigidBody);
+    this._rigidBody = this.entity.components.rigidBody[0];
     if (this._rigidBody) {
         this._originalKinematic = this._rigidBody.isKinematic;
         this._rigidBody.isKinematic = true;

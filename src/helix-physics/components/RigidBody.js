@@ -293,8 +293,8 @@ RigidBody.prototype._createBody = function()
 {
     var entity = this.entity;
 
-    var meshInstances = entity.getComponentsByType(HX.MeshInstance);
-    var numMeshes = meshInstances.length;
+    var meshInstances = entity.components.meshInstance;
+    var numMeshes = meshInstances? meshInstances.length : 0;
 
     // use the same bounding type if it's the only mesh
 	var bounds = numMeshes === 1? meshInstances[0].mesh.bounds : entity.bounds;

@@ -32,7 +32,7 @@ function Foliage(worldSize, numCells)
 	}
 }
 
-Component.create(Foliage);
+Foliage.prototype = Object.create(Component.prototype);
 
 /**
  * This registers a MeshInstance to be used for a certain class type. Multiple MeshInstance objects can be assigned to
@@ -145,5 +145,7 @@ Foliage.prototype.clone = function()
 
 	return foliage;
 };
+
+Component.register("foliage", Foliage);
 
 export {Foliage};

@@ -6,7 +6,7 @@ function WaterAnimator(camera)
 	this._camera = camera;
 }
 
-HX.Component.create(WaterAnimator);
+WaterAnimator.prototype = Object.create(HX.Component.prototype);
 
 WaterAnimator.prototype.onAdded = function()
 {
@@ -29,3 +29,5 @@ WaterAnimator.prototype.clone = function()
 {
 	return new WaterAnimator(this._camera);
 };
+
+HX.Component.register("waterAnimator", WaterAnimator);

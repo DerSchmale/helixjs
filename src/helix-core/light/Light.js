@@ -20,8 +20,6 @@ import {Component} from "../entity/Component";
  */
 function Light()
 {
-	// TODO: Refactor, all the light code is generally the same as for HX.Light and HX.AmbientLight
-	// AMBIENT LIGHT IS NOT ACTUALLY A REAL LIGHT OBJECT
 	Component.call(this);
 	this._scaledIrradiance = new Color();
 	this._intensity = .2;

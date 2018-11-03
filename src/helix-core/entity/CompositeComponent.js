@@ -2,7 +2,7 @@ import {Component} from "./Component";
 
 /**
  * @classdesc
- * CompositeComponent is a {@linkcode Component} that can be used to group together multiple Components. It's usually
+ * CompositeComponent is a {@linkcode Component} that can be used to group together multiple Components. It should be
  * subclassed to provide easy building blocks for certain combinations of Components.
  *
  * @constructor
@@ -17,7 +17,7 @@ function CompositeComponent()
     this._subs = [];
 }
 
-Component.create(CompositeComponent);
+CompositeComponent.prototype = Object.create(Component.prototype);
 
 /**
  * Adds a {@linkcode Component} to the composite. Usually called in the constructor of the subclass.

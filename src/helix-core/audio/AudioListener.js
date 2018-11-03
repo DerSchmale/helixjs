@@ -21,7 +21,7 @@ function AudioListener()
 	Component.call(this);
 }
 
-Component.create(AudioListener);
+AudioListener.prototype = Object.create(Component.prototype);
 
 AudioListener.prototype.onAdded = function()
 {
@@ -95,5 +95,6 @@ AudioListener.prototype.onUpdate = function(dt)
     }
 }();
 
+Component.register("audioListener", AudioListener);
 
 export {AudioListener}

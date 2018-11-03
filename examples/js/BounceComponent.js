@@ -7,7 +7,7 @@ function BounceComponent(bounds)
 	this._max = null;
 }
 
-HX.Component.create(BounceComponent);
+BounceComponent.prototype = Object.create(HX.Component.prototype);
 
 BounceComponent.prototype.onAdded = function()
 {
@@ -48,3 +48,5 @@ function checkBound(comp, pos, vel, min, max)
 	}
 	return false;
 }
+
+HX.Component.register("bounceComponent", BounceComponent);

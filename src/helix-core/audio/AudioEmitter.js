@@ -45,7 +45,7 @@ function AudioEmitter(clip)
 AudioEmitter.PLAY_MESSAGE = "hx_audioPlay";
 AudioEmitter.STOP_MESSAGE = "hx_audioStop";
 
-Component.create(AudioEmitter, {
+AudioEmitter.prototype = Object.create(Component.prototype, {
 	gain: {
 		get: function() {
 			return this._gain.gain.value;
@@ -259,5 +259,7 @@ AudioEmitter.prototype._onStopMessage = function(message, audioName)
     if (audioName === this.name)
         this.stop();
 };
+
+Component.register("audioEmitter", AudioEmitter);
 
 export { AudioEmitter };

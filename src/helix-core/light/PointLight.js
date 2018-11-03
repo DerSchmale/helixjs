@@ -28,7 +28,7 @@ function PointLight()
     this._bounds = new BoundingSphere();
 }
 
-Component.create(PointLight,
+PointLight.prototype = Object.create(DirectLight.prototype,
     {
         numAtlasPlanes: {
             get: function() { return 6; }
@@ -65,8 +65,7 @@ Component.create(PointLight,
                 this.invalidateBounds();
             }
         }
-    },
-	DirectLight
+    }
 );
 
 /**
@@ -104,5 +103,7 @@ PointLight.prototype.clone = function()
 	clone.copyFrom(this);
 	return clone;
 };
+
+Component.register("pointLight", PointLight);
 
 export { PointLight };

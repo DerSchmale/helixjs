@@ -275,7 +275,7 @@
 	 */
 	RigidBody.COLLISION_MESSAGE = "collision";
 
-	HX.Component.create(RigidBody, {
+	RigidBody.prototype = Object.create(HX.Component.prototype, {
 	    linearVelocity: {
 	        get: function()
 	        {
@@ -586,6 +586,8 @@
 
 	    this.broadcast(RigidBody.COLLISION_MESSAGE, collision);
 	};
+
+	HX.Component.register("rigidBody", RigidBody);
 
 	/**
 	 * @classdesc

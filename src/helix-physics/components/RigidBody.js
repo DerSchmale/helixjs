@@ -61,7 +61,7 @@ function RigidBody(collider, mass, material)
  */
 RigidBody.COLLISION_MESSAGE = "collision";
 
-HX.Component.create(RigidBody, {
+RigidBody.prototype = Object.create(HX.Component.prototype, {
     linearVelocity: {
         get: function()
         {
@@ -372,5 +372,7 @@ RigidBody.prototype._onCollision = function(event)
 
     this.broadcast(RigidBody.COLLISION_MESSAGE, collision);
 };
+
+HX.Component.register("rigidBody", RigidBody);
 
 export {RigidBody};

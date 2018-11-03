@@ -35,7 +35,7 @@ function SkeletonAnimation(rootNode)
     this._blendTree = new SkeletonBlendTree(rootNode);
 }
 
-Component.create(SkeletonAnimation,
+SkeletonAnimation.prototype = Object.create(Component.prototype,
     {
         transferRootJoint: {
             get: function()
@@ -114,5 +114,7 @@ SkeletonAnimation.prototype.clone = function()
     clone.applyInverseBindPose = this.applyInverseBindPose;
     return clone;
 };
+
+Component.register("skeletonAnimation", SkeletonAnimation);
 
 export { SkeletonAnimation };

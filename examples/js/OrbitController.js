@@ -29,7 +29,7 @@ function OrbitController(lookAtTarget)
     this.lookAtTarget = lookAtTarget || new HX.Float4();
 }
 
-HX.Component.create(OrbitController,
+OrbitController.prototype = Object.create(HX.Component.prototype,
     {
         radius: {
             get: function() { return this._coords.z; },
@@ -121,7 +121,4 @@ OrbitController.prototype.clone = function()
 	return clone;
 };
 
-OrbitController.prototype._guessLookAtTarget = function()
-{
-
-};
+HX.Component.register("orbitController", OrbitController);

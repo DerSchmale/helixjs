@@ -41,7 +41,7 @@ function LightProbe(diffuseSH, specularTexture)
 LightProbe.powerRange0 = .00098;
 LightProbe.powerRange1 = .9921;
 
-Component.create(LightProbe,
+LightProbe.prototype = Object.create(Component.prototype,
     {
         specularTexture: {
             get: function() { return this._specularTexture; }
@@ -84,5 +84,7 @@ LightProbe.prototype.clone = function()
 	clone.intensity = this.intensity;
 	return clone;
 };
+
+Component.register("lightProbe", LightProbe);
 
 export { LightProbe };

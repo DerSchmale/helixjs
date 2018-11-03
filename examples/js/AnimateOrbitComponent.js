@@ -13,7 +13,7 @@ function AnimateOrbitComponent()
     this._originalMatrix = null;
 }
 
-HX.Component.create(AnimateOrbitComponent);
+AnimateOrbitComponent.prototype = Object.create(HX.Component.prototype);
 
 AnimateOrbitComponent.prototype.onAdded = function()
 {
@@ -49,3 +49,5 @@ AnimateOrbitComponent.prototype.clone = function()
 	clone.speed = this.speed; // radians per second
     return clone;
 };
+
+HX.Component.register("animateOrbitComponent", AnimateOrbitComponent);

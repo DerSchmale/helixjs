@@ -12,7 +12,7 @@ function TrackHMDController(vrCamera)
     this._vrCamera = vrCamera;
 }
 
-HX.Component.create(TrackHMDController);
+TrackHMDController.prototype = Object.create(HX.Component.prototype);
 
 TrackHMDController.prototype.onUpdate = function(dt)
 {
@@ -28,3 +28,5 @@ TrackHMDController.prototype.onUpdate = function(dt)
     entity.position.scale(.5);
     entity.enableMatrixUpdates();
 };
+
+HX.Component.register("trackHMDController", TrackHMDController);

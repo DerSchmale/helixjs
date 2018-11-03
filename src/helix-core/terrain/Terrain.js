@@ -60,7 +60,7 @@ function Terrain(heightMap, terrainSize, worldSize, minElevation, maxElevation, 
 }
 
 // TODO: Allow setting material
-Component.create(Terrain, {
+Terrain.prototype = Object.create(Component.prototype, {
     terrainSize: {
         get: function() {
             return this._terrainSize;
@@ -258,5 +258,7 @@ Terrain.prototype.clone = function()
 {
     return new Terrain(this._heightMap, this._terrainSize, this._worldSize, this._minElevation, this._maxElevation, this._material, this._subdivisions);
 };
+
+Component.register("terrain", Terrain);
 
 export { Terrain };

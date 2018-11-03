@@ -4,6 +4,7 @@ import {MathX} from "../math/MathX";
 import {Matrix4x4} from "../math/Matrix4x4";
 import {BoundingSphere} from "../scene/BoundingSphere";
 import {Component} from "../entity/Component";
+import {PointLight} from "./PointLight";
 
 /**
  * @classdesc
@@ -39,7 +40,7 @@ function SpotLight()
     this._bounds = new BoundingSphere();
 }
 
-Component.create(SpotLight,
+SpotLight.prototype = Object.create(DirectLight.prototype,
     {
         numAtlasPlanes: {
             get: function() { return 1; }
@@ -120,8 +121,7 @@ Component.create(SpotLight,
 				this.invalidateBounds();
             }
         }
-    },
-	DirectLight
+    }
 );
 
 /**
@@ -167,5 +167,6 @@ SpotLight.prototype.clone = function()
 	return clone;
 };
 
+Component.register("spotLight", SpotLight);
 
 export { SpotLight };

@@ -35,7 +35,7 @@ function LayeredAnimation()
 	this._looping = true;
 }
 
-Component.create(LayeredAnimation, {
+LayeredAnimation.prototype = Object.create(Component.prototype, {
 	time: {
 		get: function()
 		{
@@ -179,4 +179,6 @@ LayeredAnimation.prototype._collectPotentialJoints = function(meshInstance, targ
 	return false;
 };
 
-export {LayeredAnimation}
+Component.register("layeredAnimation", LayeredAnimation);
+
+export {LayeredAnimation};

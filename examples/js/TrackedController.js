@@ -12,8 +12,7 @@ function TrackedController(gamepad)
     this._gamepad = gamepad;
 }
 
-HX.Component.create(TrackedController);
-
+TrackedController.prototype = Object.create(HX.Component.prototype);
 
 TrackedController.prototype.onAdded = function()
 {
@@ -53,3 +52,5 @@ TrackedController.prototype.onUpdate = function(dt)
             this._rigidBody.angularVelocity = gamepad.angularVelocity;
     }
 };
+
+HX.Component.register("trackedController", TrackedController);

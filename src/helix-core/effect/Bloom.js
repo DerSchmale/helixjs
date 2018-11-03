@@ -142,5 +142,4 @@ Bloom.prototype.draw = function (renderer, dt)
 	this._compositePass.draw(renderer);
 };
 
-
 export { Bloom };

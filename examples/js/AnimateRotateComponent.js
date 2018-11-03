@@ -9,7 +9,7 @@ function AnimateRotateComponent()
     this._axis = HX.Float4.Z_AXIS.clone();
 }
 
-HX.Component.create(AnimateRotateComponent,
+AnimateRotateComponent.prototype = Object.create(HX.Component.prototype,
     {
         axis: {
             get: function ()
@@ -53,3 +53,5 @@ AnimateRotateComponent.prototype.clone = function()
 	clone.speed = this.speed; // radians per second
 	return clone;
 };
+
+HX.Component.register("animateRotateComponent", AnimateRotateComponent);

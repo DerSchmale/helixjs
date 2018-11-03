@@ -37,7 +37,7 @@ function FloatController()
     this._acceleration = new HX.Float4(0, 0, 0, 0);
 }
 
-HX.Component.create(FloatController);
+FloatController.prototype = Object.create(HX.Component.prototype);
 
 FloatController.prototype.onAdded = function()
 {
@@ -118,3 +118,5 @@ FloatController.prototype.clone = function()
     clone.friction = this.friction;
     return clone;
 };
+
+HX.Component.register("floatController", FloatController);

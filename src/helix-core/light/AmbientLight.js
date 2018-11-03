@@ -8,9 +8,6 @@ import {BoundingAABB} from "../scene/BoundingAABB";
  * @classdesc
  * AmbientLight can be added to the scene to provide a minimum (single-color) amount of light in the scene.
  *
- * @property {Color} color The color of the ambient light.
- * @property {number} intensity The intensity of the ambient light.
- *
  * @constructor
  *
  * @extends Light
@@ -23,7 +20,7 @@ function AmbientLight()
 	this._bounds = new BoundingAABB();
 }
 
-Component.create(AmbientLight, {}, Light);
+AmbientLight.prototype = Object.create(Light.prototype);
 
 /**
  * @ignore
@@ -47,5 +44,7 @@ AmbientLight.prototype.clone = function()
 	clone.copyFrom(this);
 	return clone;
 };
+
+Component.register("ambientLight", AmbientLight);
 
 export { AmbientLight };

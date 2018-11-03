@@ -32,7 +32,7 @@ function DirectionalLight()
 	this._bounds = new BoundingAABB();
 }
 
-Component.create(DirectionalLight,
+DirectionalLight.prototype = Object.create(DirectLight.prototype,
     {
         numAtlasPlanes: {
             get: function() { return META.OPTIONS.numShadowCascades; }
@@ -74,8 +74,7 @@ Component.create(DirectionalLight,
                 return this._cascadeSplitDistances;
             }
         }
-    },
-	DirectLight
+    }
 );
 
 /**
@@ -145,5 +144,6 @@ DirectionalLight.prototype.clone = function()
 	return clone;
 };
 
+Component.register("directionalLight", DirectionalLight);
 
 export { DirectionalLight };

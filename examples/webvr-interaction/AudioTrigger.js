@@ -3,7 +3,7 @@ function AudioTrigger()
     HX.Component.call(this);
 }
 
-HX.Component.create(AudioTrigger);
+AudioTrigger.prototype = Object.create(HX.Component.prototype);
 
 AudioTrigger.prototype.onAdded = function()
 {
@@ -21,3 +21,5 @@ AudioTrigger.prototype.onCollision = function(message, collision)
     if (gain < .001) return;
     this.broadcast(HX.AudioEmitter.PLAY_MESSAGE, "collision", gain);
 };
+
+HX.Component.register("audioTrigger", AudioTrigger);

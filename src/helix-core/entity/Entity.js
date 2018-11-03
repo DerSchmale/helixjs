@@ -99,6 +99,11 @@ Entity.prototype.addComponent = function(component)
 	if (component.entity)
 		throw new Error("Component already added to an entity!");
 
+	if (component.COMPONENT_ID === undefined) {
+		console.log(component);
+		throw new Error("Component types need to be registered using HX.Component.register(name, class) before adding!");
+	}
+
 	var oldHash = this._componentHash;
 	this._componentHash = this._componentHash.clone();
 

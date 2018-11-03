@@ -72,6 +72,7 @@ export var UniformSetter = {
         UniformSetter._passTable.hx_rcpRenderTargetResolution = RCPRenderTargetResolutionSetter;
         UniformSetter._passTable.hx_dither2DTextureScale = Dither2DTextureScaleSetter;
         UniformSetter._passTable.hx_time = TimeSetter;
+        UniformSetter._passTable.hx_ambientColor = AmbientColorSetter;
         UniformSetter._passTable["hx_poissonDisk[0]"] = PoissonDiskSetter;
         UniformSetter._passTable["hx_poissonSphere[0]"] = PoissonSphereSetter;
     }

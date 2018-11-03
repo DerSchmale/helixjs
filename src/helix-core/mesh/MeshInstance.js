@@ -57,7 +57,7 @@ function MeshInstance(mesh, material)
 	this.material = material;
 }
 
-Component.create(MeshInstance, {
+MeshInstance.prototype = Object.create(Component.prototype, {
 	lodRangeStart: {
 		get: function()
 		{
@@ -418,5 +418,7 @@ MeshInstance.prototype._bindSkeleton = function(skeleton, pose, bindShapeMatrix)
 	if (this._material)
 		this._material._setUseSkinning(!!this._skeleton);
 };
+
+Component.register("meshInstance", MeshInstance);
 
 export { MeshInstance };

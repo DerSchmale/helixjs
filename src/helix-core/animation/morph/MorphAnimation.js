@@ -36,7 +36,7 @@ function MorphAnimation(morphPose)
 	}
 }
 
-Component.create(MorphAnimation,
+MorphAnimation.prototype = Object.create(Component.prototype,
     {
         morphPose: {
             get: function() { return this._morphPose; },
@@ -89,5 +89,8 @@ MorphAnimation.prototype.clone = function()
 	clone.name = this.name;
 	return clone;
 };
+
+
+Component.register("morphAnimation", MorphAnimation);
 
 export { MorphAnimation };

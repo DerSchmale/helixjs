@@ -16,7 +16,8 @@ var aabb = new BoundingAABB();
  *
  * MeshBatch allows bundling a {@linkcode Mesh} with a {@linkcode Material} similar to {@linkcode MeshInstance}, but
  * allows rendering multiple instances in a single draw call. To save on memory usage, individual instances are referred
- * to by individual IDs instead of Transform objects.
+ * to by individual IDs instead of Transform objects. Despite being a subclass, MeshBatch is still considered a
+ * MeshInstance component.
  *
  * @property {number} numInstances The amount of instances that will be drawn.
  *

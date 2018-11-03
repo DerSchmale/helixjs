@@ -9,7 +9,7 @@ function ChickenController()
 	this._touch.map(HX.Touch.TAP, "startle");
 }
 
-HX.Component.create(ChickenController);
+ChickenController.prototype = Object.create(HX.Component.prototype);
 
 ChickenController.prototype.onAdded = function()
 {
@@ -33,3 +33,5 @@ ChickenController.prototype._onAction = function(name, value)
 		this._animation.animationNode.fadeTo("Flap", 100.0, false, false);
 	}
 };
+
+HX.Component.register("chickenController", ChickenController);

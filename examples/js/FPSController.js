@@ -29,7 +29,7 @@ function FPSController()
     this._keyboard.mapAxis(83, 87, "moveY");
 }
 
-HX.Component.create(FPSController);
+FPSController.prototype = Object.create(HX.Component);
 
 FPSController.prototype.onAdded = function(dt)
 {
@@ -108,3 +108,5 @@ FPSController.prototype.clone = function()
 	clone.yaw = this.yaw;
 	return clone;
 };
+
+HX.Component.register("FPSController", FPSController);

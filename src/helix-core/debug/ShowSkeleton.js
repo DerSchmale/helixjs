@@ -22,7 +22,7 @@ function ShowSkeleton()
 	Component.call(this);
 }
 
-Component.create(ShowSkeleton);
+ShowSkeleton.prototype = Object.create(Component.prototype);
 
 /**
  * @inheritDoc
@@ -89,5 +89,7 @@ ShowSkeleton.prototype.onUpdate = function(dt)
 		}
 	}
 };
+
+Component.register("showSkeleton", ShowSkeleton);
 
 export { ShowSkeleton };

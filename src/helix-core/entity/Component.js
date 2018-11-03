@@ -9,11 +9,14 @@
  * <p>If it implements an onUpdate(dt) function, the update method will be called every frame.</p>
  * <p>A single Component instance is unique to an Entity and cannot be shared!</p>
  *
- * Instead of using Object.create, Component subclasses need to be extended using
+ * Custom Component subclasses need to be registered for use with:
  *
  * <pre><code>
- * Component.create(SubComponentClass, props);
+ * Component.register(name, classRef);
  * </pre></code>
+ *
+ * The name parameter is used to access component instances using the {@linkcode Entity#components.name[]} Array. By
+ * default, the name is the same as the class name but starting with a lowercase letter.
  *
  * @see {@linkcode Entity}
  *
@@ -33,18 +36,20 @@ function Component()
 
 Component.COMPONENT_ID = 0;
 
-Component.create = (function (constructor, props, baseClass)
-{
-	var COUNTER = 0;
+var COUNTER = 0;
+var componentMap = {};
 
-	return function (constructor, props, baseClass)
-	{
-		baseClass = baseClass || Component;
-		constructor.prototype = Object.create(baseClass.prototype, props);
-		constructor.COMPONENT_ID = ++COUNTER;
-		constructor.prototype.COMPONENT_ID = constructor.COMPONENT_ID;
-	};
-}());
+Component.register = function(name, classRef)
+{
+	if (componentMap.hasOwnProperty(name))
+		throw new Error("A component with the name " + name + " was already registered!");
+
+	classRef.COMPONENT_ID = ++COUNTER;
+	classRef.COMPONENT_NAME = name;
+	classRef.prototype.COMPONENT_ID = classRef.COMPONENT_ID;
+	classRef.prototype.COMPONENT_NAME = classRef.COMPONENT_NAME;
+	componentMap[name] = classRef;
+};
 
 Component.prototype =
 	{

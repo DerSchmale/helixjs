@@ -23,7 +23,7 @@ function Effect()
 	this._mesh = null;
 }
 
-Component.create(Effect,
+Effect.prototype = Object.create(Component.prototype,
     {
         hdrTarget: {
             get: function() { return this._renderer._hdrFront.fbo; }
@@ -88,5 +88,7 @@ Effect.prototype.acceptVisitor = function(visitor)
 {
 	visitor.visitEffect(this);
 };
+
+Component.register("effect", Effect);
 
 export { Effect };

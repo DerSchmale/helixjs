@@ -26,9 +26,9 @@ import {capabilities, CullMode, DataType, TextureFilter, TextureFormat} from "..
 function VarianceShadowFilter()
 {
     ShadowFilter.call(this);
-	this.lightBleedReduction = .5;
-	this.minVariance = .001;
-	this.useHalfFloat = true;
+	this.lightBleedReduction = .7;
+	this.minVariance = .00001;
+	this.useHalfFloat = false;
 	this._blurRadius = 2;
 }
 

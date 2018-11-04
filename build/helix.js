@@ -20966,16 +20966,23 @@
 		this._spatialNext = null;
 	}
 
-	var min = new Float4();
-	var max = new Float4();
+	// TODO: Should be able to create a custom QuadBounds object that avoids testing Z, so we can make that infinite?
 	var aabb = new BoundingAABB();
+	aabb.clear(BoundingVolume.EXPANSE_FINITE);
 
 	/**
 	 * @classdesc
 	 * QuadPartitioning forms a base class for spatial partitioning. Scene components such as MeshInstance, PointLightComponent, etc.
 	 * Are placed in here to accelerate collection.
 	 *
+	 * @property {number} minHeight The minimum height of the node, for culling purposes.
+	 * @property {number} maxHeight The maximum height of the node, for culling purposes.
+
 	 * @constructor
+	 *
+	 * @param {number} size The size of the QuadTree. This should be about as big as the scene bounds' XY extents.
+	 * @param {number} numLevels The node depth of the quad tree. Higher values allows more precise frustum culling, but can introduce more overhead if there aren't many entities per node.
+	 * @param {number} [maxHeight] The maximum height of the node, for culling purposes.
 	 *
 	 * @author derschmale <http://www.derschmale.com>
 	 */
@@ -21007,46 +21014,64 @@
 	}
 
 	QuadPartitioning.prototype = {
+		/**
+		 * The minimum height of the node
+		 */
 		get minHeight()
 		{
 			return this._minHeight;
 		},
 
+		/**
+		 * The maximum height of the node
+		 */
 		get maxHeight()
 		{
 			return this._maxHeight;
 		},
 
+		/**
+		 * The size of the QuadTree. This should be about as big as the scene bounds' XY extents.
+		 */
 		get size()
 		{
 			return this._size;
 		},
 
+		/**
+		 * The node depth of the quad tree.
+		 */
 		get numLevels()
 		{
 			return this._numLevels;
 		},
 
+		/**
+		 * @ignore
+		 */
 		acceptVisitor: function(visitor, isMainCollector)
 		{
 			if (this._updateQueue)
 				this._processUpdates();
 
 			var extent = this._size * .5;
-			min.z = this._minHeight;
-			max.z = this._maxHeight;
+			aabb._minimumZ = this._minHeight;
+			aabb._maximumZ = this._maxHeight;
 			this._visitNode(visitor, 0, 0, 0, 0, extent, isMainCollector);
 		},
 
+		/**
+		 * @ignore
+		 * @private
+		 */
 		_visitNode: function(visitor, index, level, x, y, extent, isMainCollector)
 		{
 			// assume level 0 is always visible, it contains the whole world after all
 			if (level > 0) {
-				min.x = x - extent;
-				max.x = x + extent;
-				min.y = y - extent;
-				max.y = y + extent;
-				aabb.setExplicit(min, max);
+				aabb._minimumX = x - extent;
+				aabb._maximumX = x + extent;
+				aabb._minimumY = y - extent;
+				aabb._maximumY = y + extent;
 
 				if (!visitor.qualifiesBounds(aabb))
 					return;
@@ -21071,6 +21096,9 @@
 			this._visitNode(visitor, index + 3, level, x + extent, y + extent, extent, isMainCollector);
 		},
 
+		/**
+		 * @ignore
+		 */
 		markEntityForUpdate: function(entity)
 		{
 			// if spatialPrev is null, it means it was already marked (unregisterEntity)
@@ -21081,6 +21109,9 @@
 			this._updateQueue.push(entity);
 		},
 
+		/**
+		 * @ignore
+		 */
 		registerEntity: function(entity)
 		{
 			var nodeIndex = entity.ignoreSpatialPartition? 0 : this._getNodeIndex(entity.worldBounds);
@@ -21096,6 +21127,9 @@
 			entity._spatialNext = next;		// point to next
 		},
 
+		/**
+		 * @ignore
+		 */
 		unregisterEntity: function(entity)
 		{
 			// just update links
@@ -21109,6 +21143,10 @@
 			entity._spatialPrev = null;
 		},
 
+		/**
+		 * @ignore
+		 * @private
+		 */
 		_processUpdates: function()
 		{
 			for (var i = 0, len = this._updateQueue.length; i < len; ++i)
@@ -21117,6 +21155,9 @@
 			this._updateQueue = [];
 		},
 
+		/**
+		 * @ignore
+		 */
 		migrateTo: function(other)
 		{
 			for (var i = 0, len = this._nodes.length; i < len; ++i) {
@@ -21130,10 +21171,12 @@
 				}
 				this._nodes[i]._spatialNext = null;
 			}
-
-			this._entities = [];
 		},
 
+		/**
+		 * @ignore
+		 * @private
+		 */
 		_getNodeIndex: function(bounds)
 		{
 			if (bounds.expanse === BoundingVolume.EXPANSE_INFINITE)
@@ -21966,7 +22009,6 @@
 
 	Terrain.prototype._updateBounds = function()
 	{
-		console.log("update bounds");
 		this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
 	};
 
@@ -32390,7 +32432,7 @@
 
 			for (i = 0; i < len; ++i) {
 				var instance = instances[i];
-				if (instance.enabled && distSqr >= instance._lodRangeStartSqr && distSqr < instance._lodRangeEndSqr)
+				if (instance.enabled && distSqr >= instance._lodRangeStartSqr && distSqr < instance._lodRangeEndSqr && instance.numInstances !== 0)
 					this.visitMeshInstance(instance, worldMatrix, worldBounds, distSqr);
 			}
 		}
@@ -32802,7 +32844,7 @@
 			for (var i = 0, len = meshInstances.length; i < len; ++i) {
 				var instance = meshInstances[i];
 
-				if (instance.enabled && instance.castShadows && lodDistSqr >= instance._lodRangeStartSqr && lodDistSqr < instance._lodRangeEndSqr)
+				if (instance.enabled && instance.castShadows && lodDistSqr >= instance._lodRangeStartSqr && lodDistSqr < instance._lodRangeEndSqr && instance.numInstances !== 0)
 					this.visitMeshInstance(instance, worldMatrix, worldBounds, lodDistSqr);
 			}
 		}
@@ -32855,8 +32897,8 @@
 	// work values
 	var localNear = new Float4();
 	var localFar = new Float4();
-	var min$1 = new Float4();
-	var max$1 = new Float4();
+	var min = new Float4();
+	var max = new Float4();
 	var tmp = new Float4();
 	var localBounds = new BoundingAABB();
 
@@ -32922,20 +32964,20 @@
 	    {
 	        var corners = viewCamera.frustum.corners;
 
-	        this._inverseLightMatrix.transformPoint(corners[0], min$1);
-	        max$1.copyFrom(min$1);
+	        this._inverseLightMatrix.transformPoint(corners[0], min);
+	        max.copyFrom(min);
 
 	        for (var i = 1; i < 8; ++i) {
 	            this._inverseLightMatrix.transformPoint(corners[i], tmp);
-	            min$1.minimize(tmp);
-	            max$1.maximize(tmp);
+	            min.minimize(tmp);
+	            max.maximize(tmp);
 	        }
 
-	        this._maxY = max$1.y;
+	        this._maxY = max.y;
 
 	        this._collectorCamera.matrix.copyFrom(light.entity.worldMatrix);
 	        this._collectorCamera._invalidateWorldMatrix();
-	        this._collectorCamera.setBounds(min$1.x, max$1.x + 1, max$1.z + 1, min$1.z);
+	        this._collectorCamera.setBounds(min.x, max.x + 1, max.z + 1, min.z);
 	    },
 
 	    _updateSplits: function(light, viewCamera)
@@ -32996,27 +33038,27 @@
 	                this._inverseLightMatrix.transformPoint(localFar, localFar);
 
 	                if (i === 0) {
-	                    min$1.copyFrom(localNear);
-	                    max$1.copyFrom(localNear);
+	                    min.copyFrom(localNear);
+	                    max.copyFrom(localNear);
 	                }
 	                else {
-	                    min$1.minimize(localNear);
-	                    max$1.maximize(localNear);
+	                    min.minimize(localNear);
+	                    max.maximize(localNear);
 	                }
 
-	                min$1.minimize(localFar);
-	                max$1.maximize(localFar);
+	                min.minimize(localFar);
+	                max.maximize(localFar);
 	            }
 
 	            nearRatio = farRatio;
 
 	            // do not render beyond range of view camera or scene depth
-	            max$1.y = Math.min(this._maxY, max$1.y);
+	            max.y = Math.min(this._maxY, max.y);
 
-	            var left = Math.max(min$1.x, localBounds._minimumX);
-	            var right = Math.min(max$1.x, localBounds._maximumX);
-	            var bottom = Math.max(min$1.z, localBounds._minimumZ);
-	            var top = Math.min(max$1.z, localBounds._maximumZ);
+	            var left = Math.max(min.x, localBounds._minimumX);
+	            var right = Math.min(max.x, localBounds._maximumX);
+	            var bottom = Math.max(min.z, localBounds._minimumZ);
+	            var top = Math.min(max.z, localBounds._maximumZ);
 
 	            var width = right - left;
 	            var height = top - bottom;
@@ -33163,7 +33205,7 @@
 			for (var i = 0, len = meshInstances.length; i < len; ++i) {
 				var instance = meshInstances[i];
 
-				if (instance.enabled && instance.castShadows && lodDistSqr >= instance._lodRangeStartSqr && lodDistSqr < instance._lodRangeEndSqr)
+				if (instance.enabled && instance.castShadows && lodDistSqr >= instance._lodRangeStartSqr && lodDistSqr < instance._lodRangeEndSqr && instance.numInstances !== 0)
 					this.visitMeshInstance(instance, worldMatrix, worldBounds, lodDistSqr);
 			}
 		}
@@ -33336,7 +33378,7 @@
 				var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);
 				var lodDistSqr = dx * dx + dy * dy + dz * dz;
 
-				if (instance.enabled && instance.castShadows && lodDistSqr >= instance._lodRangeStartSqr && lodDistSqr < instance._lodRangeEndSqr)
+				if (instance.enabled && instance.castShadows && lodDistSqr >= instance._lodRangeStartSqr && lodDistSqr < instance._lodRangeEndSqr && instance.numInstances !== 0)
 					this.visitMeshInstance(instance, worldMatrix, worldBounds, lodDistSqr);
 			}
 		}

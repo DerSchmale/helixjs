@@ -1,5 +1,4 @@
 import {BoundingAABB} from "./BoundingAABB";
-import {Float4} from "../math/Float4";
 import {BoundingVolume} from "./BoundingVolume";
 
 function DummyNode()
@@ -7,16 +6,23 @@ function DummyNode()
 	this._spatialNext = null;
 }
 
-var min = new Float4();
-var max = new Float4();
+// TODO: Should be able to create a custom QuadBounds object that avoids testing Z, so we can make that infinite?
 var aabb = new BoundingAABB();
+aabb.clear(BoundingVolume.EXPANSE_FINITE);
 
 /**
  * @classdesc
  * QuadPartitioning forms a base class for spatial partitioning. Scene components such as MeshInstance, PointLightComponent, etc.
  * Are placed in here to accelerate collection.
  *
+ * @property {number} minHeight The minimum height of the node, for culling purposes.
+ * @property {number} maxHeight The maximum height of the node, for culling purposes.
+
  * @constructor
+ *
+ * @param {number} size The size of the QuadTree. This should be about as big as the scene bounds' XY extents.
+ * @param {number} numLevels The node depth of the quad tree. Higher values allows more precise frustum culling, but can introduce more overhead if there aren't many entities per node.
+ * @param {number} [maxHeight] The maximum height of the node, for culling purposes.
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -48,46 +54,64 @@ function QuadPartitioning(size, numLevels, minHeight, maxHeight)
 }
 
 QuadPartitioning.prototype = {
+	/**
+	 * The minimum height of the node
+	 */
 	get minHeight()
 	{
 		return this._minHeight;
 	},
 
+	/**
+	 * The maximum height of the node
+	 */
 	get maxHeight()
 	{
 		return this._maxHeight;
 	},
 
+	/**
+	 * The size of the QuadTree. This should be about as big as the scene bounds' XY extents.
+	 */
 	get size()
 	{
 		return this._size;
 	},
 
+	/**
+	 * The node depth of the quad tree.
+	 */
 	get numLevels()
 	{
 		return this._numLevels;
 	},
 
+	/**
+	 * @ignore
+	 */
 	acceptVisitor: function(visitor, isMainCollector)
 	{
 		if (this._updateQueue)
 			this._processUpdates();
 
 		var extent = this._size * .5;
-		min.z = this._minHeight;
-		max.z = this._maxHeight;
+		aabb._minimumZ = this._minHeight;
+		aabb._maximumZ = this._maxHeight;
 		this._visitNode(visitor, 0, 0, 0, 0, extent, isMainCollector);
 	},
 
+	/**
+	 * @ignore
+	 * @private
+	 */
 	_visitNode: function(visitor, index, level, x, y, extent, isMainCollector)
 	{
 		// assume level 0 is always visible, it contains the whole world after all
 		if (level > 0) {
-			min.x = x - extent;
-			max.x = x + extent;
-			min.y = y - extent;
-			max.y = y + extent;
-			aabb.setExplicit(min, max);
+			aabb._minimumX = x - extent;
+			aabb._maximumX = x + extent;
+			aabb._minimumY = y - extent;
+			aabb._maximumY = y + extent;
 
 			if (!visitor.qualifiesBounds(aabb))
 				return;
@@ -112,6 +136,9 @@ QuadPartitioning.prototype = {
 		this._visitNode(visitor, index + 3, level, x + extent, y + extent, extent, isMainCollector);
 	},
 
+	/**
+	 * @ignore
+	 */
 	markEntityForUpdate: function(entity)
 	{
 		// if spatialPrev is null, it means it was already marked (unregisterEntity)
@@ -122,6 +149,9 @@ QuadPartitioning.prototype = {
 		this._updateQueue.push(entity);
 	},
 
+	/**
+	 * @ignore
+	 */
 	registerEntity: function(entity)
 	{
 		var nodeIndex = entity.ignoreSpatialPartition? 0 : this._getNodeIndex(entity.worldBounds);
@@ -137,6 +167,9 @@ QuadPartitioning.prototype = {
 		entity._spatialNext = next;		// point to next
 	},
 
+	/**
+	 * @ignore
+	 */
 	unregisterEntity: function(entity)
 	{
 		// just update links
@@ -150,6 +183,10 @@ QuadPartitioning.prototype = {
 		entity._spatialPrev = null;
 	},
 
+	/**
+	 * @ignore
+	 * @private
+	 */
 	_processUpdates: function()
 	{
 		for (var i = 0, len = this._updateQueue.length; i < len; ++i)
@@ -158,6 +195,9 @@ QuadPartitioning.prototype = {
 		this._updateQueue = [];
 	},
 
+	/**
+	 * @ignore
+	 */
 	migrateTo: function(other)
 	{
 		for (var i = 0, len = this._nodes.length; i < len; ++i) {
@@ -171,10 +211,12 @@ QuadPartitioning.prototype = {
 			}
 			this._nodes[i]._spatialNext = null;
 		}
-
-		this._entities = [];
 	},
 
+	/**
+	 * @ignore
+	 * @private
+	 */
 	_getNodeIndex: function(bounds)
 	{
 		if (bounds.expanse === BoundingVolume.EXPANSE_INFINITE)

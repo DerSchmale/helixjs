@@ -54,7 +54,7 @@ SpotShadowCasterCollector.prototype.visitEntity = function(entity)
 			var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);
 			var lodDistSqr = dx * dx + dy * dy + dz * dz;
 
-			if (instance.enabled && instance.castShadows && lodDistSqr >= instance._lodRangeStartSqr && lodDistSqr < instance._lodRangeEndSqr)
+			if (instance.enabled && instance.castShadows && lodDistSqr >= instance._lodRangeStartSqr && lodDistSqr < instance._lodRangeEndSqr && instance.numInstances !== 0)
 				this.visitMeshInstance(instance, worldMatrix, worldBounds, lodDistSqr);
 		}
 	}

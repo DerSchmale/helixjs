@@ -80,7 +80,7 @@ OmniShadowCasterCollector.prototype.visitEntity = function(entity)
 		for (var i = 0, len = meshInstances.length; i < len; ++i) {
 			var instance = meshInstances[i];
 
-			if (instance.enabled && instance.castShadows && lodDistSqr >= instance._lodRangeStartSqr && lodDistSqr < instance._lodRangeEndSqr)
+			if (instance.enabled && instance.castShadows && lodDistSqr >= instance._lodRangeStartSqr && lodDistSqr < instance._lodRangeEndSqr && instance.numInstances !== 0)
 				this.visitMeshInstance(instance, worldMatrix, worldBounds, lodDistSqr);
 		}
 	}

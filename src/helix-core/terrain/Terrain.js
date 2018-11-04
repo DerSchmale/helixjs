@@ -249,7 +249,6 @@ Terrain.prototype.clone = function()
 
 Terrain.prototype._updateBounds = function()
 {
-	console.log("update bounds");
 	this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
 };
 

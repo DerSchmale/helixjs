@@ -163,7 +163,7 @@ RenderCollector.prototype.visitEntity = function(entity)
 
 		for (i = 0; i < len; ++i) {
 			var instance = instances[i];
-			if (instance.enabled && distSqr >= instance._lodRangeStartSqr && distSqr < instance._lodRangeEndSqr)
+			if (instance.enabled && distSqr >= instance._lodRangeStartSqr && distSqr < instance._lodRangeEndSqr && instance.numInstances !== 0)
 				this.visitMeshInstance(instance, worldMatrix, worldBounds, distSqr);
 		}
 	}

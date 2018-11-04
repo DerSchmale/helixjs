@@ -351,13 +351,12 @@ function populateTrees(foliage, terrainData)
 			for (var x = -ext; x < ext; x += spacing) {
 				var xp = x + (Math.random() - .5) * rand;
 				var yp = y + (Math.random() - .5) * rand;
-				var height = heightData.getValue(xp, yp, 0) * (maxHeight - minHeight) + minHeight;
-				// TODO: get the tangent
 				var rock = terrainData.getValue(xp, yp, 1);
 
 				// let's have nothing grow on rock
 				if (rock > 0.7) continue;
 
+				var height = heightData.getValue(xp, yp, 0) * (maxHeight - minHeight) + minHeight;
 				var treeLine = HX.MathX.saturate((height - treeLineStart) / (treeLineEnd - treeLineStart));
 
 				var odds = HX.MathX.lerp(0.75, 1.0, treeLine);

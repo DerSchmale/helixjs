@@ -1,5 +1,6 @@
 import {Entity} from "../entity/Entity";
 import {Light} from "./Light";
+import {Component} from "../entity/Component";
 
 /**
  * @classdesc
@@ -28,11 +29,6 @@ function DirectLight()
 }
 
 DirectLight.prototype = Object.create(Light.prototype);
-
-DirectLight.prototype.acceptVisitor = function (visitor)
-{
-    visitor.visitLight(this);
-};
 
 DirectLight.prototype._updateScaledIrradiance = function ()
 {

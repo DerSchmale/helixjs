@@ -54,9 +54,9 @@ function initCamera(camera)
 function initScene(scene, assetLibrary)
 {
     var skyboxSpecularTexture = assetLibrary.get("skybox-specular");
-    var skyboxIrradianceTexture = assetLibrary.get("skybox-irradiance");
+    var skyboxIrradiance = assetLibrary.get("irradiance");
 
-    var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, skyboxSpecularTexture);
+    var lightProbe = new HX.LightProbe(skyboxIrradiance, skyboxSpecularTexture);
     scene.attach(new HX.Entity(lightProbe));
 
     var light = new HX.DirectionalLight();

@@ -19,7 +19,7 @@ function SpotShadowCasterCollector()
     this._renderItemPool = new ObjectPool(RenderItem);
 	this._viewCameraPos = new Float4();
 	this._cameraYAxis = new Float4();
-};
+}
 
 SpotShadowCasterCollector.prototype = Object.create(SceneVisitor.prototype);
 
@@ -40,28 +40,28 @@ SpotShadowCasterCollector.prototype.collect = function(camera, scene, viewCamera
     this._renderList.sort(RenderSortFunctions.sortOpaques);
 };
 
-SpotShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
+SpotShadowCasterCollector.prototype.visitEntity = function(entity)
 {
-    if (!meshInstance.castShadows || !meshInstance.enabled)
-        return;
+	var meshInstances = entity.components.meshInstance;
 
-	var lodStart = meshInstance._lodRangeStartSqr;
-	var lodEnd = meshInstance._lodRangeEndSqr;
-	var entity = meshInstance.entity;
-	var worldBounds = this.getProxiedBounds(entity);
+	if (meshInstances) {
+		for (var i = 0, len = meshInstances.length; i < len; ++i) {
+			var instance = meshInstances[i];
+			var worldBounds = this.getProxiedBounds(entity);
+			var worldMatrix = this.getProxiedMatrix(entity);
+			var center = worldBounds._center;
+			var cameraPos = this._viewCameraPos;
+			var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);
+			var lodDistSqr = dx * dx + dy * dy + dz * dz;
 
-	if (lodStart > 0 || lodEnd !== Number.POSITIVE_INFINITY) {
-		lodStart = lodStart || Number.NEGATIVE_INFINITY;
-		var center = worldBounds.center;
-		var cameraPos = this._viewCameraPos;
-		var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);
-		var distSqr = dx * dx + dy * dy + dz * dz;
-
-		if (distSqr < lodStart || distSqr > lodEnd)
-			return;
+			if (instance.enabled && instance.castShadows && lodDistSqr >= instance._lodRangeStartSqr && lodDistSqr < instance._lodRangeEndSqr)
+				this.visitMeshInstance(instance, worldMatrix, worldBounds, lodDistSqr);
+		}
 	}
+};
 
-    var cameraYAxis = this._cameraYAxis;
+SpotShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance, worldMatrix, worldBounds, renderOrderHint)
+{
     var skeleton = meshInstance.skeleton;
     var skeletonMatrices = meshInstance.skeletonMatrices;
     var renderPool = this._renderItemPool;
@@ -73,16 +73,12 @@ SpotShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
     renderItem.meshInstance = meshInstance;
     renderItem.skeleton = skeleton;
     renderItem.skeletonMatrices = skeletonMatrices;
-    // distance along Z axis:
-    var center = worldBounds._center;
-    renderItem.renderOrderHint = center.x * cameraYAxis.x + center.y * cameraYAxis.y + center.z * cameraYAxis.z;
-    renderItem.worldMatrix = this.getProxiedMatrix(entity);
+    renderItem.renderOrderHint = renderOrderHint;
+    renderItem.worldMatrix = worldMatrix;
     renderItem.worldBounds = worldBounds;
 
     renderList.push(renderItem);
 };
-
-SpotShadowCasterCollector.prototype.visitMeshBatch = SpotShadowCasterCollector.prototype.visitMeshInstance;
 
 SpotShadowCasterCollector.prototype.qualifiesBounds = function(bounds)
 {

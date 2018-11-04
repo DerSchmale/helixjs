@@ -28,10 +28,8 @@ import {Entity} from "../entity/Entity";
  */
 function Terrain(heightMap, terrainSize, worldSize, minElevation, maxElevation, material, subdivisions)
 {
-    Component.call(this);
+    Entity.call(this);
 
-    this._bounds = new BoundingAABB();
-    this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
     this._terrainSize = terrainSize;
     this._minElevation = minElevation;
     this._maxElevation = maxElevation;
@@ -39,6 +37,7 @@ function Terrain(heightMap, terrainSize, worldSize, minElevation, maxElevation, 
     // we use the extra container so the Terrain.position remains constant, so we can reliably translate and use rigid body components
     this._container = new SceneNode();
     this._subdivisions = subdivisions || 32;
+	this.ignoreSpatialPartition = true;
 
     // will be defined when we're generating meshes
     // this._snapSize = undefined;
@@ -60,29 +59,13 @@ function Terrain(heightMap, terrainSize, worldSize, minElevation, maxElevation, 
 }
 
 // TODO: Allow setting material
-Terrain.prototype = Object.create(Component.prototype, {
+Terrain.prototype = Object.create(Entity.prototype, {
     terrainSize: {
         get: function() {
             return this._terrainSize;
         }
     }
 });
-
-/**
- * @ignore
- */
-Terrain.prototype.onAdded = function()
-{
-    this.entity.attach(this._container);
-};
-
-/**
- * @ignore
- */
-Terrain.prototype.onRemoved = function()
-{
-	this.entity.detach(this._container);
-};
 
 Terrain.prototype._createLODMesh = function(patchSize, texelSize, isFinal)
 {
@@ -228,7 +211,6 @@ Terrain.prototype._addMesh = function(mesh, x, y, rot)
 	entity.addComponent(meshInstance);
 
 	// always add this to the partition's root node
-	entity.ignoreSpatialPartition = true;
 	entity.position.x = x;
 	entity.position.y = y;
 	entity.euler.z = rot * Math.PI * .5;
@@ -243,12 +225,18 @@ Terrain.prototype.acceptVisitor = function(visitor, isMainCollector)
     if (isMainCollector) {
 		var cameraPos = visitor._camera.position;
 		var containerPos = this._container.position;
-		var entityPosition = this.entity.position;
+		var entityPosition = this.position;
 		containerPos.x = cameraPos.x - entityPosition.x;
 		containerPos.y = cameraPos.y - entityPosition.y;
 		// containerPos.x = Math.round(cameraPos.x / this._snapSize) * this._snapSize - entityPosition.x;
 		// containerPos.y = Math.round(cameraPos.y / this._snapSize) * this._snapSize - entityPosition.y;
     }
+
+    for (var i = 0, len = this._container.numChildren; i < len; ++i) {
+    	var entity = this._container.getChild(i);
+    	if (visitor.qualifies(entity))
+    		visitor.visitEntity(entity);
+	}
 };
 
 /**
@@ -259,6 +247,10 @@ Terrain.prototype.clone = function()
     return new Terrain(this._heightMap, this._terrainSize, this._worldSize, this._minElevation, this._maxElevation, this._material, this._subdivisions);
 };
 
-Component.register("terrain", Terrain);
+Terrain.prototype._updateBounds = function()
+{
+	console.log("update bounds");
+	this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
+};
 
 export { Terrain };

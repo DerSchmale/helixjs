@@ -294,14 +294,6 @@ MeshInstance.prototype.toString = function()
 
 /**
  * @ignore
- */
-MeshInstance.prototype.acceptVisitor = function(visitor)
-{
-	visitor.visitMeshInstance(this);
-};
-
-/**
- * @ignore
  * @private
  */
 MeshInstance.prototype._onMorphChanged = function()

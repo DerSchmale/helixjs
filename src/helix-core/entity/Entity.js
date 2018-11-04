@@ -316,20 +316,6 @@ Entity.prototype._createBoundingVolume = function()
 /**
  * @ignore
  */
-Entity.prototype.acceptVisitor = function(visitor, isMainCollector)
-{
-	var components = this._components;
-	for (var i = 0, len = components.length; i < len; ++i) {
-		var component = components[i];
-		if (component.acceptVisitor && component.enabled) {
-			component.acceptVisitor(visitor, isMainCollector);
-		}
-	}
-};
-
-/**
- * @ignore
- */
 Entity.prototype.copyFrom = function(src)
 {
 	SceneNode.prototype.copyFrom.call(this, src);
@@ -395,6 +381,14 @@ Entity.prototype._assignMorphPose = function(value)
 			comp.morphPose = value;
 		}
 	}
+};
+
+/**
+ * @ignore
+ */
+Entity.prototype.acceptVisitor = function(visitor)
+{
+	visitor.visitEntity(this);
 };
 
 export { Entity };

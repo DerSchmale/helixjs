@@ -216,15 +216,6 @@ MeshBatch.prototype._updateBounds = function()
 };
 
 /**
- * @ignore
- */
-MeshBatch.prototype.acceptVisitor = function(visitor)
-{
-	if (this._numInstances)
-		visitor.visitMeshBatch(this);
-};
-
-/**
  * @inheritDoc
  */
 MeshBatch.prototype.updateRenderState = function(passType)

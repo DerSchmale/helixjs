@@ -41,9 +41,6 @@ var componentMap = {};
 
 Component.register = function(name, classRef)
 {
-	if (componentMap.hasOwnProperty(name))
-		throw new Error("A component with the name " + name + " was already registered!");
-
 	classRef.COMPONENT_ID = ++COUNTER;
 	classRef.COMPONENT_NAME = name;
 	classRef.prototype.COMPONENT_ID = classRef.COMPONENT_ID;

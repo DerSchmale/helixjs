@@ -9,7 +9,8 @@ import {AsyncTaskQueue} from "../utils/AsyncTaskQueue";
 /**
  * @classdesc
  *
- * FixedLightsSystem is System that automatically assigns all lights in a scene to all materials in the scene.
+ * FixedLightsSystem is System that automatically assigns all lights in a scene to all materials in the scene. This
+ * system assumes each Entity only has one light component assigned to each.
  *
  * @constructor
  *
@@ -33,9 +34,9 @@ FixedLightsSystem.prototype.onStarted = function()
 	this._lights = [];
 	this._meshSet = this.getEntitySet([MeshInstance]);
 	this._meshSet.onEntityAdded.bind(this._onMeshInstanceAdded, this);
-	this._pointSet = this._initSet(PointLight, "pointLight");
-	this._spotSet = this._initSet(SpotLight, "spotLight");
-	this._dirSet = this._initSet(DirectionalLight, "directionalLight");
+	this._pointSet = this._initSet(PointLight, "light");
+	this._spotSet = this._initSet(SpotLight, "light");
+	this._dirSet = this._initSet(DirectionalLight, "light");
 	this._probeSet = this._initSet(LightProbe, "lightProbe");
 	this._assignLights();
 };
@@ -58,14 +59,14 @@ FixedLightsSystem.prototype.onStopped = function()
  * @ignore
  * @private
  */
-FixedLightsSystem.prototype._initSet = function(type, name)
+FixedLightsSystem.prototype._initSet = function(type, componentName)
 {
 	var set = this.getEntitySet([type]);
-	this._onLightAddedFuncs[type] = this._onLightAdded.bind(this, name);
-	this._onLightRemovedFuncs[type] = this._onLightRemoved.bind(this, name);
+	this._onLightAddedFuncs[type] = this._onLightAdded.bind(this, componentName);
+	this._onLightRemovedFuncs[type] = this._onLightRemoved.bind(this, componentName);
 	set.onEntityAdded.bind(this._onLightAddedFuncs[type]);
 	set.onEntityRemoved.bind(this._onLightRemovedFuncs[type]);
-	addLights(this._lights, set, name);
+	addLights(this._lights, set, componentName);
 	return set;
 };
 
@@ -84,9 +85,9 @@ FixedLightsSystem.prototype._destroySet = function(set, type)
 /**
  * @ignore
  */
-FixedLightsSystem.prototype._onLightAdded = function(lightName, entity)
+FixedLightsSystem.prototype._onLightAdded = function(compName, entity)
 {
-	var light = entity.components[lightName][0];
+	var light = entity.components[compName][0];
 	this._lights.push(light);
 	this._assignLights();
 };
@@ -151,10 +152,10 @@ function assignLights(material, lights)
 	material.init();
 }
 
-function addLights(lights, set, lightName)
+function addLights(lights, set, compName)
 {
 	for (var i = 0, len = set.numEntities; i < len; ++i) {
-		var light = set.getEntity(i).components[lightName][0];
+		var light = set.getEntity(i).components[compName][0];
 		lights.push(light);
 	}
 }

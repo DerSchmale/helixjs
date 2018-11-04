@@ -144,6 +144,6 @@ DirectionalLight.prototype.clone = function()
 	return clone;
 };
 
-Component.register("directionalLight", DirectionalLight);
+Component.register("light", DirectionalLight);
 
 export { DirectionalLight };

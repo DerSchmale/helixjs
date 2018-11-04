@@ -167,6 +167,6 @@ SpotLight.prototype.clone = function()
 	return clone;
 };
 
-Component.register("spotLight", SpotLight);
+Component.register("light", SpotLight);
 
 export { SpotLight };

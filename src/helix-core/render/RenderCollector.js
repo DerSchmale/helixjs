@@ -82,41 +82,101 @@ RenderCollector.prototype.qualifies = function(object, forceBounds)
     return object.hierarchyVisible && (forceBounds || object.worldBounds.intersectsConvexSolid(this._frustumPlanes, 6));
 };
 
-RenderCollector.prototype.visitScene = function (scene)
+RenderCollector.prototype.visitScene = function(scene)
 {
     var skybox = scene.skybox;
     if (skybox)
         this.visitMeshInstance(skybox._meshInstance);
 };
 
-RenderCollector.prototype.visitEffect = function(effect)
+RenderCollector.prototype.visitEntity = function(entity)
 {
-	this.needsNormalDepth = this.needsNormalDepth || effect.needsNormalDepth;
-    this.effects.push(effect);
+	var i, len;
+	var comps = entity.components;
+	var effects = comps.effect;
+	var ambientLights = comps.ambientLight;
+	var lights = comps.light;
+	var lightProbes = comps.lightProbe;
+	var instances = comps.meshInstance;
+
+	if (instances || lightProbes) {
+		var worldBounds = this.getProxiedBounds(entity);
+		var center = worldBounds.center;
+		var cameraPos = this._cameraPos;
+		var cameraPos_X = cameraPos.x, cameraPos_Y = cameraPos.y, cameraPos_Z = cameraPos.z;
+		var dx = center.x - cameraPos_X, dy = center.y - cameraPos_Y, dz = center.z - cameraPos_Z;
+		var distSqr = dx * dx + dy * dy + dz * dz;
+	}
+
+	if (effects) {
+		len = effects.length;
+		for (i = 0; i < len; ++i) {
+			var effect = effects[i];
+			if (!effect.enabled) continue;
+			this.needsNormalDepth = this.needsNormalDepth || effect.needsNormalDepth;
+			this.effects.push(effect);
+		}
+	}
+
+	if (ambientLights) {
+		var ambientColor = this.ambientColor;
+		len = ambientLights.length;
+		for (i = 0; i < len; ++i) {
+			var light = ambientLights[i];
+			if (!light.enabled) continue;
+			var color = light._scaledIrradiance;
+			ambientColor.r += color.r;
+			ambientColor.g += color.g;
+			ambientColor.b += color.b;
+		}
+	}
+
+	if (lights) {
+		len = lights.length;
+		for (i = 0; i < len; ++i) {
+			light = lights[i];
+			if (light.enabled)
+				this.visitLight(light);
+		}
+	}
+
+	if (lightProbes) {
+		len = lightProbes.length;
+		for (i = 0; i < len; ++i) {
+			light = lightProbes[i];
+			if (!light.enabled) continue;
+			light._renderOrderHint = distSqr;
+
+			if (light.diffuseSH)
+				this.diffuseProbes.push(light);
+
+			if (light.specularTexture)
+				this.specularProbes.push(light);
+		}
+	}
+
+	if (instances) {
+		len = instances.length;
+
+		var worldMatrix = this.getProxiedMatrix(entity);
+
+
+		for (i = 0; i < len; ++i) {
+			var instance = instances[i];
+			if (instance.enabled && distSqr >= instance._lodRangeStartSqr && distSqr < instance._lodRangeEndSqr)
+				this.visitMeshInstance(instance, worldMatrix, worldBounds, distSqr);
+		}
+	}
 };
 
-RenderCollector.prototype.visitMeshInstance = function (meshInstance)
+RenderCollector.prototype.visitMeshInstance = function (meshInstance, worldMatrix, worldBounds, renderOrderHint)
 {
-	if (!meshInstance.enabled) return;
-
-	var entity = meshInstance.entity;
-	var worldBounds = this.getProxiedBounds(entity);
-    var cameraPos = this._cameraPos;
-	var center = worldBounds.center;
-	var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);
-	var distSqr = dx * dx + dy * dy + dz * dz;
-
-	if (distSqr < meshInstance._lodRangeStartSqr || distSqr > meshInstance._lodRangeEndSqr)
-	    return;
-
     var skeleton = meshInstance.skeleton;
     var skeletonMatrices = meshInstance.skeletonMatrices;
     var renderPool = this._renderItemPool;
     var opaqueLists = this._opaques;
     var transparentList = this._transparents;
-
     var material = meshInstance.material;
-
     var path = material.renderPath;
 
     // only required for the default lighting model (if not unlit)
@@ -129,9 +189,8 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance)
     renderItem.meshInstance = meshInstance;
     renderItem.skeleton = skeleton;
     renderItem.skeletonMatrices = skeletonMatrices;
-    // distance along Z axis:
-    renderItem.renderOrderHint = distSqr;
-    renderItem.worldMatrix = this.getProxiedMatrix(entity);
+    renderItem.renderOrderHint = renderOrderHint;
+    renderItem.worldMatrix = worldMatrix;
     renderItem.worldBounds = worldBounds;
 
     var bucket = (material.blendState || material.needsBackbuffer)? transparentList : opaqueLists[path];
@@ -143,37 +202,10 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance)
 	_glStats.numTriangles += numTris;
 };
 
-RenderCollector.prototype.visitMeshBatch = RenderCollector.prototype.visitMeshInstance;
-
-RenderCollector.prototype.visitAmbientLight = function(light)
-{
-    var color = light._scaledIrradiance;
-    this.ambientColor.r += color.r;
-    this.ambientColor.g += color.g;
-    this.ambientColor.b += color.b;
-};
-
-RenderCollector.prototype.visitLightProbe = function(probe)
-{
-	var cameraYAxis = this._cameraYAxis;
-	var cameraPos = this._cameraPos;
-	var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
-	var cameraPos_X = cameraPos.x, cameraPos_Y = cameraPos.y, cameraPos_Z = cameraPos.z;
-	var worldBounds = this.getProxiedBounds(probe.entity);
-	var center = worldBounds.center;
-
-	probe._renderOrderHint = (center.x - cameraPos_X) * cameraY_X + (center.y - cameraPos_Y) * cameraY_Y + (center.z - cameraPos_Z) * cameraY_Z;
-
-	if (probe.diffuseSH)
-        this.diffuseProbes.push(probe);
-
-    if (probe.specularTexture)
-        this.specularProbes.push(probe);
-};
-
 RenderCollector.prototype.visitLight = function(light)
 {
     this.lights.push(light);
+
     if (light.castShadows) {
         this.shadowCasters.push(light);
         this.numShadowPlanes += light.numAtlasPlanes;

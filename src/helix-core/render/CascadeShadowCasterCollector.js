@@ -18,7 +18,6 @@ function CascadeShadowCasterCollector()
 {
     SceneVisitor.call(this);
     this._renderCameras = null;
-    this._cameraYAxis = new Float4();
 	this._viewCameraPos = new Float4();
     this._bounds = new BoundingAABB();
     this._cullPlanes = null;
@@ -34,7 +33,6 @@ CascadeShadowCasterCollector.prototype.getRenderList = function(index) { return 
 CascadeShadowCasterCollector.prototype.collect = function(camera, scene, viewCamera)
 {
     this.reset();
-	camera.worldMatrix.getColumn(1, this._cameraYAxis);
 	viewCamera.worldMatrix.getColumn(3, this._viewCameraPos);
 
     this._renderItemPool.reset();
@@ -66,39 +64,37 @@ CascadeShadowCasterCollector.prototype.setCullPlanes = function(cullPlanes, numP
     this._numCullPlanes = numPlanes;
 };
 
-CascadeShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
+CascadeShadowCasterCollector.prototype.visitEntity = function(entity)
 {
-	if (!meshInstance.castShadows || !meshInstance.enabled)
-		return;
+	var meshInstances = entity.components.meshInstance;
 
-	var lodStart = meshInstance._lodRangeStartSqr;
-	var lodEnd = meshInstance._lodRangeEndSqr;
-	var entity = meshInstance.entity;
-	var worldBounds = this.getProxiedBounds(entity);
-	var center = worldBounds._center;
-
-	if (lodStart > 0 || lodEnd !== Number.POSITIVE_INFINITY) {
-		lodStart = lodStart || Number.NEGATIVE_INFINITY;
-
+	if (meshInstances) {
+		var worldBounds = this.getProxiedBounds(entity);
+		var worldMatrix = this.getProxiedMatrix(entity);
+		var center = worldBounds._center;
 		var cameraPos = this._viewCameraPos;
 		var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);
-		var distSqr = dx * dx + dy * dy + dz * dz;
+		var lodDistSqr = dx * dx + dy * dy + dz * dz;
 
-		if (distSqr < lodStart || distSqr > lodEnd)
-			return;
+		if (worldBounds.expanse === BoundingVolume.EXPANSE_FINITE)
+			this._bounds.growToIncludeBound(worldBounds);
+
+		for (var i = 0, len = meshInstances.length; i < len; ++i) {
+			var instance = meshInstances[i];
+
+			if (instance.enabled && instance.castShadows && lodDistSqr >= instance._lodRangeStartSqr && lodDistSqr < instance._lodRangeEndSqr)
+				this.visitMeshInstance(instance, worldMatrix, worldBounds, lodDistSqr);
+		}
 	}
+};
 
+CascadeShadowCasterCollector.prototype.visitMeshInstance = function(meshInstance, worldMatrix, worldBounds, renderOrderHint)
+{
 	var skeleton = meshInstance.skeleton;
 	var skeletonMatrices = meshInstance.skeletonMatrices;
 
     var passIndex = MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS;
     var numCascades = META.OPTIONS.numShadowCascades;
-    var cameraYAxis = this._cameraYAxis;
-    var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
-
-    // don't grow for "infinite" meshes
-    if (worldBounds.expanse === BoundingVolume.EXPANSE_FINITE)
-		this._bounds.growToIncludeBound(worldBounds);
 
     for (var cascade = 0; cascade < numCascades; ++cascade) {
         var renderList = this._renderList[cascade];
@@ -113,11 +109,11 @@ CascadeShadowCasterCollector.prototype.visitMeshInstance = function (meshInstanc
                 var renderItem = this._renderItemPool.getItem();
                 renderItem.pass = material.getPass(passIndex);
                 renderItem.meshInstance = meshInstance;
-                renderItem.worldMatrix = this.getProxiedMatrix(entity);
+                renderItem.worldMatrix = worldMatrix;
                 renderItem.material = material;
                 renderItem.skeleton = skeleton;
                 renderItem.skeletonMatrices = skeletonMatrices;
-                renderItem.renderOrderHint = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
+                renderItem.renderOrderHint = renderOrderHint;
                 renderItem.worldBounds = worldBounds;
 
                 renderList.push(renderItem);
@@ -125,8 +121,6 @@ CascadeShadowCasterCollector.prototype.visitMeshInstance = function (meshInstanc
         }
     }
 };
-
-CascadeShadowCasterCollector.prototype.visitMeshBatch = CascadeShadowCasterCollector.prototype.visitMeshInstance;
 
 CascadeShadowCasterCollector.prototype.qualifiesBounds = function(bounds)
 {

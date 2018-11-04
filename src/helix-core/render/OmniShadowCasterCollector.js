@@ -65,29 +65,29 @@ OmniShadowCasterCollector.prototype.collect = function(camera, scene, viewCamera
         this._renderLists[i].sort(RenderSortFunctions.sortOpaques);
 };
 
-OmniShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
+OmniShadowCasterCollector.prototype.visitEntity = function(entity)
 {
-	if (!meshInstance.castShadows || !meshInstance.enabled)
-		return;
+	var meshInstances = entity.components.meshInstance;
 
-	// 0 means always visible
-	var lodStart = meshInstance._lodRangeStartSqr;
-	var lodEnd = meshInstance._lodRangeEndSqr;
-	var entity = meshInstance.entity;
-	var worldBounds = this.getProxiedBounds(entity);
-
-	if (lodStart > 0 || lodEnd !== Number.POSITIVE_INFINITY) {
-		lodStart = lodStart || Number.NEGATIVE_INFINITY;
+	if (meshInstances) {
+		var worldBounds = this.getProxiedBounds(entity);
+		var worldMatrix = this.getProxiedMatrix(entity);
+		var center = worldBounds._center;
 		var cameraPos = this._viewCameraPos;
-		var center = worldBounds.center;
 		var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);
-		var distSqr = dx * dx + dy * dy + dz * dz;
+		var lodDistSqr = dx * dx + dy * dy + dz * dz;
 
-		if (distSqr < lodStart || distSqr > lodEnd)
-			return;
+		for (var i = 0, len = meshInstances.length; i < len; ++i) {
+			var instance = meshInstances[i];
+
+			if (instance.enabled && instance.castShadows && lodDistSqr >= instance._lodRangeStartSqr && lodDistSqr < instance._lodRangeEndSqr)
+				this.visitMeshInstance(instance, worldMatrix, worldBounds, lodDistSqr);
+		}
 	}
+};
 
-	var worldMatrix = this.getProxiedMatrix(entity);
+OmniShadowCasterCollector.prototype.visitMeshInstance = function(meshInstance, worldMatrix, worldBounds, renderOrderHint)
+{
     // basically, this does 6 frustum tests at once
     var planes = this._octantPlanes;
     var side0 = worldBounds.classifyAgainstPlane(planes[0]);
@@ -98,33 +98,30 @@ OmniShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
     var side5 = worldBounds.classifyAgainstPlane(planes[5]);
 
     if (side1 >= 0 && side2 <= 0 && side4 >= 0 && side5 <= 0)
-        this._addTo(meshInstance, 0, worldBounds, worldMatrix);
+        this._addTo(meshInstance, 0, worldBounds, worldMatrix, renderOrderHint);
 
     if (side1 <= 0 && side2 >= 0 && side4 <= 0 && side5 >= 0)
-        this._addTo(meshInstance, 1, worldBounds, worldMatrix);
+        this._addTo(meshInstance, 1, worldBounds, worldMatrix, renderOrderHint);
 
     if (side0 >= 0 && side3 <= 0 && side4 >= 0 && side5 >= 0)
-        this._addTo(meshInstance, 2, worldBounds, worldMatrix);
+        this._addTo(meshInstance, 2, worldBounds, worldMatrix, renderOrderHint);
 
     if (side0 <= 0 && side3 >= 0 && side4 <= 0 && side5 <= 0)
-        this._addTo(meshInstance, 3, worldBounds, worldMatrix);
+        this._addTo(meshInstance, 3, worldBounds, worldMatrix, renderOrderHint);
 
     if (side0 <= 0 && side1 <= 0 && side2 <= 0 && side3 <= 0)
-        this._addTo(meshInstance, 4, worldBounds, worldMatrix);
+        this._addTo(meshInstance, 4, worldBounds, worldMatrix, renderOrderHint);
 
     if (side0 >= 0 && side1 >= 0 && side2 >= 0 && side3 >= 0)
-        this._addTo(meshInstance, 5, worldBounds, worldMatrix);
+        this._addTo(meshInstance, 5, worldBounds, worldMatrix, renderOrderHint);
 };
 
-OmniShadowCasterCollector.prototype.visitMeshBatch = OmniShadowCasterCollector.prototype.visitMeshInstance;
-
-OmniShadowCasterCollector.prototype._addTo = function(meshInstance, cubeFace, worldBounds, worldMatrix)
+OmniShadowCasterCollector.prototype._addTo = function(meshInstance, cubeFace, worldBounds, worldMatrix, renderOrderHint)
 {
     var skeleton = meshInstance.skeleton;
     var skeletonMatrices = meshInstance.skeletonMatrices;
     var renderPool = this._renderItemPool;
-    var camPos = this._cameraPos;
-    var camPosX = camPos.x, camPosY = camPos.y, camPosZ = camPos.z;
+
     var renderList = this._renderLists[cubeFace];
     var material = meshInstance.material;
     var renderItem = renderPool.getItem();
@@ -133,11 +130,8 @@ OmniShadowCasterCollector.prototype._addTo = function(meshInstance, cubeFace, wo
     renderItem.meshInstance = meshInstance;
     renderItem.skeleton = skeleton;
     renderItem.skeletonMatrices = skeletonMatrices;
-    var center = worldBounds._center;
-    var dx = camPosX - center.x;
-    var dy = camPosY - center.y;
-    var dz = camPosZ - center.z;
-    renderItem.renderOrderHint = dx * dx + dy * dy + dz * dz;
+
+    renderItem.renderOrderHint = renderOrderHint;
     renderItem.worldMatrix = worldMatrix;
     renderItem.worldBounds = worldBounds;
 

@@ -171,8 +171,6 @@ function initTerrain(heightMap, terrainMap)
 	var scene = project.scene;
 	var assetLibrary = project.assetLibrary;
 
-	terrain = new HX.Entity();
-
 	// in our material
 	// red = beach
 	// green = rock
@@ -185,7 +183,7 @@ function initTerrain(heightMap, terrainMap)
 	terrainMaterial.renderOrder = -10;
 
 	var subdiv = HX.Platform.isMobile? 32 : 128;
-	terrain.addComponent(new HX.Terrain(heightMap, camera.farDistance * 2.5, worldSize, minHeight, maxHeight, terrainMaterial, subdiv));
+	terrain = new HX.Terrain(heightMap, camera.farDistance * 2.5, worldSize, minHeight, maxHeight, terrainMaterial, subdiv);
 
 	if (physics) {
 		var rigidBody = new HX_PHYS.RigidBody(

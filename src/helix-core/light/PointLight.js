@@ -2,6 +2,7 @@ import {DirectLight} from "./DirectLight";
 import {BoundingSphere} from "../scene/BoundingSphere";
 import {Float4} from "../math/Float4";
 import {Component} from "../entity/Component";
+import {DirectionalLight} from "./DirectionalLight";
 
 /**
  * @classdesc
@@ -104,6 +105,6 @@ PointLight.prototype.clone = function()
 	return clone;
 };
 
-Component.register("pointLight", PointLight);
+Component.register("light", PointLight);
 
 export { PointLight };

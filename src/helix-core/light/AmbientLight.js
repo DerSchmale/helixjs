@@ -22,14 +22,6 @@ function AmbientLight()
 
 AmbientLight.prototype = Object.create(Light.prototype);
 
-/**
- * @ignore
- */
-AmbientLight.prototype.acceptVisitor = function (visitor)
-{
-    visitor.visitAmbientLight(this);
-};
-
 AmbientLight.prototype._updateBounds = function()
 {
 	this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);

@@ -15887,18 +15887,13 @@
 	Component.COMPONENT_ID = 0;
 
 	var COUNTER = 0;
-	var componentMap = {};
 
 	Component.register = function(name, classRef)
 	{
-		if (componentMap.hasOwnProperty(name))
-			throw new Error("A component with the name " + name + " was already registered!");
-
 		classRef.COMPONENT_ID = ++COUNTER;
 		classRef.COMPONENT_NAME = name;
 		classRef.prototype.COMPONENT_ID = classRef.COMPONENT_ID;
 		classRef.prototype.COMPONENT_NAME = classRef.COMPONENT_NAME;
-		componentMap[name] = classRef;
 	};
 
 	Component.prototype =
@@ -16309,14 +16304,6 @@
 	MeshInstance.prototype.toString = function()
 	{
 		return "[MeshInstance(mesh=" + this._mesh.name + ")]";
-	};
-
-	/**
-	 * @ignore
-	 */
-	MeshInstance.prototype.acceptVisitor = function(visitor)
-	{
-		visitor.visitMeshInstance(this);
 	};
 
 	/**
@@ -16814,20 +16801,6 @@
 	/**
 	 * @ignore
 	 */
-	Entity.prototype.acceptVisitor = function(visitor, isMainCollector)
-	{
-		var components = this._components;
-		for (var i = 0, len = components.length; i < len; ++i) {
-			var component = components[i];
-			if (component.acceptVisitor && component.enabled) {
-				component.acceptVisitor(visitor, isMainCollector);
-			}
-		}
-	};
-
-	/**
-	 * @ignore
-	 */
 	Entity.prototype.copyFrom = function(src)
 	{
 		SceneNode.prototype.copyFrom.call(this, src);
@@ -16893,6 +16866,14 @@
 				comp.morphPose = value;
 			}
 		}
+	};
+
+	/**
+	 * @ignore
+	 */
+	Entity.prototype.acceptVisitor = function(visitor)
+	{
+		visitor.visitEntity(this);
 	};
 
 	/**
@@ -17011,11 +16992,6 @@
 	}
 
 	DirectLight.prototype = Object.create(Light.prototype);
-
-	DirectLight.prototype.acceptVisitor = function (visitor)
-	{
-	    visitor.visitLight(this);
-	};
 
 	DirectLight.prototype._updateScaledIrradiance = function ()
 	{
@@ -17180,7 +17156,7 @@
 		return clone;
 	};
 
-	Component.register("directionalLight", DirectionalLight);
+	Component.register("light", DirectionalLight);
 
 	/**
 	 * @classdesc
@@ -17632,7 +17608,7 @@
 		return clone;
 	};
 
-	Component.register("pointLight", PointLight);
+	Component.register("light", PointLight);
 
 	/**
 	 * @classdesc
@@ -17795,7 +17771,7 @@
 		return clone;
 	};
 
-	Component.register("spotLight", SpotLight);
+	Component.register("light", SpotLight);
 
 	/**
 	 * @classdesc
@@ -17861,14 +17837,6 @@
 	        }
 	    });
 
-
-	/**
-	 * ignore
-	 */
-	LightProbe.prototype.acceptVisitor = function (visitor)
-	{
-	    visitor.visitLightProbe(this);
-	};
 
 	LightProbe.prototype.clone = function()
 	{
@@ -20169,15 +20137,6 @@
 	        return this._entities[index];
 	    },
 
-
-	    /**
-	     * @ignore
-	     */
-	    _containsComponentHash: function(bitfield)
-	    {
-	        this._hash.contains(bitfield);
-	    },
-
 	    /**
 	     * @ignore
 	     */
@@ -20376,7 +20335,7 @@
 	 * Scene forms the base to contain the entire scene graph. It contains a hierarchical structure including
 	 * {@linknode Entity}, lights, cameras, etc.
 	 *
-	 * @param {SceneNode} [rootNode] An optional scene node to use as a root. Useful if an entire scene hierarchy was already loaded.
+	 * @param {Entity} [rootNode] An optional scene node to use as a root. Useful if an entire scene hierarchy was already loaded.
 	 *
 	 * @constructor
 	 *
@@ -20532,14 +20491,6 @@
 	    },
 
 	    /**
-	     * The bounding volume for the entire scene in world coordinates.
-	     */
-	    get worldBounds()
-	    {
-	        return this._rootNode.worldBounds;
-	    },
-
-	    /**
 	     * Applies a function recursively to all child nodes.
 	     * @param func The function to call (using the traversed node as argument)
 	     */
@@ -20617,13 +20568,8 @@
 
 	    qualifiesBounds: function(bounds) {},
 	    qualifies: function(object) {},
-	    visitLightProbe: function(probe) {},
-	    visitLight: function(light) {},
-	    visitAmbientLight: function(light) {},
-		visitMeshInstance: function (meshInstance) {},
-		visitMeshBatch: function (meshBatch) {},    // most implementations will simply use visitMeshInstance for this
+	    visitEntity: function (entity) {},
 	    visitScene: function (scene) {},
-	    visitEffect: function(effect) {},
 
 	    // used for EntityProxy transforms
 	    pushProxy: function(proxy)
@@ -21446,15 +21392,6 @@
 	};
 
 	/**
-	 * @ignore
-	 */
-	MeshBatch.prototype.acceptVisitor = function(visitor)
-	{
-		if (this._numInstances)
-			visitor.visitMeshBatch(this);
-	};
-
-	/**
 	 * @inheritDoc
 	 */
 	MeshBatch.prototype.updateRenderState = function(passType)
@@ -21808,10 +21745,8 @@
 	 */
 	function Terrain(heightMap, terrainSize, worldSize, minElevation, maxElevation, material, subdivisions)
 	{
-	    Component.call(this);
+	    Entity.call(this);
 
-	    this._bounds = new BoundingAABB();
-	    this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
 	    this._terrainSize = terrainSize;
 	    this._minElevation = minElevation;
 	    this._maxElevation = maxElevation;
@@ -21819,6 +21754,7 @@
 	    // we use the extra container so the Terrain.position remains constant, so we can reliably translate and use rigid body components
 	    this._container = new SceneNode();
 	    this._subdivisions = subdivisions || 32;
+		this.ignoreSpatialPartition = true;
 
 	    // will be defined when we're generating meshes
 	    // this._snapSize = undefined;
@@ -21840,29 +21776,13 @@
 	}
 
 	// TODO: Allow setting material
-	Terrain.prototype = Object.create(Component.prototype, {
+	Terrain.prototype = Object.create(Entity.prototype, {
 	    terrainSize: {
 	        get: function() {
 	            return this._terrainSize;
 	        }
 	    }
 	});
-
-	/**
-	 * @ignore
-	 */
-	Terrain.prototype.onAdded = function()
-	{
-	    this.entity.attach(this._container);
-	};
-
-	/**
-	 * @ignore
-	 */
-	Terrain.prototype.onRemoved = function()
-	{
-		this.entity.detach(this._container);
-	};
 
 	Terrain.prototype._createLODMesh = function(patchSize, texelSize, isFinal)
 	{
@@ -22008,7 +21928,6 @@
 		entity.addComponent(meshInstance);
 
 		// always add this to the partition's root node
-		entity.ignoreSpatialPartition = true;
 		entity.position.x = x;
 		entity.position.y = y;
 		entity.euler.z = rot * Math.PI * .5;
@@ -22023,12 +21942,18 @@
 	    if (isMainCollector) {
 			var cameraPos = visitor._camera.position;
 			var containerPos = this._container.position;
-			var entityPosition = this.entity.position;
+			var entityPosition = this.position;
 			containerPos.x = cameraPos.x - entityPosition.x;
 			containerPos.y = cameraPos.y - entityPosition.y;
 			// containerPos.x = Math.round(cameraPos.x / this._snapSize) * this._snapSize - entityPosition.x;
 			// containerPos.y = Math.round(cameraPos.y / this._snapSize) * this._snapSize - entityPosition.y;
 	    }
+
+	    for (var i = 0, len = this._container.numChildren; i < len; ++i) {
+	    	var entity = this._container.getChild(i);
+	    	if (visitor.qualifies(entity))
+	    		visitor.visitEntity(entity);
+		}
 	};
 
 	/**
@@ -22039,7 +21964,11 @@
 	    return new Terrain(this._heightMap, this._terrainSize, this._worldSize, this._minElevation, this._maxElevation, this._material, this._subdivisions);
 	};
 
-	Component.register("terrain", Terrain);
+	Terrain.prototype._updateBounds = function()
+	{
+		console.log("update bounds");
+		this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
+	};
 
 	/**
 	 * @classdesc
@@ -25915,11 +25844,6 @@
 	Effect.prototype._swapHDRFrontAndBack = function()
 	{
 	    this._renderer._swapHDRFrontAndBack();
-	};
-
-	Effect.prototype.acceptVisitor = function(visitor)
-	{
-		visitor.visitEffect(this);
 	};
 
 	Component.register("effect", Effect);
@@ -29966,14 +29890,6 @@
 
 	AmbientLight.prototype = Object.create(Light.prototype);
 
-	/**
-	 * @ignore
-	 */
-	AmbientLight.prototype.acceptVisitor = function (visitor)
-	{
-	    visitor.visitAmbientLight(this);
-	};
-
 	AmbientLight.prototype._updateBounds = function()
 	{
 		this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
@@ -31152,7 +31068,8 @@
 	/**
 	 * @classdesc
 	 *
-	 * FixedLightsSystem is System that automatically assigns all lights in a scene to all materials in the scene.
+	 * FixedLightsSystem is System that automatically assigns all lights in a scene to all materials in the scene. This
+	 * system assumes each Entity only has one light component assigned to each.
 	 *
 	 * @constructor
 	 *
@@ -31176,9 +31093,9 @@
 		this._lights = [];
 		this._meshSet = this.getEntitySet([MeshInstance]);
 		this._meshSet.onEntityAdded.bind(this._onMeshInstanceAdded, this);
-		this._pointSet = this._initSet(PointLight, "pointLight");
-		this._spotSet = this._initSet(SpotLight, "spotLight");
-		this._dirSet = this._initSet(DirectionalLight, "directionalLight");
+		this._pointSet = this._initSet(PointLight, "light");
+		this._spotSet = this._initSet(SpotLight, "light");
+		this._dirSet = this._initSet(DirectionalLight, "light");
 		this._probeSet = this._initSet(LightProbe, "lightProbe");
 		this._assignLights();
 	};
@@ -31201,14 +31118,14 @@
 	 * @ignore
 	 * @private
 	 */
-	FixedLightsSystem.prototype._initSet = function(type, name)
+	FixedLightsSystem.prototype._initSet = function(type, componentName)
 	{
 		var set = this.getEntitySet([type]);
-		this._onLightAddedFuncs[type] = this._onLightAdded.bind(this, name);
-		this._onLightRemovedFuncs[type] = this._onLightRemoved.bind(this, name);
+		this._onLightAddedFuncs[type] = this._onLightAdded.bind(this, componentName);
+		this._onLightRemovedFuncs[type] = this._onLightRemoved.bind(this, componentName);
 		set.onEntityAdded.bind(this._onLightAddedFuncs[type]);
 		set.onEntityRemoved.bind(this._onLightRemovedFuncs[type]);
-		addLights(this._lights, set, name);
+		addLights(this._lights, set, componentName);
 		return set;
 	};
 
@@ -31227,9 +31144,9 @@
 	/**
 	 * @ignore
 	 */
-	FixedLightsSystem.prototype._onLightAdded = function(lightName, entity)
+	FixedLightsSystem.prototype._onLightAdded = function(compName, entity)
 	{
-		var light = entity.components[lightName][0];
+		var light = entity.components[compName][0];
 		this._lights.push(light);
 		this._assignLights();
 	};
@@ -31294,10 +31211,10 @@
 		material.init();
 	}
 
-	function addLights(lights, set, lightName)
+	function addLights(lights, set, compName)
 	{
 		for (var i = 0, len = set.numEntities; i < len; ++i) {
-			var light = set.getEntity(i).components[lightName][0];
+			var light = set.getEntity(i).components[compName][0];
 			lights.push(light);
 		}
 	}
@@ -32392,41 +32309,101 @@
 	    return object.hierarchyVisible && (forceBounds || object.worldBounds.intersectsConvexSolid(this._frustumPlanes, 6));
 	};
 
-	RenderCollector.prototype.visitScene = function (scene)
+	RenderCollector.prototype.visitScene = function(scene)
 	{
 	    var skybox = scene.skybox;
 	    if (skybox)
 	        this.visitMeshInstance(skybox._meshInstance);
 	};
 
-	RenderCollector.prototype.visitEffect = function(effect)
+	RenderCollector.prototype.visitEntity = function(entity)
 	{
-		this.needsNormalDepth = this.needsNormalDepth || effect.needsNormalDepth;
-	    this.effects.push(effect);
+		var i, len;
+		var comps = entity.components;
+		var effects = comps.effect;
+		var ambientLights = comps.ambientLight;
+		var lights = comps.light;
+		var lightProbes = comps.lightProbe;
+		var instances = comps.meshInstance;
+
+		if (instances || lightProbes) {
+			var worldBounds = this.getProxiedBounds(entity);
+			var center = worldBounds.center;
+			var cameraPos = this._cameraPos;
+			var cameraPos_X = cameraPos.x, cameraPos_Y = cameraPos.y, cameraPos_Z = cameraPos.z;
+			var dx = center.x - cameraPos_X, dy = center.y - cameraPos_Y, dz = center.z - cameraPos_Z;
+			var distSqr = dx * dx + dy * dy + dz * dz;
+		}
+
+		if (effects) {
+			len = effects.length;
+			for (i = 0; i < len; ++i) {
+				var effect = effects[i];
+				if (!effect.enabled) continue;
+				this.needsNormalDepth = this.needsNormalDepth || effect.needsNormalDepth;
+				this.effects.push(effect);
+			}
+		}
+
+		if (ambientLights) {
+			var ambientColor = this.ambientColor;
+			len = ambientLights.length;
+			for (i = 0; i < len; ++i) {
+				var light = ambientLights[i];
+				if (!light.enabled) continue;
+				var color = light._scaledIrradiance;
+				ambientColor.r += color.r;
+				ambientColor.g += color.g;
+				ambientColor.b += color.b;
+			}
+		}
+
+		if (lights) {
+			len = lights.length;
+			for (i = 0; i < len; ++i) {
+				light = lights[i];
+				if (light.enabled)
+					this.visitLight(light);
+			}
+		}
+
+		if (lightProbes) {
+			len = lightProbes.length;
+			for (i = 0; i < len; ++i) {
+				light = lightProbes[i];
+				if (!light.enabled) continue;
+				light._renderOrderHint = distSqr;
+
+				if (light.diffuseSH)
+					this.diffuseProbes.push(light);
+
+				if (light.specularTexture)
+					this.specularProbes.push(light);
+			}
+		}
+
+		if (instances) {
+			len = instances.length;
+
+			var worldMatrix = this.getProxiedMatrix(entity);
+
+
+			for (i = 0; i < len; ++i) {
+				var instance = instances[i];
+				if (instance.enabled && distSqr >= instance._lodRangeStartSqr && distSqr < instance._lodRangeEndSqr)
+					this.visitMeshInstance(instance, worldMatrix, worldBounds, distSqr);
+			}
+		}
 	};
 
-	RenderCollector.prototype.visitMeshInstance = function (meshInstance)
+	RenderCollector.prototype.visitMeshInstance = function (meshInstance, worldMatrix, worldBounds, renderOrderHint)
 	{
-		if (!meshInstance.enabled) return;
-
-		var entity = meshInstance.entity;
-		var worldBounds = this.getProxiedBounds(entity);
-	    var cameraPos = this._cameraPos;
-		var center = worldBounds.center;
-		var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);
-		var distSqr = dx * dx + dy * dy + dz * dz;
-
-		if (distSqr < meshInstance._lodRangeStartSqr || distSqr > meshInstance._lodRangeEndSqr)
-		    return;
-
 	    var skeleton = meshInstance.skeleton;
 	    var skeletonMatrices = meshInstance.skeletonMatrices;
 	    var renderPool = this._renderItemPool;
 	    var opaqueLists = this._opaques;
 	    var transparentList = this._transparents;
-
 	    var material = meshInstance.material;
-
 	    var path = material.renderPath;
 
 	    // only required for the default lighting model (if not unlit)
@@ -32439,9 +32416,8 @@
 	    renderItem.meshInstance = meshInstance;
 	    renderItem.skeleton = skeleton;
 	    renderItem.skeletonMatrices = skeletonMatrices;
-	    // distance along Z axis:
-	    renderItem.renderOrderHint = distSqr;
-	    renderItem.worldMatrix = this.getProxiedMatrix(entity);
+	    renderItem.renderOrderHint = renderOrderHint;
+	    renderItem.worldMatrix = worldMatrix;
 	    renderItem.worldBounds = worldBounds;
 
 	    var bucket = (material.blendState || material.needsBackbuffer)? transparentList : opaqueLists[path];
@@ -32453,37 +32429,10 @@
 		_glStats.numTriangles += numTris;
 	};
 
-	RenderCollector.prototype.visitMeshBatch = RenderCollector.prototype.visitMeshInstance;
-
-	RenderCollector.prototype.visitAmbientLight = function(light)
-	{
-	    var color = light._scaledIrradiance;
-	    this.ambientColor.r += color.r;
-	    this.ambientColor.g += color.g;
-	    this.ambientColor.b += color.b;
-	};
-
-	RenderCollector.prototype.visitLightProbe = function(probe)
-	{
-		var cameraYAxis = this._cameraYAxis;
-		var cameraPos = this._cameraPos;
-		var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
-		var cameraPos_X = cameraPos.x, cameraPos_Y = cameraPos.y, cameraPos_Z = cameraPos.z;
-		var worldBounds = this.getProxiedBounds(probe.entity);
-		var center = worldBounds.center;
-
-		probe._renderOrderHint = (center.x - cameraPos_X) * cameraY_X + (center.y - cameraPos_Y) * cameraY_Y + (center.z - cameraPos_Z) * cameraY_Z;
-
-		if (probe.diffuseSH)
-	        this.diffuseProbes.push(probe);
-
-	    if (probe.specularTexture)
-	        this.specularProbes.push(probe);
-	};
-
 	RenderCollector.prototype.visitLight = function(light)
 	{
 	    this.lights.push(light);
+
 	    if (light.castShadows) {
 	        this.shadowCasters.push(light);
 	        this.numShadowPlanes += light.numAtlasPlanes;
@@ -32789,7 +32738,6 @@
 	{
 	    SceneVisitor.call(this);
 	    this._renderCameras = null;
-	    this._cameraYAxis = new Float4();
 		this._viewCameraPos = new Float4();
 	    this._bounds = new BoundingAABB();
 	    this._cullPlanes = null;
@@ -32805,7 +32753,6 @@
 	CascadeShadowCasterCollector.prototype.collect = function(camera, scene, viewCamera)
 	{
 	    this.reset();
-		camera.worldMatrix.getColumn(1, this._cameraYAxis);
 		viewCamera.worldMatrix.getColumn(3, this._viewCameraPos);
 
 	    this._renderItemPool.reset();
@@ -32837,39 +32784,37 @@
 	    this._numCullPlanes = numPlanes;
 	};
 
-	CascadeShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
+	CascadeShadowCasterCollector.prototype.visitEntity = function(entity)
 	{
-		if (!meshInstance.castShadows || !meshInstance.enabled)
-			return;
+		var meshInstances = entity.components.meshInstance;
 
-		var lodStart = meshInstance._lodRangeStartSqr;
-		var lodEnd = meshInstance._lodRangeEndSqr;
-		var entity = meshInstance.entity;
-		var worldBounds = this.getProxiedBounds(entity);
-		var center = worldBounds._center;
-
-		if (lodStart > 0 || lodEnd !== Number.POSITIVE_INFINITY) {
-			lodStart = lodStart || Number.NEGATIVE_INFINITY;
-
+		if (meshInstances) {
+			var worldBounds = this.getProxiedBounds(entity);
+			var worldMatrix = this.getProxiedMatrix(entity);
+			var center = worldBounds._center;
 			var cameraPos = this._viewCameraPos;
 			var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);
-			var distSqr = dx * dx + dy * dy + dz * dz;
+			var lodDistSqr = dx * dx + dy * dy + dz * dz;
 
-			if (distSqr < lodStart || distSqr > lodEnd)
-				return;
+			if (worldBounds.expanse === BoundingVolume.EXPANSE_FINITE)
+				this._bounds.growToIncludeBound(worldBounds);
+
+			for (var i = 0, len = meshInstances.length; i < len; ++i) {
+				var instance = meshInstances[i];
+
+				if (instance.enabled && instance.castShadows && lodDistSqr >= instance._lodRangeStartSqr && lodDistSqr < instance._lodRangeEndSqr)
+					this.visitMeshInstance(instance, worldMatrix, worldBounds, lodDistSqr);
+			}
 		}
+	};
 
+	CascadeShadowCasterCollector.prototype.visitMeshInstance = function(meshInstance, worldMatrix, worldBounds, renderOrderHint)
+	{
 		var skeleton = meshInstance.skeleton;
 		var skeletonMatrices = meshInstance.skeletonMatrices;
 
 	    var passIndex = MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS;
 	    var numCascades = META.OPTIONS.numShadowCascades;
-	    var cameraYAxis = this._cameraYAxis;
-	    var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
-
-	    // don't grow for "infinite" meshes
-	    if (worldBounds.expanse === BoundingVolume.EXPANSE_FINITE)
-			this._bounds.growToIncludeBound(worldBounds);
 
 	    for (var cascade = 0; cascade < numCascades; ++cascade) {
 	        var renderList = this._renderList[cascade];
@@ -32884,11 +32829,11 @@
 	                var renderItem = this._renderItemPool.getItem();
 	                renderItem.pass = material.getPass(passIndex);
 	                renderItem.meshInstance = meshInstance;
-	                renderItem.worldMatrix = this.getProxiedMatrix(entity);
+	                renderItem.worldMatrix = worldMatrix;
 	                renderItem.material = material;
 	                renderItem.skeleton = skeleton;
 	                renderItem.skeletonMatrices = skeletonMatrices;
-	                renderItem.renderOrderHint = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
+	                renderItem.renderOrderHint = renderOrderHint;
 	                renderItem.worldBounds = worldBounds;
 
 	                renderList.push(renderItem);
@@ -32896,8 +32841,6 @@
 	        }
 	    }
 	};
-
-	CascadeShadowCasterCollector.prototype.visitMeshBatch = CascadeShadowCasterCollector.prototype.visitMeshInstance;
 
 	CascadeShadowCasterCollector.prototype.qualifiesBounds = function(bounds)
 	{
@@ -33205,29 +33148,29 @@
 	        this._renderLists[i].sort(RenderSortFunctions.sortOpaques);
 	};
 
-	OmniShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
+	OmniShadowCasterCollector.prototype.visitEntity = function(entity)
 	{
-		if (!meshInstance.castShadows || !meshInstance.enabled)
-			return;
+		var meshInstances = entity.components.meshInstance;
 
-		// 0 means always visible
-		var lodStart = meshInstance._lodRangeStartSqr;
-		var lodEnd = meshInstance._lodRangeEndSqr;
-		var entity = meshInstance.entity;
-		var worldBounds = this.getProxiedBounds(entity);
-
-		if (lodStart > 0 || lodEnd !== Number.POSITIVE_INFINITY) {
-			lodStart = lodStart || Number.NEGATIVE_INFINITY;
+		if (meshInstances) {
+			var worldBounds = this.getProxiedBounds(entity);
+			var worldMatrix = this.getProxiedMatrix(entity);
+			var center = worldBounds._center;
 			var cameraPos = this._viewCameraPos;
-			var center = worldBounds.center;
 			var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);
-			var distSqr = dx * dx + dy * dy + dz * dz;
+			var lodDistSqr = dx * dx + dy * dy + dz * dz;
 
-			if (distSqr < lodStart || distSqr > lodEnd)
-				return;
+			for (var i = 0, len = meshInstances.length; i < len; ++i) {
+				var instance = meshInstances[i];
+
+				if (instance.enabled && instance.castShadows && lodDistSqr >= instance._lodRangeStartSqr && lodDistSqr < instance._lodRangeEndSqr)
+					this.visitMeshInstance(instance, worldMatrix, worldBounds, lodDistSqr);
+			}
 		}
+	};
 
-		var worldMatrix = this.getProxiedMatrix(entity);
+	OmniShadowCasterCollector.prototype.visitMeshInstance = function(meshInstance, worldMatrix, worldBounds, renderOrderHint)
+	{
 	    // basically, this does 6 frustum tests at once
 	    var planes = this._octantPlanes;
 	    var side0 = worldBounds.classifyAgainstPlane(planes[0]);
@@ -33238,33 +33181,30 @@
 	    var side5 = worldBounds.classifyAgainstPlane(planes[5]);
 
 	    if (side1 >= 0 && side2 <= 0 && side4 >= 0 && side5 <= 0)
-	        this._addTo(meshInstance, 0, worldBounds, worldMatrix);
+	        this._addTo(meshInstance, 0, worldBounds, worldMatrix, renderOrderHint);
 
 	    if (side1 <= 0 && side2 >= 0 && side4 <= 0 && side5 >= 0)
-	        this._addTo(meshInstance, 1, worldBounds, worldMatrix);
+	        this._addTo(meshInstance, 1, worldBounds, worldMatrix, renderOrderHint);
 
 	    if (side0 >= 0 && side3 <= 0 && side4 >= 0 && side5 >= 0)
-	        this._addTo(meshInstance, 2, worldBounds, worldMatrix);
+	        this._addTo(meshInstance, 2, worldBounds, worldMatrix, renderOrderHint);
 
 	    if (side0 <= 0 && side3 >= 0 && side4 <= 0 && side5 <= 0)
-	        this._addTo(meshInstance, 3, worldBounds, worldMatrix);
+	        this._addTo(meshInstance, 3, worldBounds, worldMatrix, renderOrderHint);
 
 	    if (side0 <= 0 && side1 <= 0 && side2 <= 0 && side3 <= 0)
-	        this._addTo(meshInstance, 4, worldBounds, worldMatrix);
+	        this._addTo(meshInstance, 4, worldBounds, worldMatrix, renderOrderHint);
 
 	    if (side0 >= 0 && side1 >= 0 && side2 >= 0 && side3 >= 0)
-	        this._addTo(meshInstance, 5, worldBounds, worldMatrix);
+	        this._addTo(meshInstance, 5, worldBounds, worldMatrix, renderOrderHint);
 	};
 
-	OmniShadowCasterCollector.prototype.visitMeshBatch = OmniShadowCasterCollector.prototype.visitMeshInstance;
-
-	OmniShadowCasterCollector.prototype._addTo = function(meshInstance, cubeFace, worldBounds, worldMatrix)
+	OmniShadowCasterCollector.prototype._addTo = function(meshInstance, cubeFace, worldBounds, worldMatrix, renderOrderHint)
 	{
 	    var skeleton = meshInstance.skeleton;
 	    var skeletonMatrices = meshInstance.skeletonMatrices;
 	    var renderPool = this._renderItemPool;
-	    var camPos = this._cameraPos;
-	    var camPosX = camPos.x, camPosY = camPos.y, camPosZ = camPos.z;
+
 	    var renderList = this._renderLists[cubeFace];
 	    var material = meshInstance.material;
 	    var renderItem = renderPool.getItem();
@@ -33273,11 +33213,8 @@
 	    renderItem.meshInstance = meshInstance;
 	    renderItem.skeleton = skeleton;
 	    renderItem.skeletonMatrices = skeletonMatrices;
-	    var center = worldBounds._center;
-	    var dx = camPosX - center.x;
-	    var dy = camPosY - center.y;
-	    var dz = camPosZ - center.z;
-	    renderItem.renderOrderHint = dx * dx + dy * dy + dz * dz;
+
+	    renderItem.renderOrderHint = renderOrderHint;
 	    renderItem.worldMatrix = worldMatrix;
 	    renderItem.worldBounds = worldBounds;
 
@@ -33365,6 +33302,7 @@
 		this._viewCameraPos = new Float4();
 		this._cameraYAxis = new Float4();
 	}
+
 	SpotShadowCasterCollector.prototype = Object.create(SceneVisitor.prototype);
 
 	SpotShadowCasterCollector.prototype.getRenderList = function() { return this._renderList; };
@@ -33384,28 +33322,28 @@
 	    this._renderList.sort(RenderSortFunctions.sortOpaques);
 	};
 
-	SpotShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
+	SpotShadowCasterCollector.prototype.visitEntity = function(entity)
 	{
-	    if (!meshInstance.castShadows || !meshInstance.enabled)
-	        return;
+		var meshInstances = entity.components.meshInstance;
 
-		var lodStart = meshInstance._lodRangeStartSqr;
-		var lodEnd = meshInstance._lodRangeEndSqr;
-		var entity = meshInstance.entity;
-		var worldBounds = this.getProxiedBounds(entity);
+		if (meshInstances) {
+			for (var i = 0, len = meshInstances.length; i < len; ++i) {
+				var instance = meshInstances[i];
+				var worldBounds = this.getProxiedBounds(entity);
+				var worldMatrix = this.getProxiedMatrix(entity);
+				var center = worldBounds._center;
+				var cameraPos = this._viewCameraPos;
+				var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);
+				var lodDistSqr = dx * dx + dy * dy + dz * dz;
 
-		if (lodStart > 0 || lodEnd !== Number.POSITIVE_INFINITY) {
-			lodStart = lodStart || Number.NEGATIVE_INFINITY;
-			var center = worldBounds.center;
-			var cameraPos = this._viewCameraPos;
-			var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);
-			var distSqr = dx * dx + dy * dy + dz * dz;
-
-			if (distSqr < lodStart || distSqr > lodEnd)
-				return;
+				if (instance.enabled && instance.castShadows && lodDistSqr >= instance._lodRangeStartSqr && lodDistSqr < instance._lodRangeEndSqr)
+					this.visitMeshInstance(instance, worldMatrix, worldBounds, lodDistSqr);
+			}
 		}
+	};
 
-	    var cameraYAxis = this._cameraYAxis;
+	SpotShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance, worldMatrix, worldBounds, renderOrderHint)
+	{
 	    var skeleton = meshInstance.skeleton;
 	    var skeletonMatrices = meshInstance.skeletonMatrices;
 	    var renderPool = this._renderItemPool;
@@ -33417,16 +33355,12 @@
 	    renderItem.meshInstance = meshInstance;
 	    renderItem.skeleton = skeleton;
 	    renderItem.skeletonMatrices = skeletonMatrices;
-	    // distance along Z axis:
-	    var center = worldBounds._center;
-	    renderItem.renderOrderHint = center.x * cameraYAxis.x + center.y * cameraYAxis.y + center.z * cameraYAxis.z;
-	    renderItem.worldMatrix = this.getProxiedMatrix(entity);
+	    renderItem.renderOrderHint = renderOrderHint;
+	    renderItem.worldMatrix = worldMatrix;
 	    renderItem.worldBounds = worldBounds;
 
 	    renderList.push(renderItem);
 	};
-
-	SpotShadowCasterCollector.prototype.visitMeshBatch = SpotShadowCasterCollector.prototype.visitMeshInstance;
 
 	SpotShadowCasterCollector.prototype.qualifiesBounds = function(bounds)
 	{
@@ -35043,20 +34977,32 @@
 	/**
 	 * @ignore
 	 */
-	Raycaster.prototype.visitMeshInstance = function (meshInstance)
+	Raycaster.prototype.visitEntity = function (entity)
 	{
-	    var entity = meshInstance.entity;
-	    this._addPotential(meshInstance, this.getProxiedMatrix(entity), this.getProxiedBounds(entity));
+		var instances = entity.components.meshInstance;
+		if (!instances) return;
 
+		var matrix = this.getProxiedMatrix(entity);
+		var bounds = this.getProxiedBounds(entity);
+
+		for (var i = 0, len = instances.length; i < len; ++i) {
+			var instance = instances[i];
+
+			if (!instance.enabled)
+				continue;
+
+			if (instance.numInstances === undefined)
+				this._addPotential(instance, matrix, bounds);
+			else
+				this.visitMeshBatch(instance, matrix);
+		}
 	};
 
 	var workMtx = new Matrix4x4();
 	var workBounds$1 = new BoundingAABB();
 
-	Raycaster.prototype.visitMeshBatch = function (meshBatch)
+	Raycaster.prototype.visitMeshBatch = function (meshBatch, matrix)
 	{
-		var entity = meshBatch.entity;
-		var matrix = this.getProxiedMatrix(entity);
 		var b = meshBatch.mesh.bounds;
 
 		for (var i = 0, len = meshBatch.numInstances; i < len; ++i) {

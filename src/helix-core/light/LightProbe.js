@@ -69,14 +69,6 @@ LightProbe.prototype = Object.create(Component.prototype,
     });
 
 
-/**
- * ignore
- */
-LightProbe.prototype.acceptVisitor = function (visitor)
-{
-    visitor.visitLightProbe(this);
-};
-
 LightProbe.prototype.clone = function()
 {
 	var clone = new LightProbe(this._diffuseSH, this._specularTexture);

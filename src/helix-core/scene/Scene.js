@@ -1,6 +1,5 @@
 import {Entity} from "../entity/Entity";
 import {EntityEngine} from "../entity/EntityEngine";
-import {SceneNode} from "./SceneNode";
 import {FlatPartitioning} from "./FlatPartitioning";
 
 var nameCounter = 0;
@@ -10,7 +9,7 @@ var nameCounter = 0;
  * Scene forms the base to contain the entire scene graph. It contains a hierarchical structure including
  * {@linknode Entity}, lights, cameras, etc.
  *
- * @param {SceneNode} [rootNode] An optional scene node to use as a root. Useful if an entire scene hierarchy was already loaded.
+ * @param {Entity} [rootNode] An optional scene node to use as a root. Useful if an entire scene hierarchy was already loaded.
  *
  * @constructor
  *
@@ -163,14 +162,6 @@ Scene.prototype = {
     {
         system.scene = null;
         this._entityEngine.stopSystem(system);
-    },
-
-    /**
-     * The bounding volume for the entire scene in world coordinates.
-     */
-    get worldBounds()
-    {
-        return this._rootNode.worldBounds;
     },
 
     /**

@@ -93,20 +93,32 @@ Raycaster.prototype.qualifies = function(object, forceBounds)
 /**
  * @ignore
  */
-Raycaster.prototype.visitMeshInstance = function (meshInstance)
+Raycaster.prototype.visitEntity = function (entity)
 {
-    var entity = meshInstance.entity;
-    this._addPotential(meshInstance, this.getProxiedMatrix(entity), this.getProxiedBounds(entity));
+	var instances = entity.components.meshInstance;
+	if (!instances) return;
 
+	var matrix = this.getProxiedMatrix(entity);
+	var bounds = this.getProxiedBounds(entity);
+
+	for (var i = 0, len = instances.length; i < len; ++i) {
+		var instance = instances[i]
+
+		if (!instance.enabled)
+			continue;
+
+		if (instance.numInstances === undefined)
+			this._addPotential(instance, matrix, bounds);
+		else
+			this.visitMeshBatch(instance, matrix)
+	}
 };
 
 var workMtx = new Matrix4x4();
 var workBounds = new BoundingAABB();
 
-Raycaster.prototype.visitMeshBatch = function (meshBatch)
+Raycaster.prototype.visitMeshBatch = function (meshBatch, matrix)
 {
-	var entity = meshBatch.entity;
-	var matrix = this.getProxiedMatrix(entity);
 	var b = meshBatch.mesh.bounds;
 
 	for (var i = 0, len = meshBatch.numInstances; i < len; ++i) {

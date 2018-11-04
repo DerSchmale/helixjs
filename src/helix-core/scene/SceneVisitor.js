@@ -32,13 +32,8 @@ SceneVisitor.prototype =
 
     qualifiesBounds: function(bounds) {},
     qualifies: function(object) {},
-    visitLightProbe: function(probe) {},
-    visitLight: function(light) {},
-    visitAmbientLight: function(light) {},
-	visitMeshInstance: function (meshInstance) {},
-	visitMeshBatch: function (meshBatch) {},    // most implementations will simply use visitMeshInstance for this
+    visitEntity: function (entity) {},
     visitScene: function (scene) {},
-    visitEffect: function(effect) {},
 
     // used for EntityProxy transforms
     pushProxy: function(proxy)

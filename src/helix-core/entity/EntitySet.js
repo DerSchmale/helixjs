@@ -40,15 +40,6 @@ EntitySet.prototype =
         return this._entities[index];
     },
 
-
-    /**
-     * @ignore
-     */
-    _containsComponentHash: function(bitfield)
-    {
-        this._hash.contains(bitfield);
-    },
-
     /**
      * @ignore
      */

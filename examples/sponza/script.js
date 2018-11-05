@@ -15,7 +15,7 @@ window.onload = function ()
     options.ambientOcclusion = ssao;
 
     options.hdr = true;
-    options.numShadowCascades = HX.Platform. isMobile? 2 : 1;
+    options.numShadowCascades = 1;
     options.shadowFilter = new HX.VarianceShadowFilter();
     options.defaultLightingModel = HX.LightingModel.GGX;
 

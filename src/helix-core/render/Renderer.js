@@ -1,6 +1,6 @@
 import {Color} from "../core/Color";
 import {RenderCollector} from "./RenderCollector";
-import {ApplyGammaShader, CopyChannelsShader} from "./UtilShaders";
+import {ApplyGammaShader, CopyChannelsShader, DebugDepthShader, DebugNormalsShader} from "./UtilShaders";
 import {Texture2D} from "../texture/Texture2D";
 import {MaterialPass} from "../material/MaterialPass";
 import {RectMesh} from "../mesh/RectMesh";
@@ -30,7 +30,6 @@ var probeObject = {};
  *
  * @param {FrameBuffer} [renderTarget] An optional render target for the Renderer to draw to.
  *
- * @property debugMode One of {Renderer.DebugMode}. Causes debug data to be rendered instead of the normal view.
  * @property depthPrepass Defines whether or not a depth pre-pass needs to be performed when rendering. This may improve
  * rendering by spending less time calculating lighting on invisible fragments.
  * @property renderTarget A render target for the Renderer to draw to. If not provided, it will render to the backbuffer.
@@ -50,6 +49,7 @@ function Renderer(renderTarget)
 
     this._copyTextureShader = new CopyChannelsShader("xyzw", true);
     this._applyGamma = new ApplyGammaShader();
+	this._debugShader = null;
 
     this._camera = null;
     this._activeCamera = null;
@@ -64,7 +64,7 @@ function Renderer(renderTarget)
     this._normalDepthFBO = new FrameBuffer(this._normalDepthBuffer, this._depthBuffer);
 
     this._backgroundColor = Color.BLACK.clone();
-    this.debugMode = Renderer.DebugMode.NONE;
+    this._debugMode = Renderer.DebugMode.NONE;
     this._ssaoTexture = null;
 
     this._cascadeShadowRenderer = new CascadeShadowMapRenderer();
@@ -107,8 +107,9 @@ function Renderer(renderTarget)
 Renderer.DebugMode = {
     NONE: 0,
     SSAO: 1,
-    NORMAL_DEPTH: 2,
-    SHADOW_MAP: 3
+    NORMALS: 2,
+    DEPTH: 3,
+    SHADOW_MAP: 4
 };
 
 /**
@@ -147,6 +148,28 @@ Renderer.prototype =
     {
         this._shadowAtlas.resize(value, value);
     },
+
+	/**
+	 * One of {Renderer.DebugMode}. Causes debug data to be rendered instead of the normal view.
+	 */
+	get debugMode()
+	{
+		return this._debugMode;
+	},
+
+	set debugMode(value)
+	{
+		if (value === this._debugMode) return;
+
+		this._debugMode = value;
+
+		if (value === Renderer.DebugMode.NORMALS)
+			this._debugShader = new DebugNormalsShader();
+		else if (value === Renderer.DebugMode.DEPTH)
+			this._debugShader = new DebugDepthShader();
+		else
+			this._debugShader = this._copyTextureShader;
+	},
 
     /**
      * The background {@linkcode Color}.
@@ -777,7 +800,7 @@ Renderer.prototype =
         var dynamic = rc.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC);
         var fixed = rc.getOpaqueRenderList(RenderPath.FORWARD_FIXED);
 
-        if (rc.needsNormalDepth) {
+        if (rc.needsNormalDepth || this._debugMode === Renderer.DebugMode.NORMALS || this._debugMode === Renderer.DebugMode.DEPTH) {
             GL.setRenderTarget(this._normalDepthFBO);
             GL.setClearColor(Color.BLUE);
             GL.clear();
@@ -855,8 +878,12 @@ Renderer.prototype =
 
         if (this.debugMode) {
             var tex;
+
             switch (this.debugMode) {
-                case Renderer.DebugMode.NORMAL_DEPTH:
+                case Renderer.DebugMode.NORMALS:
+                    tex = this._normalDepthBuffer;
+                    break;
+                case Renderer.DebugMode.DEPTH:
                     tex = this._normalDepthBuffer;
                     break;
                 case Renderer.DebugMode.SHADOW_MAP:
@@ -868,7 +895,7 @@ Renderer.prototype =
                 default:
                     // nothing
             }
-            this._copyTextureShader.execute(RectMesh.DEFAULT, tex);
+            this._debugShader.execute(RectMesh.DEFAULT, tex);
             return;
         }
 

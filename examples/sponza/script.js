@@ -26,7 +26,6 @@ project.queueAssets = function(assetLibrary)
 {
     assetLibrary.queueAsset("skybox-specular", "skyboxes/field-mips/skybox_specular.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
     assetLibrary.queueAsset("skybox-irradiance", "skyboxes/field-mips/irradiance_sh.ash", HX.AssetLibrary.Type.ASSET, HX.ASH);
-    // assetLibrary.queueAsset("model", "crytek-sponza/sponza.obj", HX.AssetLibrary.Type.ASSET, HX_IO.OBJ);
     assetLibrary.queueAsset("model", "sponza/Sponza.gltf", HX.AssetLibrary.Type.ASSET, HX_IO.GLTF);
 };
 
@@ -40,7 +39,7 @@ function initCamera(camera)
 {
     camera.position.set(0.0, 0.0, 1.80);
     camera.nearDistance = .1;
-    camera.farDistance = 100.0;
+    camera.farDistance = 35.0;
 
 	camera.euler.z = -Math.PI * .5;
     var floatController = new FloatController();

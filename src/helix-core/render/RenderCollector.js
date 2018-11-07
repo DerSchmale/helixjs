@@ -229,7 +229,7 @@ RenderCollector.prototype._reset = function()
     this.specularProbes = [];
     this.shadowCasters = [];
     this.effects = [];
-    this.needsNormalDepth = META.OPTIONS.ambientOcclusion;
+    this.needsNormalDepth = !!META.OPTIONS.ambientOcclusion;
     this.ambientColor.set(0, 0, 0, 1);
     this.numShadowPlanes = 0;
     this.shadowPlaneBuckets = [];

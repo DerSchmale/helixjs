@@ -122,5 +122,18 @@ function EncFloatShader(channel)
 
 EncFloatShader.prototype = Object.create(CustomCopyShader.prototype);
 
+function DebugNormalsShader()
+{
+    CustomCopyShader.call(this, ShaderLibrary.get("debug_normals_fragment.glsl"))
+}
 
-export { CustomCopyShader, CopyChannelsShader, BlendColorCopyShader, ApplyGammaShader };
+DebugNormalsShader.prototype = Object.create(CustomCopyShader.prototype);
+
+function DebugDepthShader()
+{
+    CustomCopyShader.call(this, ShaderLibrary.get("debug_depth_fragment.glsl"))
+}
+
+DebugDepthShader.prototype = Object.create(CustomCopyShader.prototype);
+
+export { CustomCopyShader, CopyChannelsShader, BlendColorCopyShader, ApplyGammaShader, DebugNormalsShader, DebugDepthShader };

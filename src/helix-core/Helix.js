@@ -715,16 +715,17 @@ export function init(canvas, options)
 
     _init2DDitherTexture(32, 32);
 
-    if (options.ambientOcclusion) {
+    if (options.ambientOcclusion)
         defines += "#define HX_SSAO\n";
-        options.ambientOcclusion.init();
-    }
 
     GLSLIncludes.GENERAL = defines + GLSLIncludes.GENERAL;
 
     // default copy shader
     // TODO: Provide a default copy mechanic, can be replaced with blit in WebGL 2.0
     DEFAULTS.COPY_SHADER = new CopyChannelsShader();
+
+	if (options.ambientOcclusion)
+		options.ambientOcclusion.init();
 
     GL.setClearColor(Color.BLACK);
 

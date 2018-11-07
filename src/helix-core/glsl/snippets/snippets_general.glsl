@@ -2,25 +2,22 @@
 #define HX_PI 3.1415926
 
 #ifdef HX_GLSL_300_ES
-// replace some outdated function names
-vec4 texture2D(sampler2D s, vec2 uv) { return texture(s, uv); }
-vec4 textureCube(samplerCube s, vec3 uvw) { return texture(s, uvw); }
+    // replace some outdated function names
+    vec4 texture2D(sampler2D s, vec2 uv) { return texture(s, uv); }
+    vec4 textureCube(samplerCube s, vec3 uvw) { return texture(s, uvw); }
 
-#define vertex_attribute in
-#define varying_in in
-#define varying_out out
+    #define vertex_attribute in
+    #define varying_in in
+    #define varying_out out
 
-#ifdef HX_FRAGMENT_SHADER
-out vec4 hx_FragColor;
-#endif
-
+    #ifdef HX_FRAGMENT_SHADER
+        out vec4 hx_FragColor;
+    #endif
 #else
-
-#define vertex_attribute attribute
-#define varying_in varying
-#define varying_out varying
-#define hx_FragColor gl_FragColor
-
+    #define vertex_attribute attribute
+    #define varying_in varying
+    #define varying_out varying
+    #define hx_FragColor gl_FragColor
 #endif
 
 float saturate(float value)

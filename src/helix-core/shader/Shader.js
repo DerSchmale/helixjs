@@ -1,8 +1,9 @@
 import {GL} from '../core/GL';
-import {capabilities, META} from '../Helix';
+import {capabilities} from '../Helix';
 import {UniformBuffer} from "../core/UniformBuffer";
 import {ProgramCache} from "./ProgramCache";
 
+var COUNTER = 0;
 
 /**
  * @ignore
@@ -21,6 +22,7 @@ function Shader(vertexShaderCode, fragmentShaderCode)
 	this._textureUniforms = null;
 	this._uniformBlocks = null;
 	this._ready = false;
+	this._idx = COUNTER++;	// internal caching id, probably need to use program._idx instead?
 
 	if (vertexShaderCode && fragmentShaderCode)
 		this.init(vertexShaderCode, fragmentShaderCode);

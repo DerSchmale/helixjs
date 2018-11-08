@@ -16,6 +16,7 @@ var _blendState = null;
 var _renderTarget = null;
 var _shader = null;
 var _instanceDivisors = [];
+var _vertexLayout = null;
 
 // this is so that effects can push states on the stack
 // the renderer at the root just pushes one single state and invalidates that constantly
@@ -65,6 +66,70 @@ var GL = {
 
         gl.clear(clearMask);
         ++_glStats.numClears;
+
+        // TODO: Remove this once we're only using vertex layout setters
+        // otherwise, for now, if we'd manually change vertex buffers and the vertex layout doesn't change, it'd incorrectly
+        // keep the data
+        _vertexLayout = null;
+    },
+
+
+	/**
+     * Assigns a vertex layout for rendering.
+	 * @param meshInstance
+	 * @param layout
+	 */
+	setVertexLayout: function(meshInstance, layout)
+    {
+        var mesh = meshInstance._mesh;
+		var attribute;
+		var gl = GL.gl;
+
+        if (_vertexLayout !== layout) {
+			_vertexLayout = layout;
+
+			var vertexBuffers = mesh._vertexBuffers;
+			mesh._indexBuffer.bind();
+
+			var attributes = layout.attributes;
+			var len = layout._numAttributes;
+
+			for (i = 0; i < len; ++i) {
+				attribute = attributes[i];
+
+				if (attribute) {
+					// external = in case of morph targets etc
+					if (!attribute.external) {
+						vertexBuffers[attribute.streamIndex].bind();
+						gl.vertexAttribPointer(i, attribute.numComponents, gl.FLOAT, false, attribute.stride, attribute.offset);
+					}
+				}
+			}
+        }
+
+		var morphPosAttributes = layout.morphPositionAttributes;
+		var morphNormalAttributes = layout.morphNormalAttributes;
+
+		var len = morphPosAttributes.length;
+
+		for (var i = 0; i < len; ++i) {
+			attribute = morphPosAttributes[i];
+			var buffer = meshInstance._morphPositions[i] || mesh._defaultMorphTarget;
+			buffer.bind();
+
+			gl.vertexAttribPointer(attribute.index, attribute.numComponents, gl.FLOAT, attribute.normalized, attribute.stride, attribute.offset);
+		}
+
+		if (meshInstance._morphNormals) {
+			len = morphNormalAttributes.length;
+			for (i = 0; i < len; ++i) {
+				attribute = morphNormalAttributes[i];
+				buffer = meshInstance._morphNormals[i] || mesh._defaultMorphTarget;
+				buffer.bind();
+
+				gl.vertexAttribPointer(attribute.index, attribute.numComponents, gl.FLOAT, false, attribute.stride, attribute.offset);
+			}
+		}
     },
 
 	vertexAttribDivisor: function(index, divisor)

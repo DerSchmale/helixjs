@@ -45,7 +45,7 @@ EffectPass.prototype = Object.create(MaterialPass.prototype, {
 		{
 			if (this._mesh === value) return;
 			this._mesh = value;
-			this._vertexLayout = new VertexLayout(this._mesh, this);
+			this._vertexLayout = new VertexLayout(this._mesh, this.shader);
 		}
 	}
 });

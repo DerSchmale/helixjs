@@ -29,10 +29,11 @@ export function renderPass(renderer, camera, passType, renderItems, data)
         }
 
 		pass.updateInstanceRenderState(camera, renderItem, data);
-		meshInstance.updateRenderState(passType);
 
         var mesh = meshInstance._mesh;
         var numInstances = meshInstance._numInstances;
+
+		meshInstance.updateRenderState(passType);
 
         if (numInstances === undefined)
             GL.drawElements(mesh.elementType, mesh._numIndices, mesh._indexType, 0);

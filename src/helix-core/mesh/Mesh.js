@@ -39,6 +39,7 @@ function Mesh()
     this.onLayoutChanged = new Signal();
     this.onMorphDataCreated = new Signal();
 	this.name = "hx_mesh_" + MESH_ID_COUNTER;
+	this._idx = MESH_ID_COUNTER;	 // internal caching id
 	this.elementType = ElementType.TRIANGLES;
 	this._bounds = new BoundingAABB();
 	this._boundsInvalid = true;

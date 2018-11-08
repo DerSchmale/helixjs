@@ -5,8 +5,10 @@ import {MaterialPass} from "../material/MaterialPass";
 import {Component} from "../entity/Component";
 import {SkeletonPose} from "../animation/skeleton/SkeletonPose";
 import {Matrix4x4} from "../math/Matrix4x4";
+import {VertexLayoutCache} from "./VertexLayoutCache";
 
 var nameCounter = 0;
+var layoutCache = new VertexLayoutCache();
 
 /**
  * @classdesc
@@ -49,7 +51,6 @@ function MeshInstance(mesh, material)
 	this._morphPositions = null;
 	this._morphNormals = null;
 	this._morphWeights = null;
-	this._meshMaterialLinkInvalid = true;
 	this._vertexLayouts = null;
 	this._morphPose = null;
 	this._skeleton = null;
@@ -142,21 +143,19 @@ MeshInstance.prototype = Object.create(Component.prototype, {
 			if (this._mesh === mesh) return;
 
 			if (this._mesh) {
-				this._mesh.onLayoutChanged.unbind(this._onMaterialOrMeshChange);
+				this._mesh.onLayoutChanged.unbind(this._invalidateVertexLayouts);
 				this._mesh.onBoundsChanged.unbind(this.invalidateBounds);
 				this._mesh.onMorphDataCreated.unbind(this._initMorphData);
 			}
 
 			this._mesh = mesh;
 
-			mesh.onLayoutChanged.bind(this._onMaterialOrMeshChange, this);
+			mesh.onLayoutChanged.bind(this._invalidateVertexLayouts, this);
 			mesh.onBoundsChanged.bind(this.invalidateBounds, this);
 			mesh.onMorphDataCreated.bind(this._initMorphData, this);
 
 			this._initMorphData();
-
-			this._meshMaterialLinkInvalid = true;
-
+			this._invalidateVertexLayouts();
 			this.invalidateBounds();
 		}
 	},
@@ -173,12 +172,12 @@ MeshInstance.prototype = Object.create(Component.prototype, {
 		set: function(value)
 		{
 			if (this._material)
-				this._material.onChange.unbind(this._onMaterialOrMeshChange);
+				this._material.onChange.unbind(this._invalidateVertexLayouts);
 
 			this._material = value;
 
 			if (this._material) {
-				this._material.onChange.bind(this._onMaterialOrMeshChange, this);
+				this._material.onChange.bind(this._invalidateVertexLayouts, this);
 
 				// TODO: Should this be set explicitly on the material by the user?
 				this._material._setUseSkinning(!!this._skeleton);
@@ -188,7 +187,7 @@ MeshInstance.prototype = Object.create(Component.prototype, {
 				);
 			}
 
-			this._meshMaterialLinkInvalid = true;
+			this._invalidateVertexLayouts();
 		}
 	}
 });
@@ -200,53 +199,10 @@ MeshInstance.prototype = Object.create(Component.prototype, {
  */
 MeshInstance.prototype.updateRenderState = function(passType)
 {
-	if (this._meshMaterialLinkInvalid)
-		this._linkMeshWithMaterial();
+	if (!this._vertexLayouts)
+		this._initVertexLayouts();
 
-	var vertexBuffers = this._mesh._vertexBuffers;
-	this._mesh._indexBuffer.bind();
-
-	var layout = this._vertexLayouts[passType];
-	var morphPosAttributes = layout.morphPositionAttributes;
-	var morphNormalAttributes = layout.morphNormalAttributes;
-	var attribute;
-	var gl = GL.gl;
-
-	var len = morphPosAttributes.length;
-
-	for (var i = 0; i < len; ++i) {
-		attribute = morphPosAttributes[i];
-		var buffer = this._morphPositions[i] || this._mesh._defaultMorphTarget;
-		buffer.bind();
-
-		gl.vertexAttribPointer(attribute.index, attribute.numComponents, gl.FLOAT, attribute.normalized, attribute.stride, attribute.offset);
-	}
-
-	if (this._morphNormals) {
-		len = morphNormalAttributes.length;
-		for (i = 0; i < len; ++i) {
-			attribute = morphNormalAttributes[i];
-			buffer = this._morphNormals[i] || this._mesh._defaultMorphTarget;
-			buffer.bind();
-
-			gl.vertexAttribPointer(attribute.index, attribute.numComponents, gl.FLOAT, false, attribute.stride, attribute.offset);
-		}
-	}
-
-	var attributes = layout.attributes;
-	len = layout._numAttributes;
-
-	for (i = 0; i < len; ++i) {
-		attribute = attributes[i];
-
-		if (attribute) {
-			// external = in case of morph targets etc
-			if (!attribute.external) {
-				vertexBuffers[attribute.streamIndex].bind();
-				gl.vertexAttribPointer(i, attribute.numComponents, gl.FLOAT, false, attribute.stride, attribute.offset);
-			}
-		}
-	}
+	GL.setVertexLayout(this, this._vertexLayouts[passType].layout);
 };
 
 /**
@@ -255,32 +211,18 @@ MeshInstance.prototype.updateRenderState = function(passType)
  */
 MeshInstance.prototype._initVertexLayouts = function()
 {
-	this._vertexLayouts = new Array(MaterialPass.NUM_PASS_TYPES);
-	for (var type = 0; type < MaterialPass.NUM_PASS_TYPES; ++type) {
-		var pass = this._material.getPass(type);
-		if (pass)
-			this._vertexLayouts[type] = new VertexLayout(this._mesh, pass);
-	}
+	this._vertexLayouts = layoutCache.getLayouts(this);
 };
 
 /**
  * @ignore
  * @private
  */
-MeshInstance.prototype._linkMeshWithMaterial = function()
+MeshInstance.prototype._invalidateVertexLayouts = function()
 {
-	this._initVertexLayouts();
-
-	this._meshMaterialLinkInvalid = false;
-};
-
-/**
- * @ignore
- * @private
- */
-MeshInstance.prototype._onMaterialOrMeshChange = function()
-{
-	this._meshMaterialLinkInvalid = true;
+	if (this._vertexLayouts)
+		layoutCache.free(this);
+	this._vertexLayouts = null;
 };
 
 
@@ -409,6 +351,12 @@ MeshInstance.prototype._bindSkeleton = function(skeleton, pose, bindShapeMatrix)
 
 	if (this._material)
 		this._material._setUseSkinning(!!this._skeleton);
+};
+
+MeshInstance.prototype.onRemoved = function()
+{
+	// clear vertex layout usage from the cache
+	this._invalidateVertexLayouts();
 };
 
 Component.register("meshInstance", MeshInstance);

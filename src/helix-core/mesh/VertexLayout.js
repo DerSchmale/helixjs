@@ -10,9 +10,8 @@
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function VertexLayout(mesh, pass)
+function VertexLayout(mesh, shader)
 {
-    var shader = pass.shader;
     this.attributes = [];
     this.morphPositionAttributes = [];
     this.morphNormalAttributes = [];

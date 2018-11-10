@@ -100,11 +100,11 @@ ShadowAtlas.prototype =
         for (var i = 0; i < numPasses; ++i) {
             GL.setRenderTarget(this._fbo2);
             GL.clear();
-            shader.execute(RectMesh.DEFAULT, this._texture, 1.0 / this._size, 0.0);
+            shader.execute(this._texture, 1.0 / this._size, 0.0);
 
             GL.setRenderTarget(this._fboNoDepth);
             GL.clear();
-            shader.execute(RectMesh.DEFAULT, this._texture2, 0.0, 1.0 / this._size);
+            shader.execute(this._texture2, 0.0, 1.0 / this._size);
         }
 
         this._texture.filter = shadowFilter.getShadowMapFilter();

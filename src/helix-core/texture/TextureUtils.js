@@ -42,7 +42,7 @@ export var TextureUtils =
     {
         GL.setRenderTarget(destFBO);
         GL.clear();
-        DEFAULTS.COPY_SHADER.execute(RectMesh.DEFAULT, sourceTexture);
+        DEFAULTS.COPY_SHADER.execute(sourceTexture);
         GL.setRenderTarget(null);
     },
 
@@ -135,7 +135,7 @@ export var TextureUtils =
         if (rgbaEnc) {
             if (!toRGBA8)
 			    toRGBA8 = new CustomCopyShader(ShaderLibrary.get("greyscale_to_rgba8.glsl"));
-			toRGBA8.execute(RectMesh.DEFAULT, texture);
+			toRGBA8.execute(texture);
         }
         else
             BlitTexture.execute(texture);

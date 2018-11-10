@@ -3607,14 +3607,6 @@
 	    }
 	};
 
-	ShaderLibrary._files['lighting_blinn_phong.glsl'] = '/*// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}*/\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = -dot(lightDir, geometry.normal);\n	vec3 irradiance = max(nDotL, 0.0) * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*pow(cosAngle, 5.0);\n\n    #ifdef HX_USE_TRANSLUCENCY\n	    // light for flipped normal\n        diffuseColor += geometry.translucency * max(-nDotL, 0.0) * lightColor;\n    #endif\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
-
-	ShaderLibrary._files['lighting_debug.glsl'] = 'void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	diffuseColor = vec3(0.0);\n	specularColor = vec3(0.0);\n}';
-
-	ShaderLibrary._files['lighting_ggx.glsl'] = '#ifdef HX_VISIBILITY_TERM\nfloat hx_geometryTerm(vec3 normal, vec3 dir, float k)\n{\n    float d = max(-dot(normal, dir), 0.0);\n    return d / (d * (1.0 - k) + k);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness)\n{\n	float k = roughness + 1.0;\n	k = k * k * .125;\n	return hx_geometryTerm(normal, viewDir, k) * hx_geometryTerm(normal, lightDir, k);\n}\n#endif\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = -dot(lightDir, geometry.normal);\n	vec3 irradiance = max(nDotL, 0.0) * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n    float mappedRoughness =  geometry.roughness * geometry.roughness;\n\n	float distribution = hx_ggxDistribution(mappedRoughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);\n\n	diffuseColor = irradiance;\n\n	#ifdef HX_USE_TRANSLUCENCY\n	    // light for flipped normal\n        diffuseColor += geometry.translucency * max(-nDotL, 0.0) * lightColor;\n    #endif\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef HX_VISIBILITY_TERM\n    specularColor *= hx_lightVisibility(geometry.normal, viewDir, lightDir, geometry.roughness);\n#endif\n}';
-
-	ShaderLibrary._files['lighting_lambert.glsl'] = '// also make sure specular probes are ignores\n#define HX_SKIP_SPECULAR\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = -dot(lightDir, geometry.normal);\n    diffuseColor = max(nDotL, 0.0) * lightColor;\n\n	#ifdef HX_USE_TRANSLUCENCY\n	    // light for flipped normal\n        diffuseColor += geometry.translucency * max(-nDotL, 0.0) * lightColor;\n    #endif\n\n	specularColor = vec3(0.0);\n}';
-
 	ShaderLibrary._files['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    hx_FragColor = color;\n}';
 
 	ShaderLibrary._files['debug_bounds_vertex.glsl'] = '\nvertex_attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
@@ -3622,6 +3614,14 @@
 	ShaderLibrary._files['debug_depth_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n    float depth = hx_decodeLinearDepth(texture2D(sampler, uv));\n    // swizzle so that it looks more naturally like tangent space normal maps\n    hx_FragColor = vec4(depth, depth, depth, 1.0);\n}\n';
 
 	ShaderLibrary._files['debug_normals_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n    vec3 normal = hx_decodeNormal(texture2D(sampler, uv));\n    // swizzle so that it looks more naturally like tangent space normal maps\n    hx_FragColor = vec4(normal.xzy * vec3(.5, .5, -.5) + .5, 1.0);\n}';
+
+	ShaderLibrary._files['lighting_blinn_phong.glsl'] = '/*// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}*/\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = -dot(lightDir, geometry.normal);\n	vec3 irradiance = max(nDotL, 0.0) * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*pow(cosAngle, 5.0);\n\n    #ifdef HX_USE_TRANSLUCENCY\n	    // light for flipped normal\n        diffuseColor += geometry.translucency * max(-nDotL, 0.0) * lightColor;\n    #endif\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
+
+	ShaderLibrary._files['lighting_debug.glsl'] = 'void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	diffuseColor = vec3(0.0);\n	specularColor = vec3(0.0);\n}';
+
+	ShaderLibrary._files['lighting_ggx.glsl'] = '#ifdef HX_VISIBILITY_TERM\nfloat hx_geometryTerm(vec3 normal, vec3 dir, float k)\n{\n    float d = max(-dot(normal, dir), 0.0);\n    return d / (d * (1.0 - k) + k);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness)\n{\n	float k = roughness + 1.0;\n	k = k * k * .125;\n	return hx_geometryTerm(normal, viewDir, k) * hx_geometryTerm(normal, lightDir, k);\n}\n#endif\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = -dot(lightDir, geometry.normal);\n	vec3 irradiance = max(nDotL, 0.0) * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n    float mappedRoughness =  geometry.roughness * geometry.roughness;\n\n	float distribution = hx_ggxDistribution(mappedRoughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);\n\n	diffuseColor = irradiance;\n\n	#ifdef HX_USE_TRANSLUCENCY\n	    // light for flipped normal\n        diffuseColor += geometry.translucency * max(-nDotL, 0.0) * lightColor;\n    #endif\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef HX_VISIBILITY_TERM\n    specularColor *= hx_lightVisibility(geometry.normal, viewDir, lightDir, geometry.roughness);\n#endif\n}';
+
+	ShaderLibrary._files['lighting_lambert.glsl'] = '// also make sure specular probes are ignores\n#define HX_SKIP_SPECULAR\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = -dot(lightDir, geometry.normal);\n    diffuseColor = max(nDotL, 0.0) * lightColor;\n\n	#ifdef HX_USE_TRANSLUCENCY\n	    // light for flipped normal\n        diffuseColor += geometry.translucency * max(-nDotL, 0.0) * lightColor;\n    #endif\n\n	specularColor = vec3(0.0);\n}';
 
 	ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    int castShadows;\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            if (viewPos.y < light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    vec4 shadowMapCoord = shadowMatrix * vec4(viewPos, 1.0);\n    float shadow = hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n\n    // this can occur when meshInstance.castShadows = false, or using inherited bounds\n    bool isOutside = max(shadowMapCoord.x, shadowMapCoord.y) > 1.0 || min(shadowMapCoord.x, shadowMapCoord.y) < 0.0;\n    if (isOutside) shadow = 1.0;\n\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.y > light.maxShadowDistance));\n}\n#endif';
 
@@ -4547,22 +4547,23 @@
 
 	        gl.clear(clearMask);
 	        ++_glStats.numClears;
-
-	        // TODO: Remove this once we're only using vertex layout setters
-	        // otherwise, for now, if we'd manually change vertex buffers and the vertex layout doesn't change, it'd incorrectly
-	        // keep the data
-	        _vertexLayout = null;
 	    },
 
 
 		/**
 	     * Assigns a vertex layout for rendering.
-		 * @param meshInstance
-		 * @param layout
+		 * @param layout The vertex layout containing the mesh<->shader mapping. Must be called with "null" when manually
+	     * assigning vertex buffers.
+	     * @param [meshInstance]
 		 */
-		setVertexLayout: function(meshInstance, layout)
+		setVertexLayout: function(layout, meshInstance)
 	    {
-	        var mesh = meshInstance._mesh;
+	        if (!layout) {
+				_vertexLayout = null;
+				return;
+			}
+
+	        var mesh = layout.mesh;
 			var attribute;
 			var gl = GL.gl;
 
@@ -4587,6 +4588,9 @@
 					}
 				}
 	        }
+
+	        if (!meshInstance)
+	            return;
 
 			var morphPosAttributes = layout.morphPositionAttributes;
 			var morphNormalAttributes = layout.morphNormalAttributes;
@@ -5444,129 +5448,6 @@
 			return this._uniformBlocks.length;
 		}
 	};
-
-	/**
-	 * @param fragmentShader
-	 * @constructor
-	 * @ignore
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function CustomCopyShader(fragmentShader)
-	{
-	    Shader.call(this);
-	    this.init(ShaderLibrary.get("copy_vertex.glsl"), fragmentShader);
-
-	    var gl = GL.gl;
-	    var textureLocation = gl.getUniformLocation(this.program, "sampler");
-
-	    this._positionAttributeLocation = this.getAttributeLocation("hx_position");
-	    this._texCoordAttributeLocation = this.getAttributeLocation("hx_texCoord");
-
-	    gl.useProgram(this.program);
-	    gl.uniform1i(textureLocation, 0);
-	}
-
-	CustomCopyShader.prototype = Object.create(Shader.prototype);
-
-	CustomCopyShader.prototype.execute = function(rect, texture)
-	{
-	    var gl = GL.gl;
-	    GL.setDepthTest(Comparison.DISABLED);
-	    GL.setCullMode(CullMode.NONE);
-
-	    rect._vertexBuffers[0].bind();
-	    rect._indexBuffer.bind();
-
-		GL.setShader(this);
-
-	    texture.bind(0);
-
-	    gl.vertexAttribPointer(this._positionAttributeLocation, 2, gl.FLOAT, false, 16, 0);
-	    gl.vertexAttribPointer(this._texCoordAttributeLocation, 2, gl.FLOAT, false, 16, 8);
-
-	    GL.drawElements(ElementType.TRIANGLES, 6);
-	};
-
-
-
-	/**
-	 * Copies one texture's channels (in configurable ways) to another's.
-	 * @param channel Can be either x, y, z, w or any 4-component swizzle. default is xyzw, meaning a simple copy
-	 * @constructor
-	 * @ignore
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function CopyChannelsShader(channel, copyAlpha)
-	{
-	    channel = channel || "xyzw";
-	    copyAlpha = copyAlpha === undefined? true : copyAlpha;
-
-	    var define = "#define extractChannels(src) ((src)." + channel + ")\n";
-
-	    if (copyAlpha) define += "#define COPY_ALPHA\n";
-
-	    CustomCopyShader.call(this, define + ShaderLibrary.get("copy_fragment.glsl"));
-	}
-
-	CopyChannelsShader.prototype = Object.create(CustomCopyShader.prototype);
-
-
-
-	/**
-	 * Copies one texture's channels while applying the same logic as gl.blendColor. This because it is broken for float textures.
-	 * @constructor
-	 * @ignore
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function BlendColorCopyShader()
-	{
-	    CustomCopyShader.call(this, ShaderLibrary.get("blend_color_copy_fragment.glsl"));
-	    this._colorLocation = GL.gl.getUniformLocation(this.program, "blendColor");
-	    this.setBlendColor(1, 1, 1, 1);
-	}
-
-	BlendColorCopyShader.prototype = Object.create(CustomCopyShader.prototype);
-
-	BlendColorCopyShader.prototype.setBlendColor = function(r, g, b, a)
-	{
-	    var gl = GL.gl;
-	    gl.useProgram(this.program);
-	    gl.uniform4f(this._colorLocation, r, g, b, a);
-	};
-
-
-	/**
-	 * @classdesc
-	 * Copies the texture from linear space to gamma space.
-	 *
-	 * @ignore
-	 *
-	 * @constructor
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function ApplyGammaShader()
-	{
-	    CustomCopyShader.call(this, ShaderLibrary.get("copy_to_gamma_fragment.glsl"));
-	}
-
-	ApplyGammaShader.prototype = Object.create(CustomCopyShader.prototype);
-
-	function DebugNormalsShader()
-	{
-	    CustomCopyShader.call(this, ShaderLibrary.get("debug_normals_fragment.glsl"));
-	}
-
-	DebugNormalsShader.prototype = Object.create(CustomCopyShader.prototype);
-
-	function DebugDepthShader()
-	{
-	    CustomCopyShader.call(this, ShaderLibrary.get("debug_depth_fragment.glsl"));
-	}
-
-	DebugDepthShader.prototype = Object.create(CustomCopyShader.prototype);
 
 	/**
 	 * @ignore
@@ -7391,11 +7272,198 @@
 	    }
 	};
 
+	/**
+	 * @classdesc
+	 * VertexLayout links the mesh's vertex attributes to a shader's attributes
+	 *
+	 * @param mesh
+	 * @param pass
+	 * @constructor
+	 *
+	 * @ignore
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function VertexLayout(mesh, shader)
+	{
+	    this.attributes = [];
+	    this.morphPositionAttributes = [];
+	    this.morphNormalAttributes = [];
+	    this.mesh = mesh;
+	    this._numAttributes = -1;
+
+	    for (var i = 0; i < mesh.numVertexAttributes; ++i) {
+	        var attribute = mesh.getVertexAttributeByIndex(i);
+	        var index = shader.getAttributeLocation(attribute.name);
+
+	        if (!(index >= 0)) continue;
+
+	        var stride = mesh.getVertexStride(attribute.streamIndex);
+	        var attrib = {
+	            index: index,
+	            offset: attribute.offset * 4,
+	            external: false,
+	            numComponents: attribute.numComponents,
+	            stride: stride * 4,
+	            streamIndex: attribute.streamIndex,
+	            normalized: attribute.normalized
+	        };
+
+			// so in some cases, it occurs that - when attributes are optimized out by the driver - the indices don't change,
+			// but those unused become -1, leaving gaps. This keeps the gaps so we can take care of them
+			this.attributes[index] = attrib;
+			this._numAttributes = Math.max(this._numAttributes, index + 1);
+
+	        // morph attributes are handled differently because their associated vertex buffers change dynamically
+	        // their state is uploaded by MeshInstance itself
+	        if (attribute.name.indexOf("hx_morphPosition") === 0) {
+	            this.morphPositionAttributes.push(attrib);
+	            attrib.external = true;
+	        }
+
+	        if (attribute.name.indexOf("hx_morphNormal") === 0) {
+	            this.morphNormalAttributes.push(attrib);
+	            attrib.external = true;
+	        }
+	    }
+
+	    // any instanced attribs that isn't managed by vertex layout
+	    var builtIn = ["hx_instanceMatrix0", "hx_instanceMatrix1", "hx_instanceMatrix2"];
+	    for (var i = 0; i < 3; ++i) {
+	        index = shader.getAttributeLocation(builtIn[i]);
+			this._numAttributes = Math.max(this._numAttributes, index + 1);
+	    }
+
+	}
+
+	/**
+	 * @ignore
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	var TextureSetter = {
+	    getSettersPerPass: function (materialPass)
+	    {
+	        if (TextureSetter._passTable === undefined)
+	            TextureSetter._init();
+
+	        return TextureSetter._findSetters(materialPass, TextureSetter._passTable);
+	    },
+
+	    getSettersPerInstance: function (materialPass)
+	    {
+	        if (TextureSetter._instanceTable === undefined)
+	            TextureSetter._init();
+
+	        return TextureSetter._findSetters(materialPass, TextureSetter._instanceTable);
+	    },
+
+	    _findSetters: function (shader, table)
+	    {
+	        var setters = [];
+	        for (var slotName in table) {
+	            if (!table.hasOwnProperty(slotName)) continue;
+	            var slot = shader.getTextureIndex(slotName);
+	            if (slot === -1) continue;
+	            var setter = new table[slotName]();
+	            setters.push(setter);
+	            setter.slot = slot;
+	            setter.pass = shader;
+	        }
+
+	        return setters;
+	    },
+
+	    _init: function()
+	    {
+	        TextureSetter._passTable = {};
+	        TextureSetter._instanceTable = {};
+
+	        TextureSetter._passTable.hx_normalDepthBuffer = NormalDepthBufferSetter;
+	        TextureSetter._passTable.hx_backbuffer = BackbufferSetter;
+	        TextureSetter._passTable.hx_frontbuffer = FrontbufferSetter;
+	        TextureSetter._passTable.hx_ssao = SSAOSetter;
+	        TextureSetter._passTable.hx_shadowMap = ShadowMapSetter;
+			TextureSetter._passTable["hx_specularProbeMaps[0]"] = SpecularProbesSetter;
+
+	        TextureSetter._instanceTable.hx_skinningTexture = SkinningTextureSetter;
+	    }
+	};
+
+
+	// Texture setters can be either per pass or per instance. The execute method gets passed eithter the renderer or the
+	// render item, respectively.
+
+	function NormalDepthBufferSetter()
+	{
+	}
+
+	NormalDepthBufferSetter.prototype.execute = function (renderer)
+	{
+	    this.pass.setTextureByIndex(this.slot, renderer._normalDepthBuffer);
+	};
+
+
+	function FrontbufferSetter()
+	{
+	}
+
+	FrontbufferSetter.prototype.execute = function (renderer)
+	{
+	    if (renderer._hdrFront)
+			this.pass.setTextureByIndex(this.slot, renderer._hdrFront.texture);
+	};
+
+	function BackbufferSetter()
+	{
+	}
+
+	BackbufferSetter.prototype.execute = function (renderer)
+	{
+	    if (renderer._hdrBack)
+			this.pass.setTextureByIndex(this.slot, renderer._hdrBack.texture);
+	};
+
+	function SSAOSetter()
+	{
+	}
+
+	SSAOSetter.prototype.execute = function (renderer)
+	{
+		this.pass.setTextureByIndex(this.slot, renderer._ssaoTexture);
+	};
+
+	function ShadowMapSetter()
+	{
+	}
+
+	ShadowMapSetter.prototype.execute = function (renderer)
+	{
+		this.pass.setTextureByIndex(this.slot, renderer._shadowAtlas.texture);
+	};
+
+	function SpecularProbesSetter()
+	{
+	}
+
+	SpecularProbesSetter.prototype.execute = function (renderer)
+	{
+	    this.pass.setTextureArrayByIndex(this.slot, renderer._specularProbeArray);
+	};
+
+	function SkinningTextureSetter()
+	{
+	}
+
+	SkinningTextureSetter.prototype.execute = function (renderItem)
+	{
+		this.pass.setTextureByIndex(this.slot, renderItem.skeletonMatrices);
+	};
+
 	var BlitTexture =
 	{
 	    execute: function(tex)
 	    {
-			DEFAULTS.COPY_SHADER.execute(RectMesh.DEFAULT, tex);
+			DEFAULTS.COPY_SHADER.execute(tex);
 	    }
 	};
 
@@ -7579,7 +7647,7 @@
 	    {
 	        GL.setRenderTarget(destFBO);
 	        GL.clear();
-	        DEFAULTS.COPY_SHADER.execute(RectMesh.DEFAULT, sourceTexture);
+	        DEFAULTS.COPY_SHADER.execute(sourceTexture);
 	        GL.setRenderTarget(null);
 	    },
 
@@ -7672,7 +7740,7 @@
 	        if (rgbaEnc) {
 	            if (!toRGBA8)
 				    toRGBA8 = new CustomCopyShader(ShaderLibrary.get("greyscale_to_rgba8.glsl"));
-				toRGBA8.execute(RectMesh.DEFAULT, texture);
+				toRGBA8.execute(texture);
 	        }
 	        else
 	            BlitTexture.execute(texture);
@@ -8147,310 +8215,69 @@
 		return "[Texture2D(name=" + this.name + ")]";
 	};
 
-	var nameCounter$1 = 0;
-
-	//       +-----+
-	//       |  +Z |
-	// +-----+-----+-----+-----+
-	// |  -X |  +Y |  +X |  -Y |
-	// +-----+-----+-----+-----+
-	//       |  -Z |
-	//       +-----+
-
-	/**
-	 * @classdesc
-	 * TextureCube represents a cube map texture. The order of the textures in a cross map is as such:
-	 *
-	 * @constructor
-	 *
-	 * @property name The name of the texture.
-	 * @property size The cube texture's size
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function TextureCube()
-	{
-		Texture.call(this, GL.gl.TEXTURE_CUBE_MAP);
-		this.name = "hx_texturecube_" + (nameCounter$1++);
-	    this._default = TextureCube.DEFAULT;
-	    this._size = 0;
-	}
-
 	/**
 	 * @ignore
-	 */
-	TextureCube._initDefault = function()
-	{
-	    var gl = GL.gl;
-	    var data = new Uint8Array([0xff, 0x00, 0xff, 0xff]);
-	    TextureCube.DEFAULT = new TextureCube();
-	    TextureCube.DEFAULT.uploadData([data, data, data, data, data, data], 1, true);
-	    TextureCube.DEFAULT.filter = TextureFilter.NEAREST_NOMIP;
-	    gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
-	};
-
-	TextureCube.prototype = Object.create(Texture.prototype, {
-		size: {
-			get: function() { return this._size; }
-		},
-
-		/**
-		 * The amount of mip levels (if present).
-		 */
-		numMips: {
-			get: function() {
-				return Math.floor(MathX.log2(this._size));
-			}
-		}
-	});
-
-
-	/**
-	 * Inits an empty texture.
-	 * @param size The size of the texture.
-	 * @param {TextureFormat} format The texture's format.
-	 * @param {DataType} dataType The texture's data format.
-	 */
-	TextureCube.prototype.initEmpty = function(size, format, dataType)
-	{
-		this._data = null;
-		this._format = format = format || TextureFormat.RGBA;
-		this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
-		this._size = size;
-
-		this.bind();
-
-		var gl = GL.gl;
-		var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
-		gl.texImage2D(CubeFace.POSITIVE_X, 0, internalFormat, size, size, 0, format, dataType, null);
-		gl.texImage2D(CubeFace.NEGATIVE_X, 0, internalFormat, size, size, 0, format, dataType, null);
-		gl.texImage2D(CubeFace.POSITIVE_Y, 0, internalFormat, size, size, 0, format, dataType, null);
-		gl.texImage2D(CubeFace.NEGATIVE_Y, 0, internalFormat, size, size, 0, format, dataType, null);
-		gl.texImage2D(CubeFace.POSITIVE_Z, 0, internalFormat, size, size, 0, format, dataType, null);
-		gl.texImage2D(CubeFace.NEGATIVE_Z, 0, internalFormat, size, size, 0, format, dataType, null);
-
-		this._isReady = true;
-
-		gl.bindTexture(gl.TEXTURE_2D, null);
-	};
-
-	/**
-	 * Uploads compressed data.
-	 *
-	 * @param {*} data An typed array containing the initial data.
-	 * @param {number} size The size of the texture.
-	 * @param {boolean} generateMips Whether or not a mip chain should be generated.
-	 * @param {*} internalFormat The texture's internal compression format.
-	 * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
-	 */
-	TextureCube.prototype.uploadCompressedData = function(data, size, generateMips, internalFormat, mipLevel)
-	{
-		var gl = GL.gl;
-
-		if (!mipLevel) {
-			this._size = size;
-			this._format = TextureFormat.RGBA;
-			this._dataType = DataType.UNSIGNED_BYTE;
-		}
-
-		this.bind();
-
-		mipLevel = mipLevel || 0;
-		gl.compressedTexImage2D(CubeFace.POSITIVE_X, mipLevel, internalFormat, size, size, 0, data[0]);
-		gl.compressedTexImage2D(CubeFace.NEGATIVE_X, mipLevel, internalFormat, size, size, 0, data[1]);
-		gl.compressedTexImage2D(CubeFace.POSITIVE_Y, mipLevel, internalFormat, size, size, 0, data[2]);
-		gl.compressedTexImage2D(CubeFace.NEGATIVE_Y, mipLevel, internalFormat, size, size, 0, data[3]);
-		gl.compressedTexImage2D(CubeFace.POSITIVE_Z, mipLevel, internalFormat, size, size, 0, data[4]);
-		gl.compressedTexImage2D(CubeFace.NEGATIVE_Z, mipLevel, internalFormat, size, size, 0, data[5]);
-
-		if (generateMips)
-			gl.generateMipmap(gl.TEXTURE_2D);
-
-		this._isReady = true;
-
-		gl.bindTexture(gl.TEXTURE_2D, null);
-	};
-
-	/**
-	 * Initializes the texture with the given data.
-	 * @param data A array of typed arrays (per {@linkcode CubeFace}) containing the initial data.
-	 * @param size The size of the texture.
-	 * @param generateMips Whether or not a mip chain should be generated.
-	 * @param {TextureFormat} format The texture's format.
-	 * @param {DataType} dataType The texture's data format.
-	 * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
-	 */
-	TextureCube.prototype.uploadData = function(data, size, generateMips, format, dataType, mipLevel)
-	{
-		if (!mipLevel) {
-			this._size = size;
-			this._format = format = format || TextureFormat.RGBA;
-			this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
-		}
-
-		if (capabilities.EXT_HALF_FLOAT_TEXTURES && dataType === DataType.HALF_FLOAT && !(data[0] instanceof Uint16Array)) {
-			for (var i = 0; i < 6; ++i)
-				data[i] = TextureUtils.encodeToFloat16Array(data[i]);
-		}
-
-		generateMips = generateMips === undefined? true: generateMips;
-
-		this.bind();
-
-		var gl = GL.gl;
-		mipLevel = mipLevel || 0;
-		var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
-		gl.texImage2D(CubeFace.POSITIVE_X, mipLevel, internalFormat, size, size, 0, format, dataType, data[0]);
-		gl.texImage2D(CubeFace.NEGATIVE_X, mipLevel, internalFormat, size, size, 0, format, dataType, data[1]);
-		gl.texImage2D(CubeFace.POSITIVE_Y, mipLevel, internalFormat, size, size, 0, format, dataType, data[2]);
-		gl.texImage2D(CubeFace.NEGATIVE_Y, mipLevel, internalFormat, size, size, 0, format, dataType, data[3]);
-		gl.texImage2D(CubeFace.POSITIVE_Z, mipLevel, internalFormat, size, size, 0, format, dataType, data[4]);
-		gl.texImage2D(CubeFace.NEGATIVE_Z, mipLevel, internalFormat, size, size, 0, format, dataType, data[5]);
-
-		if (generateMips)
-			gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
-
-		this._isReady = true;
-
-		gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
-	};
-
-	/**
-	 * Initializes the texture with the given Images.
-	 * @param data A array of typed arrays (per {@linkcode CubeFace}) containing the initial data.
-	 * @param generateMips Whether or not a mip chain should be generated.
-	 * @param {TextureFormat} format The texture's format.
-	 * @param {DataType} dataType The texture's data format.
-	 * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
-	 */
-	TextureCube.prototype.uploadImages = function(images, generateMips, format, dataType, mipLevel)
-	{
-		generateMips = generateMips === undefined? true: generateMips;
-
-		if (!mipLevel) {
-			this._format = format || TextureFormat.RGBA;
-			this._dataType = dataType || DataType.UNSIGNED_BYTE;
-			this._size = images[0].naturalWidth;
-		}
-
-		format = this._format;
-		dataType = this._dataType;
-
-		var gl = GL.gl;
-
-		this.bind();
-
-		mipLevel = mipLevel || 0;
-
-		var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
-		gl.texImage2D(CubeFace.POSITIVE_X, mipLevel, internalFormat, format, dataType, images[0]);
-		gl.texImage2D(CubeFace.NEGATIVE_X, mipLevel, internalFormat, format, dataType, images[1]);
-		gl.texImage2D(CubeFace.POSITIVE_Y, mipLevel, internalFormat, format, dataType, images[2]);
-		gl.texImage2D(CubeFace.NEGATIVE_Y, mipLevel, internalFormat, format, dataType, images[3]);
-		gl.texImage2D(CubeFace.POSITIVE_Z, mipLevel, internalFormat, format, dataType, images[4]);
-		gl.texImage2D(CubeFace.NEGATIVE_Z, mipLevel, internalFormat, format, dataType, images[5]);
-
-		if (generateMips)
-			gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
-
-		this._isReady = true;
-
-		gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
-	};
-
-	/**
-	 * @ignore
-	 */
-	Texture2D.prototype.toString = function()
-	{
-		return "[TextureCube(name=" + this.name + ")]";
-	};
-
-	/**
-	 * @classdesc
-	 * BlendState defines the blend mode the renderer should use. Default presets include BlendState.ALPHA, BlendState.ADD
-	 * and BlendState.MULTIPLY.
-	 *
-	 * @param srcFactor The source blend factor.
-	 * @param dstFactor The destination blend factor.
-	 * @param operator The blend operator.
-	 * @param color The blend color.
-	 * @constructor
-	 *
 	 * @author derschmale <http://www.derschmale.com>
 	 */
-	function BlendState(srcFactor, dstFactor, operator, color)
-	{
-	    /**
-	     * Defines whether blending is enabled.
-	     */
-	    this.enabled = true;
+	var UniformBufferSetter = {
+	    getSettersPerPass: function (materialPass)
+	    {
+	        if (UniformBufferSetter._passTable === undefined)
+	            UniformBufferSetter._init();
 
-	    /**
-	     * The source blend factor.
-	     * @see {@linkcode BlendFactor}
-	     */
-	    this.srcFactor = srcFactor || BlendFactor.ONE;
+	        return UniformBufferSetter._findSetters(materialPass, UniformBufferSetter._passTable);
+	    },
 
-	    /**
-	     * The destination blend factor.
-	     * @see {@linkcode BlendFactor}
-	     */
-	    this.dstFactor = dstFactor || BlendFactor.ZERO;
+	    getSettersPerInstance: function (materialPass)
+	    {
+	        if (UniformBufferSetter._instanceTable === undefined)
+	            UniformBufferSetter._init();
 
-	    /**
-	     * The blend operator.
-	     * @see {@linkcode BlendOperation}
-	     */
-	    this.operator = operator || BlendOperation.ADD;
+	        return UniformBufferSetter._findSetters(materialPass, UniformBufferSetter._instanceTable);
+	    },
 
-	    /**
-	     * The source blend factor for the alpha.
-	     * @see {@linkcode BlendFactor}
-	     */
-	    this.alphaSrcFactor = null;
+	    _findSetters: function (materialPass, table)
+	    {
+	        var setters = [];
+	        for (var slotName in table) {
+	            if (!table.hasOwnProperty(slotName)) continue;
+	            var slot = materialPass.getUniformBufferIndex(slotName);
+	            if (slot === -1) continue;
+	            var setter = new table[slotName]();
+	            setters.push(setter);
+	            setter.slot = slot;
+	            setter.pass = materialPass;
+	        }
 
-	    /**
-	     * The source blend factor for the alpha.
-	     * @see {@linkcode BlendFactor}
-	     */
-	    this.alphaDstFactor = null;
+	        return setters;
+	    },
 
-	    /**
-	     * The blend operator for the alpha.
-	     * @see {@linkcode BlendOperation}
-	     */
-	    this.alphaOperator = null;
+	    _init: function()
+	    {
+	        UniformBufferSetter._passTable = {};
+	        UniformBufferSetter._instanceTable = {};
 
-	    /**
-	     * The blend color.
-	     * @see {@linkcode Color}
-	     */
-	    this.color = color || null;
-	}
-
-	BlendState.prototype = {
-	    /**
-	     * Creates a copy of this BlendState.
-	     */
-	    clone: function() {
-	        var blendState = new BlendState(this.srcFactor, this.dstFactor, this.operator, this.color);
-	        blendState.alphaDstFactor = this.alphaDstFactor;
-	        blendState.alphaSrcFactor = this.alphaSrcFactor;
-	        blendState.alphaOperator = this.alphaOperator;
-	        return blendState;
+	        UniformBufferSetter._passTable.hx_lights = LightsSetter;
+			UniformBufferSetter._passTable.hx_lightingCells = LightingCellsSetter;
 	    }
 	};
 
-	BlendState._initDefaults = function()
+	function LightsSetter()
 	{
-	    BlendState.ADD = new BlendState(BlendFactor.SOURCE_ALPHA, BlendFactor.ONE);
-	    BlendState.ADD_NO_ALPHA = new BlendState(BlendFactor.ONE, BlendFactor.ONE);
-	    BlendState.MULTIPLY = new BlendState(BlendFactor.DESTINATION_COLOR, BlendFactor.ZERO);
-	    BlendState.ALPHA = new BlendState(BlendFactor.SOURCE_ALPHA, BlendFactor.ONE_MINUS_SOURCE_ALPHA);
-	    BlendState.ALPHA.alphaSrcFactor = BlendFactor.ONE;
-	    BlendState.ALPHA.alphaDstFactor = BlendFactor.ONE_MINUS_SOURCE_ALPHA;
-	    BlendState.INV_ALPHA = new BlendState(BlendFactor.ONE_MINUS_SOURCE_ALPHA, BlendFactor.SOURCE_ALPHA);
+	}
+
+	LightsSetter.prototype.execute = function (renderer)
+	{
+	    this.pass.setUniformBufferByIndex(this.slot, renderer._lightingUniformBuffer);
+	};
+
+	function LightingCellsSetter()
+	{
+	}
+
+	LightingCellsSetter.prototype.execute = function (renderer)
+	{
+		this.pass.setUniformBufferByIndex(this.slot, renderer._lightingCellsUniformBuffer);
 	};
 
 	/**
@@ -9010,194 +8837,6 @@
 
 	        return true;
 	    }
-	};
-
-	/**
-	 * @ignore
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	var TextureSetter = {
-	    getSettersPerPass: function (materialPass)
-	    {
-	        if (TextureSetter._passTable === undefined)
-	            TextureSetter._init();
-
-	        return TextureSetter._findSetters(materialPass, TextureSetter._passTable);
-	    },
-
-	    getSettersPerInstance: function (materialPass)
-	    {
-	        if (TextureSetter._instanceTable === undefined)
-	            TextureSetter._init();
-
-	        return TextureSetter._findSetters(materialPass, TextureSetter._instanceTable);
-	    },
-
-	    _findSetters: function (shader, table)
-	    {
-	        var setters = [];
-	        for (var slotName in table) {
-	            if (!table.hasOwnProperty(slotName)) continue;
-	            var slot = shader.getTextureIndex(slotName);
-	            if (slot === -1) continue;
-	            var setter = new table[slotName]();
-	            setters.push(setter);
-	            setter.slot = slot;
-	            setter.pass = shader;
-	        }
-
-	        return setters;
-	    },
-
-	    _init: function()
-	    {
-	        TextureSetter._passTable = {};
-	        TextureSetter._instanceTable = {};
-
-	        TextureSetter._passTable.hx_normalDepthBuffer = NormalDepthBufferSetter;
-	        TextureSetter._passTable.hx_backbuffer = BackbufferSetter;
-	        TextureSetter._passTable.hx_frontbuffer = FrontbufferSetter;
-	        TextureSetter._passTable.hx_ssao = SSAOSetter;
-	        TextureSetter._passTable.hx_shadowMap = ShadowMapSetter;
-			TextureSetter._passTable["hx_specularProbeMaps[0]"] = SpecularProbesSetter;
-
-	        TextureSetter._instanceTable.hx_skinningTexture = SkinningTextureSetter;
-	    }
-	};
-
-
-	// Texture setters can be either per pass or per instance. The execute method gets passed eithter the renderer or the
-	// render item, respectively.
-
-	function NormalDepthBufferSetter()
-	{
-	}
-
-	NormalDepthBufferSetter.prototype.execute = function (renderer)
-	{
-	    this.pass.setTextureByIndex(this.slot, renderer._normalDepthBuffer);
-	};
-
-
-	function FrontbufferSetter()
-	{
-	}
-
-	FrontbufferSetter.prototype.execute = function (renderer)
-	{
-	    if (renderer._hdrFront)
-			this.pass.setTextureByIndex(this.slot, renderer._hdrFront.texture);
-	};
-
-	function BackbufferSetter()
-	{
-	}
-
-	BackbufferSetter.prototype.execute = function (renderer)
-	{
-	    if (renderer._hdrBack)
-			this.pass.setTextureByIndex(this.slot, renderer._hdrBack.texture);
-	};
-
-	function SSAOSetter()
-	{
-	}
-
-	SSAOSetter.prototype.execute = function (renderer)
-	{
-		this.pass.setTextureByIndex(this.slot, renderer._ssaoTexture);
-	};
-
-	function ShadowMapSetter()
-	{
-	}
-
-	ShadowMapSetter.prototype.execute = function (renderer)
-	{
-		this.pass.setTextureByIndex(this.slot, renderer._shadowAtlas.texture);
-	};
-
-	function SpecularProbesSetter()
-	{
-	}
-
-	SpecularProbesSetter.prototype.execute = function (renderer)
-	{
-	    this.pass.setTextureArrayByIndex(this.slot, renderer._specularProbeArray);
-	};
-
-	function SkinningTextureSetter()
-	{
-	}
-
-	SkinningTextureSetter.prototype.execute = function (renderItem)
-	{
-		this.pass.setTextureByIndex(this.slot, renderItem.skeletonMatrices);
-	};
-
-	/**
-	 * @ignore
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	var UniformBufferSetter = {
-	    getSettersPerPass: function (materialPass)
-	    {
-	        if (UniformBufferSetter._passTable === undefined)
-	            UniformBufferSetter._init();
-
-	        return UniformBufferSetter._findSetters(materialPass, UniformBufferSetter._passTable);
-	    },
-
-	    getSettersPerInstance: function (materialPass)
-	    {
-	        if (UniformBufferSetter._instanceTable === undefined)
-	            UniformBufferSetter._init();
-
-	        return UniformBufferSetter._findSetters(materialPass, UniformBufferSetter._instanceTable);
-	    },
-
-	    _findSetters: function (materialPass, table)
-	    {
-	        var setters = [];
-	        for (var slotName in table) {
-	            if (!table.hasOwnProperty(slotName)) continue;
-	            var slot = materialPass.getUniformBufferIndex(slotName);
-	            if (slot === -1) continue;
-	            var setter = new table[slotName]();
-	            setters.push(setter);
-	            setter.slot = slot;
-	            setter.pass = materialPass;
-	        }
-
-	        return setters;
-	    },
-
-	    _init: function()
-	    {
-	        UniformBufferSetter._passTable = {};
-	        UniformBufferSetter._instanceTable = {};
-
-	        UniformBufferSetter._passTable.hx_lights = LightsSetter;
-			UniformBufferSetter._passTable.hx_lightingCells = LightingCellsSetter;
-	    }
-	};
-
-	function LightsSetter()
-	{
-	}
-
-	LightsSetter.prototype.execute = function (renderer)
-	{
-	    this.pass.setUniformBufferByIndex(this.slot, renderer._lightingUniformBuffer);
-	};
-
-	function LightingCellsSetter()
-	{
-	}
-
-	LightingCellsSetter.prototype.execute = function (renderer)
-	{
-		this.pass.setUniformBufferByIndex(this.slot, renderer._lightingCellsUniformBuffer);
 	};
 
 	/**
@@ -12299,6 +11938,492 @@
 				this._uniformFuncs[name] = func;
 	        }
 	    };
+
+	/**
+	 * VertexLayoutCache manages vertex layout objects for MeshInstances so many duplicate objects do not require a lot of
+	 * data, and whether or not vertex attributes need to be updated on the GPU can be limited to when the vertex layout
+	 * changes.
+	 * @ignore
+	 */
+	function VertexLayoutCache()
+	{
+		this._cache = {};
+	}
+
+	VertexLayoutCache.prototype = {
+		getLayouts: function(meshInstance)
+		{
+			// TODO: Could also have double layered cache for the whole vertexLayouts array
+			var material = meshInstance._material;
+			var mesh = meshInstance._mesh;
+
+			if (!material || !mesh) return null;
+
+			var vertexLayouts = new Array(MaterialPass.NUM_PASS_TYPES);
+
+			for (var type = 0; type < MaterialPass.NUM_PASS_TYPES; ++type) {
+				var pass = material.getPass(type);
+				if (pass)
+					vertexLayouts[type] = this._getLayout(mesh, pass.shader);
+			}
+
+			return vertexLayouts;
+		},
+
+		_getLayout: function(mesh, shader)
+		{
+			var idx = mesh._idx + "" + shader._idx;
+
+			var layout = this._cache[idx];
+			if (layout) {
+				++layout.usages;
+				return layout;
+			}
+
+			this._cache[idx] = layout = {
+				usages: 1,
+				layout: new VertexLayout(mesh, shader),
+				idx: idx
+			};
+
+			return layout;
+		},
+
+		free: function(meshInstance)
+		{
+			var layouts = meshInstance._vertexLayouts;
+			for (var type = 0; type < MaterialPass.NUM_PASS_TYPES; ++type) {
+				var layout = layouts[type];
+				if (layout) {
+					if (--layout.usages === 0)
+						delete this._cache[layout.idx];
+				}
+			}
+		}
+
+	};
+
+	/**
+	 * @param fragmentShader
+	 * @constructor
+	 * @ignore
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function CustomCopyShader(fragmentShader, mesh)
+	{
+	    Shader.call(this);
+	    this.init(ShaderLibrary.get("copy_vertex.glsl"), fragmentShader);
+
+	    var gl = GL.gl;
+	    var textureLocation = gl.getUniformLocation(this.program, "sampler");
+
+	    this._mesh = mesh || RectMesh.DEFAULT;
+	    this._layout = new VertexLayout(this._mesh, this);
+
+	    gl.useProgram(this.program);
+	    gl.uniform1i(textureLocation, 0);
+	}
+
+	CustomCopyShader.prototype = Object.create(Shader.prototype);
+
+	CustomCopyShader.prototype.execute = function(texture)
+	{
+	    GL.setDepthTest(Comparison.DISABLED);
+	    GL.setCullMode(CullMode.NONE);
+	    GL.setShader(this);
+		GL.setVertexLayout(this._layout);
+
+	    texture.bind(0);
+
+	    GL.drawElements(ElementType.TRIANGLES, 6);
+	};
+
+
+
+	/**
+	 * Copies one texture's channels (in configurable ways) to another's.
+	 * @param channel Can be either x, y, z, w or any 4-component swizzle. default is xyzw, meaning a simple copy
+	 * @constructor
+	 * @ignore
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function CopyChannelsShader(channel, copyAlpha)
+	{
+	    channel = channel || "xyzw";
+	    copyAlpha = copyAlpha === undefined? true : copyAlpha;
+
+	    var define = "#define extractChannels(src) ((src)." + channel + ")\n";
+
+	    if (copyAlpha) define += "#define COPY_ALPHA\n";
+
+	    CustomCopyShader.call(this, define + ShaderLibrary.get("copy_fragment.glsl"));
+	}
+
+	CopyChannelsShader.prototype = Object.create(CustomCopyShader.prototype);
+
+
+
+	/**
+	 * Copies one texture's channels while applying the same logic as gl.blendColor. This because it is broken for float textures.
+	 * @constructor
+	 * @ignore
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function BlendColorCopyShader()
+	{
+	    CustomCopyShader.call(this, ShaderLibrary.get("blend_color_copy_fragment.glsl"));
+	    this._colorLocation = GL.gl.getUniformLocation(this.program, "blendColor");
+	    this.setBlendColor(1, 1, 1, 1);
+	}
+
+	BlendColorCopyShader.prototype = Object.create(CustomCopyShader.prototype);
+
+	BlendColorCopyShader.prototype.setBlendColor = function(r, g, b, a)
+	{
+	    var gl = GL.gl;
+	    gl.useProgram(this.program);
+	    gl.uniform4f(this._colorLocation, r, g, b, a);
+	};
+
+
+	/**
+	 * @classdesc
+	 * Copies the texture from linear space to gamma space.
+	 *
+	 * @ignore
+	 *
+	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function ApplyGammaShader()
+	{
+	    CustomCopyShader.call(this, ShaderLibrary.get("copy_to_gamma_fragment.glsl"));
+	}
+
+	ApplyGammaShader.prototype = Object.create(CustomCopyShader.prototype);
+
+	function DebugNormalsShader()
+	{
+	    CustomCopyShader.call(this, ShaderLibrary.get("debug_normals_fragment.glsl"));
+	}
+
+	DebugNormalsShader.prototype = Object.create(CustomCopyShader.prototype);
+
+	function DebugDepthShader()
+	{
+	    CustomCopyShader.call(this, ShaderLibrary.get("debug_depth_fragment.glsl"));
+	}
+
+	DebugDepthShader.prototype = Object.create(CustomCopyShader.prototype);
+
+	var nameCounter$1 = 0;
+
+	//       +-----+
+	//       |  +Z |
+	// +-----+-----+-----+-----+
+	// |  -X |  +Y |  +X |  -Y |
+	// +-----+-----+-----+-----+
+	//       |  -Z |
+	//       +-----+
+
+	/**
+	 * @classdesc
+	 * TextureCube represents a cube map texture. The order of the textures in a cross map is as such:
+	 *
+	 * @constructor
+	 *
+	 * @property name The name of the texture.
+	 * @property size The cube texture's size
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function TextureCube()
+	{
+		Texture.call(this, GL.gl.TEXTURE_CUBE_MAP);
+		this.name = "hx_texturecube_" + (nameCounter$1++);
+	    this._default = TextureCube.DEFAULT;
+	    this._size = 0;
+	}
+
+	/**
+	 * @ignore
+	 */
+	TextureCube._initDefault = function()
+	{
+	    var gl = GL.gl;
+	    var data = new Uint8Array([0xff, 0x00, 0xff, 0xff]);
+	    TextureCube.DEFAULT = new TextureCube();
+	    TextureCube.DEFAULT.uploadData([data, data, data, data, data, data], 1, true);
+	    TextureCube.DEFAULT.filter = TextureFilter.NEAREST_NOMIP;
+	    gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+	};
+
+	TextureCube.prototype = Object.create(Texture.prototype, {
+		size: {
+			get: function() { return this._size; }
+		},
+
+		/**
+		 * The amount of mip levels (if present).
+		 */
+		numMips: {
+			get: function() {
+				return Math.floor(MathX.log2(this._size));
+			}
+		}
+	});
+
+
+	/**
+	 * Inits an empty texture.
+	 * @param size The size of the texture.
+	 * @param {TextureFormat} format The texture's format.
+	 * @param {DataType} dataType The texture's data format.
+	 */
+	TextureCube.prototype.initEmpty = function(size, format, dataType)
+	{
+		this._data = null;
+		this._format = format = format || TextureFormat.RGBA;
+		this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
+		this._size = size;
+
+		this.bind();
+
+		var gl = GL.gl;
+		var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
+		gl.texImage2D(CubeFace.POSITIVE_X, 0, internalFormat, size, size, 0, format, dataType, null);
+		gl.texImage2D(CubeFace.NEGATIVE_X, 0, internalFormat, size, size, 0, format, dataType, null);
+		gl.texImage2D(CubeFace.POSITIVE_Y, 0, internalFormat, size, size, 0, format, dataType, null);
+		gl.texImage2D(CubeFace.NEGATIVE_Y, 0, internalFormat, size, size, 0, format, dataType, null);
+		gl.texImage2D(CubeFace.POSITIVE_Z, 0, internalFormat, size, size, 0, format, dataType, null);
+		gl.texImage2D(CubeFace.NEGATIVE_Z, 0, internalFormat, size, size, 0, format, dataType, null);
+
+		this._isReady = true;
+
+		gl.bindTexture(gl.TEXTURE_2D, null);
+	};
+
+	/**
+	 * Uploads compressed data.
+	 *
+	 * @param {*} data An typed array containing the initial data.
+	 * @param {number} size The size of the texture.
+	 * @param {boolean} generateMips Whether or not a mip chain should be generated.
+	 * @param {*} internalFormat The texture's internal compression format.
+	 * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
+	 */
+	TextureCube.prototype.uploadCompressedData = function(data, size, generateMips, internalFormat, mipLevel)
+	{
+		var gl = GL.gl;
+
+		if (!mipLevel) {
+			this._size = size;
+			this._format = TextureFormat.RGBA;
+			this._dataType = DataType.UNSIGNED_BYTE;
+		}
+
+		this.bind();
+
+		mipLevel = mipLevel || 0;
+		gl.compressedTexImage2D(CubeFace.POSITIVE_X, mipLevel, internalFormat, size, size, 0, data[0]);
+		gl.compressedTexImage2D(CubeFace.NEGATIVE_X, mipLevel, internalFormat, size, size, 0, data[1]);
+		gl.compressedTexImage2D(CubeFace.POSITIVE_Y, mipLevel, internalFormat, size, size, 0, data[2]);
+		gl.compressedTexImage2D(CubeFace.NEGATIVE_Y, mipLevel, internalFormat, size, size, 0, data[3]);
+		gl.compressedTexImage2D(CubeFace.POSITIVE_Z, mipLevel, internalFormat, size, size, 0, data[4]);
+		gl.compressedTexImage2D(CubeFace.NEGATIVE_Z, mipLevel, internalFormat, size, size, 0, data[5]);
+
+		if (generateMips)
+			gl.generateMipmap(gl.TEXTURE_2D);
+
+		this._isReady = true;
+
+		gl.bindTexture(gl.TEXTURE_2D, null);
+	};
+
+	/**
+	 * Initializes the texture with the given data.
+	 * @param data A array of typed arrays (per {@linkcode CubeFace}) containing the initial data.
+	 * @param size The size of the texture.
+	 * @param generateMips Whether or not a mip chain should be generated.
+	 * @param {TextureFormat} format The texture's format.
+	 * @param {DataType} dataType The texture's data format.
+	 * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
+	 */
+	TextureCube.prototype.uploadData = function(data, size, generateMips, format, dataType, mipLevel)
+	{
+		if (!mipLevel) {
+			this._size = size;
+			this._format = format = format || TextureFormat.RGBA;
+			this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
+		}
+
+		if (capabilities.EXT_HALF_FLOAT_TEXTURES && dataType === DataType.HALF_FLOAT && !(data[0] instanceof Uint16Array)) {
+			for (var i = 0; i < 6; ++i)
+				data[i] = TextureUtils.encodeToFloat16Array(data[i]);
+		}
+
+		generateMips = generateMips === undefined? true: generateMips;
+
+		this.bind();
+
+		var gl = GL.gl;
+		mipLevel = mipLevel || 0;
+		var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
+		gl.texImage2D(CubeFace.POSITIVE_X, mipLevel, internalFormat, size, size, 0, format, dataType, data[0]);
+		gl.texImage2D(CubeFace.NEGATIVE_X, mipLevel, internalFormat, size, size, 0, format, dataType, data[1]);
+		gl.texImage2D(CubeFace.POSITIVE_Y, mipLevel, internalFormat, size, size, 0, format, dataType, data[2]);
+		gl.texImage2D(CubeFace.NEGATIVE_Y, mipLevel, internalFormat, size, size, 0, format, dataType, data[3]);
+		gl.texImage2D(CubeFace.POSITIVE_Z, mipLevel, internalFormat, size, size, 0, format, dataType, data[4]);
+		gl.texImage2D(CubeFace.NEGATIVE_Z, mipLevel, internalFormat, size, size, 0, format, dataType, data[5]);
+
+		if (generateMips)
+			gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+
+		this._isReady = true;
+
+		gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+	};
+
+	/**
+	 * Initializes the texture with the given Images.
+	 * @param data A array of typed arrays (per {@linkcode CubeFace}) containing the initial data.
+	 * @param generateMips Whether or not a mip chain should be generated.
+	 * @param {TextureFormat} format The texture's format.
+	 * @param {DataType} dataType The texture's data format.
+	 * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
+	 */
+	TextureCube.prototype.uploadImages = function(images, generateMips, format, dataType, mipLevel)
+	{
+		generateMips = generateMips === undefined? true: generateMips;
+
+		if (!mipLevel) {
+			this._format = format || TextureFormat.RGBA;
+			this._dataType = dataType || DataType.UNSIGNED_BYTE;
+			this._size = images[0].naturalWidth;
+		}
+
+		format = this._format;
+		dataType = this._dataType;
+
+		var gl = GL.gl;
+
+		this.bind();
+
+		mipLevel = mipLevel || 0;
+
+		var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
+		gl.texImage2D(CubeFace.POSITIVE_X, mipLevel, internalFormat, format, dataType, images[0]);
+		gl.texImage2D(CubeFace.NEGATIVE_X, mipLevel, internalFormat, format, dataType, images[1]);
+		gl.texImage2D(CubeFace.POSITIVE_Y, mipLevel, internalFormat, format, dataType, images[2]);
+		gl.texImage2D(CubeFace.NEGATIVE_Y, mipLevel, internalFormat, format, dataType, images[3]);
+		gl.texImage2D(CubeFace.POSITIVE_Z, mipLevel, internalFormat, format, dataType, images[4]);
+		gl.texImage2D(CubeFace.NEGATIVE_Z, mipLevel, internalFormat, format, dataType, images[5]);
+
+		if (generateMips)
+			gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+
+		this._isReady = true;
+
+		gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+	};
+
+	/**
+	 * @ignore
+	 */
+	Texture2D.prototype.toString = function()
+	{
+		return "[TextureCube(name=" + this.name + ")]";
+	};
+
+	/**
+	 * @classdesc
+	 * BlendState defines the blend mode the renderer should use. Default presets include BlendState.ALPHA, BlendState.ADD
+	 * and BlendState.MULTIPLY.
+	 *
+	 * @param srcFactor The source blend factor.
+	 * @param dstFactor The destination blend factor.
+	 * @param operator The blend operator.
+	 * @param color The blend color.
+	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function BlendState(srcFactor, dstFactor, operator, color)
+	{
+	    /**
+	     * Defines whether blending is enabled.
+	     */
+	    this.enabled = true;
+
+	    /**
+	     * The source blend factor.
+	     * @see {@linkcode BlendFactor}
+	     */
+	    this.srcFactor = srcFactor || BlendFactor.ONE;
+
+	    /**
+	     * The destination blend factor.
+	     * @see {@linkcode BlendFactor}
+	     */
+	    this.dstFactor = dstFactor || BlendFactor.ZERO;
+
+	    /**
+	     * The blend operator.
+	     * @see {@linkcode BlendOperation}
+	     */
+	    this.operator = operator || BlendOperation.ADD;
+
+	    /**
+	     * The source blend factor for the alpha.
+	     * @see {@linkcode BlendFactor}
+	     */
+	    this.alphaSrcFactor = null;
+
+	    /**
+	     * The source blend factor for the alpha.
+	     * @see {@linkcode BlendFactor}
+	     */
+	    this.alphaDstFactor = null;
+
+	    /**
+	     * The blend operator for the alpha.
+	     * @see {@linkcode BlendOperation}
+	     */
+	    this.alphaOperator = null;
+
+	    /**
+	     * The blend color.
+	     * @see {@linkcode Color}
+	     */
+	    this.color = color || null;
+	}
+
+	BlendState.prototype = {
+	    /**
+	     * Creates a copy of this BlendState.
+	     */
+	    clone: function() {
+	        var blendState = new BlendState(this.srcFactor, this.dstFactor, this.operator, this.color);
+	        blendState.alphaDstFactor = this.alphaDstFactor;
+	        blendState.alphaSrcFactor = this.alphaSrcFactor;
+	        blendState.alphaOperator = this.alphaOperator;
+	        return blendState;
+	    }
+	};
+
+	BlendState._initDefaults = function()
+	{
+	    BlendState.ADD = new BlendState(BlendFactor.SOURCE_ALPHA, BlendFactor.ONE);
+	    BlendState.ADD_NO_ALPHA = new BlendState(BlendFactor.ONE, BlendFactor.ONE);
+	    BlendState.MULTIPLY = new BlendState(BlendFactor.DESTINATION_COLOR, BlendFactor.ZERO);
+	    BlendState.ALPHA = new BlendState(BlendFactor.SOURCE_ALPHA, BlendFactor.ONE_MINUS_SOURCE_ALPHA);
+	    BlendState.ALPHA.alphaSrcFactor = BlendFactor.ONE;
+	    BlendState.ALPHA.alphaDstFactor = BlendFactor.ONE_MINUS_SOURCE_ALPHA;
+	    BlendState.INV_ALPHA = new BlendState(BlendFactor.ONE_MINUS_SOURCE_ALPHA, BlendFactor.SOURCE_ALPHA);
+	};
 
 	/**
 	 * Implementation details: every button or axis has an integer index from an enum.
@@ -15872,70 +15997,6 @@
 	};
 
 	/**
-	 * @classdesc
-	 * VertexLayout links the mesh's vertex attributes to a shader's attributes
-	 *
-	 * @param mesh
-	 * @param pass
-	 * @constructor
-	 *
-	 * @ignore
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function VertexLayout(mesh, shader)
-	{
-	    this.attributes = [];
-	    this.morphPositionAttributes = [];
-	    this.morphNormalAttributes = [];
-
-	    this._numAttributes = -1;
-
-	    for (var i = 0; i < mesh.numVertexAttributes; ++i) {
-	        var attribute = mesh.getVertexAttributeByIndex(i);
-	        var index = shader.getAttributeLocation(attribute.name);
-
-	        if (!(index >= 0)) continue;
-
-	        var stride = mesh.getVertexStride(attribute.streamIndex);
-	        var attrib = {
-	            index: index,
-	            offset: attribute.offset * 4,
-	            external: false,
-	            numComponents: attribute.numComponents,
-	            stride: stride * 4,
-	            streamIndex: attribute.streamIndex,
-	            normalized: attribute.normalized
-	        };
-
-			// so in some cases, it occurs that - when attributes are optimized out by the driver - the indices don't change,
-			// but those unused become -1, leaving gaps. This keeps the gaps so we can take care of them
-			this.attributes[index] = attrib;
-			this._numAttributes = Math.max(this._numAttributes, index + 1);
-
-	        // morph attributes are handled differently because their associated vertex buffers change dynamically
-	        // their state is uploaded by MeshInstance itself
-	        if (attribute.name.indexOf("hx_morphPosition") === 0) {
-	            this.morphPositionAttributes.push(attrib);
-	            attrib.external = true;
-	        }
-
-	        if (attribute.name.indexOf("hx_morphNormal") === 0) {
-	            this.morphNormalAttributes.push(attrib);
-	            attrib.external = true;
-	        }
-	    }
-
-	    // any instanced attribs that isn't managed by vertex layout
-	    var builtIn = ["hx_instanceMatrix0", "hx_instanceMatrix1", "hx_instanceMatrix2"];
-	    for (var i = 0; i < 3; ++i) {
-	        index = shader.getAttributeLocation(builtIn[i]);
-			this._numAttributes = Math.max(this._numAttributes, index + 1);
-	    }
-
-	}
-
-	/**
 	 * @abstract
 	 *
 	 * @constructor
@@ -16106,70 +16167,6 @@
 	            this.entity.messenger.unbind(name, func);
 	        }
 		};
-
-	/**
-	 * VertexLayoutCache manages vertex layout objects for MeshInstances so many duplicate objects do not require a lot of
-	 * data, and whether or not vertex attributes need to be updated on the GPU can be limited to when the vertex layout
-	 * changes.
-	 * @ignore
-	 */
-	function VertexLayoutCache()
-	{
-		this._cache = {};
-	}
-
-	VertexLayoutCache.prototype = {
-		getLayouts: function(meshInstance)
-		{
-			// TODO: Could also have double layered cache for the whole vertexLayouts array
-			var material = meshInstance._material;
-			var mesh = meshInstance._mesh;
-
-			if (!material || !mesh) return null;
-
-			var vertexLayouts = new Array(MaterialPass.NUM_PASS_TYPES);
-
-			for (var type = 0; type < MaterialPass.NUM_PASS_TYPES; ++type) {
-				var pass = material.getPass(type);
-				if (pass)
-					vertexLayouts[type] = this._getLayout(mesh, pass.shader);
-			}
-
-			return vertexLayouts;
-		},
-
-		_getLayout: function(mesh, shader)
-		{
-			var idx = mesh._idx + "" + shader._idx;
-
-			var layout = this._cache[idx];
-			if (layout) {
-				++layout.usages;
-				return layout;
-			}
-
-			this._cache[idx] = layout = {
-				usages: 1,
-				layout: new VertexLayout(mesh, shader),
-				idx: idx
-			};
-
-			return layout;
-		},
-
-		free: function(meshInstance)
-		{
-			var layouts = meshInstance._vertexLayouts;
-			for (var type = 0; type < MaterialPass.NUM_PASS_TYPES; ++type) {
-				var layout = layouts[type];
-				if (layout) {
-					if (--layout.usages === 0)
-						delete this._cache[layout.idx];
-				}
-			}
-		}
-
-	};
 
 	var nameCounter$3 = 0;
 	var layoutCache = new VertexLayoutCache();
@@ -16366,7 +16363,7 @@
 		if (!this._vertexLayouts)
 			this._initVertexLayouts();
 
-		GL.setVertexLayout(this, this._vertexLayouts[passType].layout);
+		GL.setVertexLayout(this._vertexLayouts[passType].layout, this);
 	};
 
 	/**
@@ -21767,6 +21764,7 @@
 
 		for (var i = 0, len = this._numCells * this._numCells; i < len; ++i) {
 			var batch = new MeshBatch(meshInstance.mesh, meshInstance.material, false);
+			batch.name = meshInstance.name + "_batch_" + i;
 			batch.className = meshInstance.name;
 			batch.castShadows = meshInstance.castShadows;
 			batch.lodRangeStart = meshInstance.lodRangeStart;
@@ -22066,6 +22064,7 @@
 	{
 		var entity = new Entity();
 		var meshInstance = new MeshInstance(mesh, this._material);
+		meshInstance.name = "hx_terrain_" + this._container.numChildren;
 		entity.addComponent(meshInstance);
 
 		// always add this to the partition's root node
@@ -25834,18 +25833,7 @@
 		var cam = renderer._camera;
 		this.updateInstanceRenderState(cam);
 		this.updatePassRenderState(cam, renderer);
-
-		this._mesh._vertexBuffers[0].bind();
-		this._mesh._indexBuffer.bind();
-
-		var layout = this._vertexLayout;
-		var attributes = layout.attributes;
-		var len = attributes.length;
-
-		for (var i = 0; i < len; ++i) {
-			var attribute = attributes[i];
-			GL.gl.vertexAttribPointer(attribute.index, attribute.numComponents, GL.gl.FLOAT, false, attribute.stride, attribute.offset);
-		}
+		GL.setVertexLayout(this._vertexLayout);
 	};
 
 	/**
@@ -29224,6 +29212,8 @@
 	        if (!toCubeVertices)
 	            createRenderCubeGeometry();
 
+			GL.setVertexLayout(null);
+
 	        var gl = GL.gl;
 	        target = target || new TextureCube();
 	        target.initEmpty(size, source.format, getDataType(source.dataType));
@@ -29288,7 +29278,7 @@
 	        GL.setRenderTarget(fbo);
 	        GL.clear();
 
-	        fromCubeShader.execute(RectMesh.DEFAULT, source);
+	        fromCubeShader.execute(source);
 
 	        GL.setRenderTarget(old);
 
@@ -29612,7 +29602,7 @@
 
 	        GL.setRenderTarget(fbo1);
 	        GL.clear();
-	        toRGBA8.execute(RectMesh.DEFAULT, texture);
+	        toRGBA8.execute(texture);
 
 	        var originalFilter = target.filter;
 			target.filter = TextureFilter.NEAREST_NOMIP;
@@ -29627,13 +29617,13 @@
 	        GL.setRenderTarget(fbo2);
 	        GL.clear();
 	        gl.uniform2f(offsetLocation, 1.0 / texture.width, 0.0);
-	        smooth.execute(RectMesh.DEFAULT, tex1);
+	        smooth.execute(tex1);
 	        tex2.generateMipmap();
 
 	        GL.setRenderTarget(fbo1);
 	        GL.clear();
 	        gl.uniform2f(offsetLocation, 0.0, 1.0 / texture.height);
-	        smooth.execute(RectMesh.DEFAULT, tex2);
+	        smooth.execute(tex2);
 
 			target.filter = originalFilter;
 
@@ -31382,8 +31372,7 @@
 
 	    this._textureLocation = this.getUniformLocation("source");
 	    this._directionLocation = this.getUniformLocation("direction");
-	    this._positionAttributeLocation = this.getAttributeLocation("hx_position");
-	    this._texCoordAttributeLocation = this.getAttributeLocation("hx_texCoord");
+		this._layout = new VertexLayout(RectMesh.DEFAULT, this);
 
 	    gl.useProgram(this.program);
 	    gl.uniform1i(this._textureLocation, 0);
@@ -31397,16 +31386,10 @@
 
 	    GL.setDepthTest(Comparison.DISABLED);
 	    GL.setCullMode(CullMode.NONE);
-
-	    rect._vertexBuffers[0].bind();
-	    rect._indexBuffer.bind();
-
 	    GL.setShader(this);
+		GL.setVertexLayout(this._layout);
 
 	    texture.bind(0);
-
-	    gl.vertexAttribPointer(this._positionAttributeLocation, 2, gl.FLOAT, false, 16, 0);
-	    gl.vertexAttribPointer(this._texCoordAttributeLocation, 2, gl.FLOAT, false, 16, 8);
 
 	    gl.uniform2f(this._directionLocation, dirX, dirY);
 
@@ -31601,8 +31584,7 @@
 
 	    this._textureLocation = this.getUniformLocation("source");
 	    this._directionLocation = this.getUniformLocation("direction");
-	    this._positionAttributeLocation = this.getAttributeLocation("hx_position");
-	    this._texCoordAttributeLocation = this.getAttributeLocation("hx_texCoord");
+		this._layout = new VertexLayout(RectMesh.DEFAULT, this);
 
 	    gl.useProgram(this.program);
 	    gl.uniform1i(this._textureLocation, 0);
@@ -31610,21 +31592,15 @@
 
 	VSMBlurShader.prototype = Object.create(Shader.prototype);
 
-	VSMBlurShader.prototype.execute = function (rect, texture, dirX, dirY)
+	VSMBlurShader.prototype.execute = function (texture, dirX, dirY)
 	{
 	    var gl = GL.gl;
 	    GL.setDepthTest(Comparison.DISABLED);
 	    GL.setCullMode(CullMode.NONE);
-
-	    rect._vertexBuffers[0].bind();
-	    rect._indexBuffer.bind();
-
 		GL.setShader(this);
+		GL.setVertexLayout(this._layout);
 
 	    texture.bind(0);
-
-	    gl.vertexAttribPointer(this._positionAttributeLocation, 2, DataType.FLOAT, false, 16, 0);
-	    gl.vertexAttribPointer(this._texCoordAttributeLocation, 2, DataType.FLOAT, false, 16, 8);
 
 	    gl.uniform2f(this._directionLocation, dirX, dirY);
 
@@ -32596,7 +32572,7 @@
 	    this.specularProbes = [];
 	    this.shadowCasters = [];
 	    this.effects = [];
-	    this.needsNormalDepth = !!META.OPTIONS.ambientOcclusion;
+	    this.needsNormalDepth = META.OPTIONS.ambientOcclusion;
 	    this.ambientColor.set(0, 0, 0, 1);
 	    this.numShadowPlanes = 0;
 	    this.shadowPlaneBuckets = [];
@@ -32816,11 +32792,11 @@
 	        for (var i = 0; i < numPasses; ++i) {
 	            GL.setRenderTarget(this._fbo2);
 	            GL.clear();
-	            shader.execute(RectMesh.DEFAULT, this._texture, 1.0 / this._size, 0.0);
+	            shader.execute(this._texture, 1.0 / this._size, 0.0);
 
 	            GL.setRenderTarget(this._fboNoDepth);
 	            GL.clear();
-	            shader.execute(RectMesh.DEFAULT, this._texture2, 0.0, 1.0 / this._size);
+	            shader.execute(this._texture2, 0.0, 1.0 / this._size);
 	        }
 
 	        this._texture.filter = shadowFilter.getShadowMapFilter();
@@ -34163,7 +34139,7 @@
 		{
 			GL.setRenderTarget(this._hdrBack.fbo);
 			GL.clear();
-			this._copyTextureShader.execute(RectMesh.DEFAULT, this._hdrFront.texture);
+			this._copyTextureShader.execute(this._hdrFront.texture);
 			GL.setRenderTarget(this._hdrFront.fboDepth);
 		},
 
@@ -34431,7 +34407,7 @@
 	                default:
 	                    // nothing
 	            }
-	            this._debugShader.execute(RectMesh.DEFAULT, tex);
+	            this._debugShader.execute(tex);
 	            return;
 	        }
 
@@ -34445,9 +34421,9 @@
 	    _present: function()
 	    {
 	        if (this._gammaApplied)
-	            this._copyTextureShader.execute(RectMesh.DEFAULT, this._hdrBack.texture);
+	            this._copyTextureShader.execute(this._hdrBack.texture);
 	        else
-	            this._applyGamma.execute(RectMesh.DEFAULT, this._hdrBack.texture);
+	            this._applyGamma.execute(this._hdrBack.texture);
 	    },
 
 	    /**
@@ -34643,15 +34619,15 @@
 	{
 	    if (this._gammaApplied) {
 	        GL.setViewport(this._leftRect);
-	        this._copyTextureShader.execute(RectMesh.DEFAULT, this._leftTarget.texture);
+	        this._copyTextureShader.execute(this._leftTarget.texture);
 	        GL.setViewport(this._rightRect);
-	        this._copyTextureShader.execute(RectMesh.DEFAULT, this._hdrBack.texture);
+	        this._copyTextureShader.execute(this._hdrBack.texture);
 	    }
 	    else {
 	        GL.setViewport(this._leftRect);
-	        this._applyGamma.execute(RectMesh.DEFAULT, this._leftTarget.texture);
+	        this._applyGamma.execute(this._leftTarget.texture);
 	        GL.setViewport(this._rightRect);
-	        this._applyGamma.execute(RectMesh.DEFAULT, this._hdrBack.texture);
+	        this._applyGamma.execute(this._hdrBack.texture);
 	    }
 
 	    GL.setViewport();
@@ -34815,7 +34791,7 @@
 	            viewport.width = view._texture.width;
 	            viewport.height = view._texture.height;
 	            GL.setViewport(viewport);
-	            DEFAULTS.COPY_SHADER.execute(RectMesh.DEFAULT, view._texture);
+	            DEFAULTS.COPY_SHADER.execute(view._texture);
 	        }
 	    }
 	};
@@ -35036,17 +35012,17 @@
 
 	        if (roughness) {
 	            gl.colorMask(true, false, false, false);
-	            DEFAULTS.COPY_SHADER.execute(RectMesh.DEFAULT, roughness);
+	            DEFAULTS.COPY_SHADER.execute(roughness);
 	        }
 
 	        if (normalSpecular) {
 	            gl.colorMask(false, true, false, false);
-	            DEFAULTS.COPY_SHADER.execute(RectMesh.DEFAULT, normalSpecular);
+	            DEFAULTS.COPY_SHADER.execute(normalSpecular);
 	        }
 
 	        if (metallicness) {
 	            gl.colorMask(false, false, true, false);
-	            DEFAULTS.COPY_SHADER.execute(RectMesh.DEFAULT, metallicness);
+	            DEFAULTS.COPY_SHADER.execute(metallicness);
 	        }
 
 	        gl.colorMask(true, true, true, true);

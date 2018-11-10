@@ -67,15 +67,15 @@ VRRenderer.prototype._present = function()
 {
     if (this._gammaApplied) {
         GL.setViewport(this._leftRect);
-        this._copyTextureShader.execute(RectMesh.DEFAULT, this._leftTarget.texture);
+        this._copyTextureShader.execute(this._leftTarget.texture);
         GL.setViewport(this._rightRect);
-        this._copyTextureShader.execute(RectMesh.DEFAULT, this._hdrBack.texture);
+        this._copyTextureShader.execute(this._hdrBack.texture);
     }
     else {
         GL.setViewport(this._leftRect);
-        this._applyGamma.execute(RectMesh.DEFAULT, this._leftTarget.texture);
+        this._applyGamma.execute(this._leftTarget.texture);
         GL.setViewport(this._rightRect);
-        this._applyGamma.execute(RectMesh.DEFAULT, this._hdrBack.texture);
+        this._applyGamma.execute(this._hdrBack.texture);
     }
 
     GL.setViewport();

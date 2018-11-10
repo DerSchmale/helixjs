@@ -132,7 +132,7 @@ MultiRenderer.prototype =
             viewport.width = view._texture.width;
             viewport.height = view._texture.height;
             GL.setViewport(viewport);
-            DEFAULTS.COPY_SHADER.execute(RectMesh.DEFAULT, view._texture);
+            DEFAULTS.COPY_SHADER.execute(view._texture);
         }
     }
 };

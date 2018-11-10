@@ -15,7 +15,7 @@ function VertexLayout(mesh, shader)
     this.attributes = [];
     this.morphPositionAttributes = [];
     this.morphNormalAttributes = [];
-
+    this.mesh = mesh;
     this._numAttributes = -1;
 
     for (var i = 0; i < mesh.numVertexAttributes; ++i) {

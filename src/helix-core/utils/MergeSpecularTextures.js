@@ -35,17 +35,17 @@ export var MergeSpecularTextures =
 
         if (roughness) {
             gl.colorMask(true, false, false, false);
-            DEFAULTS.COPY_SHADER.execute(RectMesh.DEFAULT, roughness);
+            DEFAULTS.COPY_SHADER.execute(roughness);
         }
 
         if (normalSpecular) {
             gl.colorMask(false, true, false, false);
-            DEFAULTS.COPY_SHADER.execute(RectMesh.DEFAULT, normalSpecular);
+            DEFAULTS.COPY_SHADER.execute(normalSpecular);
         }
 
         if (metallicness) {
             gl.colorMask(false, false, true, false);
-            DEFAULTS.COPY_SHADER.execute(RectMesh.DEFAULT, metallicness);
+            DEFAULTS.COPY_SHADER.execute(metallicness);
         }
 
         gl.colorMask(true, true, true, true);

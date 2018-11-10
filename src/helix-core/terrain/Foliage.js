@@ -49,6 +49,7 @@ Foliage.prototype.addLOD = function(className, meshInstance)
 
 	for (var i = 0, len = this._numCells * this._numCells; i < len; ++i) {
 		var batch = new MeshBatch(meshInstance.mesh, meshInstance.material, false);
+		batch.name = meshInstance.name + "_batch_" + i;
 		batch.className = meshInstance.name;
 		batch.castShadows = meshInstance.castShadows;
 		batch.lodRangeStart = meshInstance.lodRangeStart;

@@ -2,8 +2,6 @@ import {BoundingVolume} from "../scene/BoundingVolume";
 import {Float4} from "../math/Float4";
 import {Mesh} from "../mesh/Mesh";
 import {SceneNode} from "../scene/SceneNode";
-import {Component} from "../entity/Component";
-import {BoundingAABB} from "../scene/BoundingAABB";
 import {MathX} from "../math/MathX";
 import {MeshInstance} from "../mesh/MeshInstance";
 import {Entity} from "../entity/Entity";
@@ -208,6 +206,7 @@ Terrain.prototype._addMesh = function(mesh, x, y, rot)
 {
 	var entity = new Entity();
 	var meshInstance = new MeshInstance(mesh, this._material);
+	meshInstance.name = "hx_terrain_" + this._container.numChildren;
 	entity.addComponent(meshInstance);
 
 	// always add this to the partition's root node

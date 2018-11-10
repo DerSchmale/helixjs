@@ -2,6 +2,8 @@ import {Comparison, CullMode, ElementType} from "../../Helix";
 import {GL} from "../../core/GL";
 import {Shader} from "../../shader/Shader";
 import {ShaderLibrary} from "../../shader/ShaderLibrary";
+import {VertexLayout} from "../../mesh/VertexLayout";
+import {RectMesh} from "../../mesh/RectMesh";
 
 /**
  * @ignore
@@ -26,8 +28,7 @@ function ESMBlurShader(blurRadius)
 
     this._textureLocation = this.getUniformLocation("source");
     this._directionLocation = this.getUniformLocation("direction");
-    this._positionAttributeLocation = this.getAttributeLocation("hx_position");
-    this._texCoordAttributeLocation = this.getAttributeLocation("hx_texCoord");
+	this._layout = new VertexLayout(RectMesh.DEFAULT, this);
 
     gl.useProgram(this.program);
     gl.uniform1i(this._textureLocation, 0);
@@ -41,16 +42,10 @@ ESMBlurShader.prototype.execute = function(rect, texture, dirX, dirY)
 
     GL.setDepthTest(Comparison.DISABLED);
     GL.setCullMode(CullMode.NONE);
-
-    rect._vertexBuffers[0].bind();
-    rect._indexBuffer.bind();
-
     GL.setShader(this);
+	GL.setVertexLayout(this._layout);
 
     texture.bind(0);
-
-    gl.vertexAttribPointer(this._positionAttributeLocation, 2, gl.FLOAT, false, 16, 0);
-    gl.vertexAttribPointer(this._texCoordAttributeLocation, 2, gl.FLOAT, false, 16, 8);
 
     gl.uniform2f(this._directionLocation, dirX, dirY);
 

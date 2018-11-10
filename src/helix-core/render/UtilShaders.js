@@ -2,6 +2,9 @@ import {ShaderLibrary} from "../shader/ShaderLibrary";
 import {Shader} from "../shader/Shader";
 import {GL} from "../core/GL";
 import {Comparison, CullMode, ElementType} from "../Helix";
+import {RectMesh} from "../mesh/RectMesh";
+import {VertexLayout} from "../mesh/VertexLayout";
+import {VertexLayoutCache} from "../mesh/VertexLayoutCache";
 
 /**
  * @param fragmentShader
@@ -10,7 +13,7 @@ import {Comparison, CullMode, ElementType} from "../Helix";
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function CustomCopyShader(fragmentShader)
+function CustomCopyShader(fragmentShader, mesh)
 {
     Shader.call(this);
     this.init(ShaderLibrary.get("copy_vertex.glsl"), fragmentShader);
@@ -18,8 +21,8 @@ function CustomCopyShader(fragmentShader)
     var gl = GL.gl;
     var textureLocation = gl.getUniformLocation(this.program, "sampler");
 
-    this._positionAttributeLocation = this.getAttributeLocation("hx_position");
-    this._texCoordAttributeLocation = this.getAttributeLocation("hx_texCoord");
+    this._mesh = mesh || RectMesh.DEFAULT;
+    this._layout = new VertexLayout(this._mesh, this);
 
     gl.useProgram(this.program);
     gl.uniform1i(textureLocation, 0);
@@ -27,21 +30,14 @@ function CustomCopyShader(fragmentShader)
 
 CustomCopyShader.prototype = Object.create(Shader.prototype);
 
-CustomCopyShader.prototype.execute = function(rect, texture)
+CustomCopyShader.prototype.execute = function(texture)
 {
-    var gl = GL.gl;
     GL.setDepthTest(Comparison.DISABLED);
     GL.setCullMode(CullMode.NONE);
-
-    rect._vertexBuffers[0].bind();
-    rect._indexBuffer.bind();
-
-	GL.setShader(this);
+    GL.setShader(this);
+	GL.setVertexLayout(this._layout);
 
     texture.bind(0);
-
-    gl.vertexAttribPointer(this._positionAttributeLocation, 2, gl.FLOAT, false, 16, 0);
-    gl.vertexAttribPointer(this._texCoordAttributeLocation, 2, gl.FLOAT, false, 16, 8);
 
     GL.drawElements(ElementType.TRIANGLES, 6);
 };

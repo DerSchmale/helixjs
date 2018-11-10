@@ -8,7 +8,6 @@ import {VertexBuffer} from "../core/VertexBuffer";
 import {IndexBuffer} from "../core/IndexBuffer";
 import {CustomCopyShader} from "../render/UtilShaders";
 import {Texture2D} from "../texture/Texture2D";
-import {RectMesh} from "../mesh/RectMesh";
 
 var toCubeShader;
 var fromCubeShader;
@@ -43,6 +42,8 @@ export var EquirectangularTexture =
 
         if (!toCubeVertices)
             createRenderCubeGeometry();
+
+		GL.setVertexLayout(null);
 
         var gl = GL.gl;
         target = target || new TextureCube();
@@ -108,7 +109,7 @@ export var EquirectangularTexture =
         GL.setRenderTarget(fbo);
         GL.clear();
 
-        fromCubeShader.execute(RectMesh.DEFAULT, source);
+        fromCubeShader.execute(source);
 
         GL.setRenderTarget(old);
 

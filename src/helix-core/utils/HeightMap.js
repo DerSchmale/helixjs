@@ -42,7 +42,7 @@ export var HeightMap =
 
         GL.setRenderTarget(fbo1);
         GL.clear();
-        toRGBA8.execute(RectMesh.DEFAULT, texture);
+        toRGBA8.execute(texture);
 
         var originalFilter = target.filter;
 		target.filter = TextureFilter.NEAREST_NOMIP;
@@ -57,13 +57,13 @@ export var HeightMap =
         GL.setRenderTarget(fbo2);
         GL.clear();
         gl.uniform2f(offsetLocation, 1.0 / texture.width, 0.0);
-        smooth.execute(RectMesh.DEFAULT, tex1);
+        smooth.execute(tex1);
         tex2.generateMipmap();
 
         GL.setRenderTarget(fbo1);
         GL.clear();
         gl.uniform2f(offsetLocation, 0.0, 1.0 / texture.height);
-        smooth.execute(RectMesh.DEFAULT, tex2);
+        smooth.execute(tex2);
 
 		target.filter = originalFilter;
 

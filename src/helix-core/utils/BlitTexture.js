@@ -5,6 +5,6 @@ export var BlitTexture =
 {
     execute: function(tex)
     {
-		DEFAULTS.COPY_SHADER.execute(RectMesh.DEFAULT, tex);
+		DEFAULTS.COPY_SHADER.execute(tex);
     }
 };

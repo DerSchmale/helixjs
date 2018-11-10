@@ -248,6 +248,8 @@ function initGrass(heightMap, terrainMap, mesh, material, size, spacing)
 	// tr.scale.set(.1, .1, .1);
 	var batch = new HX.MeshBatch(mesh, material, false);
 
+	batch.name = "grass";
+
 	for (var x = 0; x < count; ++x) {
 		for (var y = 0; y < count; ++y) {
 			// these will be offsets in the shader

@@ -66,22 +66,23 @@ var GL = {
 
         gl.clear(clearMask);
         ++_glStats.numClears;
-
-        // TODO: Remove this once we're only using vertex layout setters
-        // otherwise, for now, if we'd manually change vertex buffers and the vertex layout doesn't change, it'd incorrectly
-        // keep the data
-        _vertexLayout = null;
     },
 
 
 	/**
      * Assigns a vertex layout for rendering.
-	 * @param meshInstance
-	 * @param layout
+	 * @param layout The vertex layout containing the mesh<->shader mapping. Must be called with "null" when manually
+     * assigning vertex buffers.
+     * @param [meshInstance]
 	 */
-	setVertexLayout: function(meshInstance, layout)
+	setVertexLayout: function(layout, meshInstance)
     {
-        var mesh = meshInstance._mesh;
+        if (!layout) {
+			_vertexLayout = null;
+			return;
+		}
+
+        var mesh = layout.mesh;
 		var attribute;
 		var gl = GL.gl;
 
@@ -106,6 +107,9 @@ var GL = {
 				}
 			}
         }
+
+        if (!meshInstance)
+            return;
 
 		var morphPosAttributes = layout.morphPositionAttributes;
 		var morphNormalAttributes = layout.morphNormalAttributes;

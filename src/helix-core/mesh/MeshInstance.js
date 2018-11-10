@@ -202,7 +202,7 @@ MeshInstance.prototype.updateRenderState = function(passType)
 	if (!this._vertexLayouts)
 		this._initVertexLayouts();
 
-	GL.setVertexLayout(this, this._vertexLayouts[passType].layout);
+	GL.setVertexLayout(this._vertexLayouts[passType].layout, this);
 };
 
 /**

@@ -69,18 +69,7 @@ EffectPass.prototype.updateRenderState = function(renderer)
 	var cam = renderer._camera;
 	this.updateInstanceRenderState(cam);
 	this.updatePassRenderState(cam, renderer);
-
-	this._mesh._vertexBuffers[0].bind();
-	this._mesh._indexBuffer.bind();
-
-	var layout = this._vertexLayout;
-	var attributes = layout.attributes;
-	var len = attributes.length;
-
-	for (var i = 0; i < len; ++i) {
-		var attribute = attributes[i];
-		GL.gl.vertexAttribPointer(attribute.index, attribute.numComponents, GL.gl.FLOAT, false, attribute.stride, attribute.offset);
-	}
+	GL.setVertexLayout(this._vertexLayout);
 };
 
 export {EffectPass};

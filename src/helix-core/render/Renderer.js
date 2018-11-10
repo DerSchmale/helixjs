@@ -627,7 +627,7 @@ Renderer.prototype =
 	{
 		GL.setRenderTarget(this._hdrBack.fbo);
 		GL.clear();
-		this._copyTextureShader.execute(RectMesh.DEFAULT, this._hdrFront.texture);
+		this._copyTextureShader.execute(this._hdrFront.texture);
 		GL.setRenderTarget(this._hdrFront.fboDepth);
 	},
 
@@ -895,7 +895,7 @@ Renderer.prototype =
                 default:
                     // nothing
             }
-            this._debugShader.execute(RectMesh.DEFAULT, tex);
+            this._debugShader.execute(tex);
             return;
         }
 
@@ -909,9 +909,9 @@ Renderer.prototype =
     _present: function()
     {
         if (this._gammaApplied)
-            this._copyTextureShader.execute(RectMesh.DEFAULT, this._hdrBack.texture);
+            this._copyTextureShader.execute(this._hdrBack.texture);
         else
-            this._applyGamma.execute(RectMesh.DEFAULT, this._hdrBack.texture);
+            this._applyGamma.execute(this._hdrBack.texture);
     },
 
     /**

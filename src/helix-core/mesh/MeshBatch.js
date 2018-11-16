@@ -76,7 +76,7 @@ MeshBatch.prototype = Object.create(MeshInstance.prototype, {
  * needs to be deleted or its transform updated.
  * @param transform A {@linkcode Matrix4x4} or a {@linkcode Transform} containing the transformation for the instance.
  * @returns {number} An ID representing the instance. Use this to set the transform in {@linkcode MeshBatch#setTransform}
- * and {@linkcode MeshBatch#destroyInstance].
+ * and {@linkcode MeshBatch#destroyInstance}.
  */
 MeshBatch.prototype.createInstance = function(transform)
 {

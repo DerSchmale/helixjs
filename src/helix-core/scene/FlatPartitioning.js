@@ -2,10 +2,7 @@
  * @classdesc
  * FlatPartitioning is a spatial partitioning system for simple scenes that do not require hierarchical testing.
  *
- * @extends
- *
  * @constructor
- *
  *
  * @author derschmale <http://www.derschmale.com>
  */

@@ -1,7 +1,5 @@
 import {BoundingAABB} from "../scene/BoundingAABB";
 import {GL} from "../core/GL";
-import {VertexLayout} from "./VertexLayout";
-import {MaterialPass} from "../material/MaterialPass";
 import {Component} from "../entity/Component";
 import {SkeletonPose} from "../animation/skeleton/SkeletonPose";
 import {Matrix4x4} from "../math/Matrix4x4";

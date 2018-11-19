@@ -413,6 +413,9 @@ Mesh.prototype = {
 
         mesh.elementType = this.elementType;
 
+        for (var key in this._morphTargets)
+        	mesh.addMorphTarget(this._morphTargets[key]);
+
         return mesh;
     },
 

@@ -1,6 +1,5 @@
 import {Component} from "../../entity/Component";
 import {MorphPose} from "./MorphPose";
-import {MeshInstance} from "../../mesh/MeshInstance";
 
 var nameCounter = 0;
 

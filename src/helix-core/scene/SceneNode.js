@@ -2,7 +2,6 @@
 import {Matrix4x4} from "../math/Matrix4x4";
 import {Transform} from "../math/Transform";
 import {SkeletonPose} from "../animation/skeleton/SkeletonPose";
-import {BoundingAABB} from "./BoundingAABB";
 
 
 var nameCounter = 0;
@@ -169,9 +168,10 @@ SceneNode.prototype.attach = function(child)
         }
         return;
     }
-
-    this._updateChildAdded(child);
-    this._children.push(child);
+    else {
+        this._updateChildAdded(child);
+        this._children.push(child);
+    }
 };
 
 /**

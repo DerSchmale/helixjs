@@ -67,8 +67,6 @@ MorphPose.prototype =
     {
         if (!this._stateInvalid) return;
 
-        var w = this._weights;
-
         // sort by weights
 		this._knownTargets.sort(this._sortMorphs);
 

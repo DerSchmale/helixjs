@@ -3,7 +3,6 @@ import {RenderCollector} from "./RenderCollector";
 import {ApplyGammaShader, CopyChannelsShader, DebugDepthShader, DebugNormalsShader} from "./UtilShaders";
 import {Texture2D} from "../texture/Texture2D";
 import {MaterialPass} from "../material/MaterialPass";
-import {RectMesh} from "../mesh/RectMesh";
 import {TextureFormat, TextureFilter, TextureWrapMode, META, capabilities} from "../Helix";
 import {FrameBuffer} from "../texture/FrameBuffer";
 import {GL} from "../core/GL";

@@ -275,7 +275,8 @@ MeshInstance.prototype._clearMorph = function()
  */
 MeshInstance.prototype._setMorphTarget = function(targetIndex, positionBuffer, normalBuffer, weight)
 {
-	if (targetIndex >= this._morphWeights.length) return;
+	// it's possible this mesh doesn't have morph targets, so check for _morphWeights' existence
+	if (!this._morphWeights || targetIndex >= this._morphWeights.length) return;
 
 	this._morphPositions[targetIndex] = positionBuffer;
 	if (normalBuffer && this._morphNormals)

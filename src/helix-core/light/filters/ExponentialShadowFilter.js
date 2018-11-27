@@ -85,7 +85,7 @@ ExponentialShadowFilter.prototype.getShadowMapFilter = function()
  */
 ExponentialShadowFilter.prototype.getShadowMapFormat = function()
 {
-    return TextureFormat.RG || TextureFormat.RGB;
+    return TextureFormat.RG || TextureFormat.RGBA;
 };
 
 /**

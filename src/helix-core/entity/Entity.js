@@ -107,6 +107,9 @@ Entity.prototype.addComponent = function(component)
 		throw new Error("Component types need to be registered using HX.Component.register(name, class) before adding!");
 	}
 
+	if (component.DEPENDENCY_HASH && !this._componentHash.contains(component.DEPENDENCY_HASH))
+		throw new Error("Component has dependencies that aren't matched!");
+
 	var oldHash = this._componentHash;
 	this._componentHash = this._componentHash.clone();
 

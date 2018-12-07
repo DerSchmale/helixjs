@@ -1,3 +1,7 @@
+import {Bitfield} from "../core/Bitfield";
+
+Component.COMPONENT_ID = 0;
+
 /**
  * @abstract
  *
@@ -18,6 +22,8 @@
  * The name parameter is used to access component instances using the {@linkcode Entity#components.name[]} Array. By
  * default, the name is the same as the class name but starting with a lowercase letter.
  *
+ * A component class can have a static member `dependencies`, which is an `Array` listing the components it requires to
+ * be added to an Entity first.
  * @see {@linkcode Entity}
  *
  * @property entity The entity the component is assigned to.
@@ -34,8 +40,6 @@ function Component()
 	this._boundsInvalid = true;
 }
 
-Component.COMPONENT_ID = 0;
-
 var COUNTER = 0;
 var componentMap = {};
 
@@ -45,6 +49,12 @@ Component.register = function(name, classRef)
 	classRef.COMPONENT_NAME = name;
 	classRef.prototype.COMPONENT_ID = classRef.COMPONENT_ID;
 	classRef.prototype.COMPONENT_NAME = classRef.COMPONENT_NAME;
+	if (classRef.dependencies) {
+		classRef.prototype.DEPENDENCY_HASH = new Bitfield();
+		for (var i = 0, len = classRef.dependencies; i < len; ++i) {
+			classRef.prototype.DEPENDENCY_HASH.setBit(classRef.dependencies[i].COMPONENT_ID);
+		}
+	}
 	componentMap[name] = classRef;
 };
 

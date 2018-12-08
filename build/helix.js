@@ -3640,7 +3640,7 @@
 
 	ShaderLibrary._files['material_fwd_spot_vertex.glsl'] = 'varying_out vec3 hx_viewPosition;\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    hx_geometry();\n    hx_viewPosition = (hx_inverseProjectionMatrix * gl_Position).xyz;\n}';
 
-	ShaderLibrary._files['material_fwd_tiled_fragment.glsl'] = 'struct HX_PointSpotLight\n{\n// the order here is ordered in function of packing\n    vec3 color;\n    float radius;\n\n    vec3 position;\n    float rcpRadius;\n\n    vec3 direction; // spot only\n    float depthBias;\n\n    mat4 shadowMapMatrix;\n\n    int isSpot;\n    int castShadows;\n    vec2 angleData;    // cos(inner), rcp(cos(outer) - cos(inner))\n\n    vec4 shadowTile;    // xy = scale, zw = offset\n\n    // points only\n    // the 5 missing tiles, share the first one with spots!\n    vec4 shadowTiles[5];    // for each cube face\n};\n\nHX_SpotLight hx_asSpotLight(HX_PointSpotLight light)\n{\n    HX_SpotLight spot;\n    spot.color = light.color;\n    spot.position = light.position;\n    spot.radius = light.radius;\n    spot.direction = light.direction;\n    spot.rcpRadius = light.rcpRadius;\n    spot.angleData = light.angleData;\n    spot.shadowMapMatrix = light.shadowMapMatrix;\n    spot.depthBias = light.depthBias;\n    spot.castShadows = light.castShadows;\n    spot.shadowTile = light.shadowTile;\n    return spot;\n}\n\nHX_PointLight hx_asPointLight(HX_PointSpotLight light)\n{\n    HX_PointLight point;\n    point.color = light.color;\n    point.position = light.position;\n    point.radius = light.radius;\n    point.rcpRadius = light.rcpRadius;\n    point.shadowMapMatrix = light.shadowMapMatrix;\n    point.depthBias = light.depthBias;\n    point.castShadows = light.castShadows;\n    point.shadowTiles[0] = light.shadowTile;\n    point.shadowTiles[1] = light.shadowTiles[0];\n    point.shadowTiles[2] = light.shadowTiles[1];\n    point.shadowTiles[3] = light.shadowTiles[2];\n    point.shadowTiles[4] = light.shadowTiles[3];\n    point.shadowTiles[5] = light.shadowTiles[4];\n    return point;\n}\n\nvarying_in vec3 hx_viewPosition;\n\nuniform vec3 hx_ambientColor;\nuniform vec2 hx_rcpRenderTargetResolution;\nuniform sampler2D hx_shadowMap;\n\n#ifdef HX_SSAO\nuniform sampler2D hx_ssao;\n#endif\n\nuniform hx_lightingCells\n{\n    // std140 layout specification dictates arrays of scalars have strides rounded up to the alignment of vec4\n    // meaning the array would be 4 times as big when using floats. Hence the use of vec4s.\n    ivec4 hx_cells[HX_CELL_ARRAY_LEN];\n};\n\nuniform hx_lights\n{\n    int hx_numDirLights;\n    int hx_numPointSpotLights;\n    int hx_numDiffuseProbes;\n    int hx_numSpecularProbes;\n\n#if HX_NUM_DIR_LIGHTS > 0\n    HX_DirectionalLight hx_directionalLights[HX_NUM_DIR_LIGHTS];\n#endif\n\n#if HX_NUM_POINT_SPOT_LIGHTS > 0\n    HX_PointSpotLight hx_pointSpotLights[HX_NUM_POINT_SPOT_LIGHTS];\n#endif\n\n#if HX_NUM_DIFFUSE_PROBES > 0\n    HX_DiffuseProbe hx_diffuseProbes[HX_NUM_DIFFUSE_PROBES];\n#endif\n\n#if HX_NUM_SPECULAR_PROBES > 0\n    HX_SpecularProbe hx_specularProbes[HX_NUM_SPECULAR_PROBES];\n#endif\n};\n\n#if HX_NUM_SPECULAR_PROBES > 0\nuniform samplerCube hx_specularProbeMaps[HX_NUM_SPECULAR_PROBES];\n#endif\n\n#if HX_NUM_DIFFUSE_PROBES > 0 || HX_NUM_SPECULAR_PROBES > 0\nuniform mat4 hx_cameraWorldMatrix;\n#endif\n\nivec2 getCurrentCell(vec2 screenUV)\n{\n    return ivec2(screenUV * vec2(float(HX_NUM_CELLS_X), float(HX_NUM_CELLS_Y)));\n}\n\nvoid main()\n{\n    HX_GeometryData data = hx_geometry();\n\n    // update the colours\n    vec3 specularColor = mix(vec3(data.normalSpecularReflectance), data.color.xyz, data.metallicness);\n    data.color.xyz *= 1.0 - data.metallicness;\n\n    vec3 diffuseAccum = vec3(0.0);\n    vec3 specularAccum = vec3(0.0);\n    vec3 viewVector = normalize(hx_viewPosition);\n\n    float ao = data.occlusion;\n    vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;\n\n\n    #ifdef HX_SSAO\n        ao = texture2D(hx_ssao, screenUV).x;\n    #endif\n\n    #if HX_NUM_DIFFUSE_PROBES > 0\n    float diffuseWeightSum = 0.0;\n    vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;\n\n    vec3 sh[9];\n\n    for (int i = 0; i < 9; ++i)\n        sh[i] = vec3(0.0);\n\n    for (int i = 0; i < hx_numDiffuseProbes; ++i) {\n        float weight = hx_getProbeWeight(hx_diffuseProbes[i], hx_viewPosition);\n        float w = weight * hx_diffuseProbes[i].intensity;\n        sh[0] += hx_diffuseProbes[i].sh[0] * w;\n        sh[1] += hx_diffuseProbes[i].sh[1] * w;\n        sh[2] += hx_diffuseProbes[i].sh[2] * w;\n        sh[3] += hx_diffuseProbes[i].sh[3] * w;\n        sh[4] += hx_diffuseProbes[i].sh[4] * w;\n        sh[5] += hx_diffuseProbes[i].sh[5] * w;\n        sh[6] += hx_diffuseProbes[i].sh[6] * w;\n        sh[7] += hx_diffuseProbes[i].sh[7] * w;\n        sh[8] += hx_diffuseProbes[i].sh[8] * w;\n        diffuseWeightSum += weight;\n    }\n    diffuseAccum += hx_evaluateSH(sh, worldNormal) / max(diffuseWeightSum, 0.001);\n    #endif\n\n    diffuseAccum += hx_ambientColor;\n    diffuseAccum *= ao;\n\n    #if HX_NUM_SPECULAR_PROBES > 0\n    vec3 reflectedViewDir = reflect(viewVector, data.normal);\n    vec3 fresnel = hx_fresnelProbe(specularColor, reflectedViewDir, data.normal, data.roughness);\n\n    vec3 reflectedWorldDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;\n\n    float specularWeightSum = 0.0;\n\n    for (int i = 0; i < hx_numSpecularProbes; ++i) {\n        float weight = hx_getProbeWeight(hx_specularProbes[i], hx_viewPosition);\n        specularAccum += hx_calculateSpecularProbeLight(hx_specularProbes[i], hx_specularProbeMaps[i], reflectedWorldDir, fresnel, data.roughness) * weight;\n        specularWeightSum += weight;\n    }\n\n    specularAccum /= max(specularWeightSum, 0.001);\n    specularAccum *= ao;\n    #endif\n\n    #if HX_NUM_DIR_LIGHTS > 0\n        for (int i = 0; i < hx_numDirLights; ++i) {\n            HX_DirectionalLight light = hx_directionalLights[i];\n            vec3 diffuse, specular;\n            hx_calculateLight(light, data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n\n            if (light.castShadows == 1) {\n                float shadow = hx_calculateShadows(light, hx_shadowMap, hx_viewPosition);\n                diffuse *= shadow;\n                specular *= shadow;\n            }\n\n            diffuseAccum += diffuse;\n            specularAccum += specular;\n        }\n    #endif\n\n    #if HX_NUM_POINT_SPOT_LIGHTS > 0\n        ivec2 cell = getCurrentCell(screenUV);\n        int cellIndex = HX_CELL_STRIDE * (HX_NUM_CELLS_X * cell.y + cell.x);\n        int cellElm = cellIndex / 4;\n        int comp = cellIndex - cellElm * 4;\n\n        int numLights = hx_cells[cellElm][comp];\n\n        for (int i = 1; i <= numLights; ++i) {\n            vec3 diffuse, specular;\n            float shadow = 1.0;;\n            int lightIndex = cellIndex + i;\n            int cellElm = lightIndex / 4;\n            int comp = lightIndex - cellElm * 4;\n            lightIndex = hx_cells[cellElm][comp];\n\n            if (hx_pointSpotLights[lightIndex].isSpot == 1) {\n                HX_SpotLight spot = hx_asSpotLight(hx_pointSpotLights[lightIndex]);\n                hx_calculateLight(spot, data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n                if (spot.castShadows == 1)\n                    shadow = hx_calculateShadows(spot, hx_shadowMap, hx_viewPosition);\n            }\n            else {\n                HX_PointLight point = hx_asPointLight(hx_pointSpotLights[lightIndex]);\n                hx_calculateLight(point, data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n                if (point.castShadows == 1)\n                    shadow = hx_calculateShadows(point, hx_shadowMap, hx_viewPosition);\n            }\n\n            diffuseAccum += diffuse * shadow;\n            specularAccum += specular * shadow;\n        }\n    #endif\n\n    hx_FragColor = vec4(diffuseAccum * data.color.xyz + specularAccum + data.emission, data.color.w);\n}';
+	ShaderLibrary._files['material_fwd_tiled_fragment.glsl'] = 'struct HX_PointSpotLight\n{\n// the order here is ordered in function of packing\n    vec3 color;\n    float radius;\n\n    vec3 position;\n    float rcpRadius;\n\n    vec3 direction; // spot only\n    float depthBias;\n\n    mat4 shadowMapMatrix;\n\n    int isSpot;\n    int castShadows;\n    vec2 angleData;    // cos(inner), rcp(cos(outer) - cos(inner))\n\n    vec4 shadowTile;    // xy = scale, zw = offset\n\n    // points only\n    // the 5 missing tiles, share the first one with spots!\n    vec4 shadowTiles[5];    // for each cube face\n};\n\nHX_SpotLight hx_asSpotLight(HX_PointSpotLight light)\n{\n    HX_SpotLight spot;\n    spot.color = light.color;\n    spot.position = light.position;\n    spot.radius = light.radius;\n    spot.direction = light.direction;\n    spot.rcpRadius = light.rcpRadius;\n    spot.angleData = light.angleData;\n    spot.shadowMapMatrix = light.shadowMapMatrix;\n    spot.depthBias = light.depthBias;\n    spot.castShadows = light.castShadows;\n    spot.shadowTile = light.shadowTile;\n    return spot;\n}\n\nHX_PointLight hx_asPointLight(HX_PointSpotLight light)\n{\n    HX_PointLight point;\n    point.color = light.color;\n    point.position = light.position;\n    point.radius = light.radius;\n    point.rcpRadius = light.rcpRadius;\n    point.shadowMapMatrix = light.shadowMapMatrix;\n    point.depthBias = light.depthBias;\n    point.castShadows = light.castShadows;\n    point.shadowTiles[0] = light.shadowTile;\n    point.shadowTiles[1] = light.shadowTiles[0];\n    point.shadowTiles[2] = light.shadowTiles[1];\n    point.shadowTiles[3] = light.shadowTiles[2];\n    point.shadowTiles[4] = light.shadowTiles[3];\n    point.shadowTiles[5] = light.shadowTiles[4];\n    return point;\n}\n\nvarying_in vec3 hx_viewPosition;\n\nuniform vec3 hx_ambientColor;\nuniform vec2 hx_rcpRenderTargetResolution;\nuniform sampler2D hx_shadowMap;\n\n#ifdef HX_SSAO\nuniform sampler2D hx_ssao;\n#endif\n\nuniform hx_lightingCells\n{\n    // std140 layout specification dictates arrays of scalars have strides rounded up to the alignment of vec4\n    // meaning the array would be 4 times as big when using floats. Hence the use of vec4s.\n    ivec4 hx_cells[HX_CELL_ARRAY_LEN];\n};\n\nuniform hx_lights\n{\n    int hx_numDirLights;\n    int hx_numPointSpotLights;\n    int hx_numDiffuseProbes;\n    int hx_numSpecularProbes;\n\n#if HX_NUM_DIR_LIGHTS > 0\n    HX_DirectionalLight hx_directionalLights[HX_NUM_DIR_LIGHTS];\n#endif\n\n#if HX_NUM_POINT_SPOT_LIGHTS > 0\n    HX_PointSpotLight hx_pointSpotLights[HX_NUM_POINT_SPOT_LIGHTS];\n#endif\n\n#if HX_NUM_DIFFUSE_PROBES > 0\n    HX_DiffuseProbe hx_diffuseProbes[HX_NUM_DIFFUSE_PROBES];\n#endif\n\n#if HX_NUM_SPECULAR_PROBES > 0\n    HX_SpecularProbe hx_specularProbes[HX_NUM_SPECULAR_PROBES];\n#endif\n};\n\n#if HX_NUM_SPECULAR_PROBES > 0\nuniform samplerCube hx_specularProbeMaps[HX_NUM_SPECULAR_PROBES];\n#endif\n\n#if HX_NUM_DIFFUSE_PROBES > 0 || HX_NUM_SPECULAR_PROBES > 0\nuniform mat4 hx_cameraWorldMatrix;\n#endif\n\nivec2 getCurrentCell(vec2 screenUV)\n{\n    return ivec2(screenUV * vec2(float(HX_NUM_CELLS_X), float(HX_NUM_CELLS_Y)));\n}\n\nvoid main()\n{\n    HX_GeometryData data = hx_geometry();\n\n    // update the colours\n    vec3 specularColor = mix(vec3(data.normalSpecularReflectance), data.color.xyz, data.metallicness);\n    data.color.xyz *= 1.0 - data.metallicness;\n\n    vec3 diffuseAccum = vec3(0.0);\n    vec3 specularAccum = vec3(0.0);\n    vec3 viewVector = normalize(hx_viewPosition);\n\n    float ao = data.occlusion;\n    vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;\n\n\n    #ifdef HX_SSAO\n        ao = texture2D(hx_ssao, screenUV).x;\n    #endif\n\n    #if HX_NUM_DIFFUSE_PROBES > 0\n    float diffuseWeightSum = 0.0;\n    vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;\n\n    vec3 sh[9];\n\n    for (int i = 0; i < 9; ++i)\n        sh[i] = vec3(0.0);\n\n    for (int i = 0; i < hx_numDiffuseProbes; ++i) {\n        float weight = hx_getProbeWeight(hx_diffuseProbes[i], hx_viewPosition);\n        float w = weight * hx_diffuseProbes[i].intensity;\n        sh[0] += hx_diffuseProbes[i].sh[0] * w;\n        sh[1] += hx_diffuseProbes[i].sh[1] * w;\n        sh[2] += hx_diffuseProbes[i].sh[2] * w;\n        sh[3] += hx_diffuseProbes[i].sh[3] * w;\n        sh[4] += hx_diffuseProbes[i].sh[4] * w;\n        sh[5] += hx_diffuseProbes[i].sh[5] * w;\n        sh[6] += hx_diffuseProbes[i].sh[6] * w;\n        sh[7] += hx_diffuseProbes[i].sh[7] * w;\n        sh[8] += hx_diffuseProbes[i].sh[8] * w;\n        diffuseWeightSum += weight;\n    }\n    diffuseAccum += hx_evaluateSH(sh, worldNormal) / max(diffuseWeightSum, 0.001);\n    #endif\n\n    diffuseAccum += hx_ambientColor;\n    diffuseAccum *= ao;\n\n    #if HX_NUM_SPECULAR_PROBES > 0\n    vec3 reflectedViewDir = reflect(viewVector, data.normal);\n    vec3 fresnel = hx_fresnelProbe(specularColor, reflectedViewDir, data.normal, data.roughness);\n\n    vec3 reflectedWorldDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;\n\n    float specularWeightSum = 0.0;\n\n    for (int i = 0; i < hx_numSpecularProbes; ++i) {\n        float weight = hx_getProbeWeight(hx_specularProbes[i], hx_viewPosition);\n        specularAccum += hx_calculateSpecularProbeLight(hx_specularProbes[i], hx_specularProbeMaps[i], reflectedWorldDir, fresnel, data.roughness) * weight;\n        specularWeightSum += weight;\n    }\n\n    specularAccum /= max(specularWeightSum, 0.001);\n    specularAccum *= ao;\n    #endif\n\n    #if HX_NUM_DIR_LIGHTS > 0\n        for (int i = 0; i < hx_numDirLights; ++i) {\n            HX_DirectionalLight light = hx_directionalLights[i];\n            vec3 diffuse, specular;\n            hx_calculateLight(light, data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n\n            if (light.castShadows == 1) {\n                float shadow = hx_calculateShadows(light, hx_shadowMap, hx_viewPosition);\n                diffuse *= shadow;\n                specular *= shadow;\n            }\n\n            diffuseAccum += diffuse;\n            specularAccum += specular;\n        }\n    #endif\n\n    #if HX_NUM_POINT_SPOT_LIGHTS > 0\n        ivec2 cell = getCurrentCell(screenUV);\n        int cellIndex = HX_CELL_STRIDE * (HX_NUM_CELLS_X * cell.y + cell.x);\n        int cellElm = cellIndex / 4;\n        int comp = cellIndex - cellElm * 4;\n\n        int numLights = hx_cells[cellElm][comp];\n\n        for (int i = 1; i <= numLights; ++i) {\n            vec3 diffuse, specular;\n            float shadow = 1.0;;\n            int lightIndex = cellIndex + i;\n            int cellElm = lightIndex / 4;\n            int comp = lightIndex - cellElm * 4;\n            lightIndex = hx_cells[cellElm][comp];\n\n            if (hx_pointSpotLights[lightIndex].isSpot == 1) {\n                HX_SpotLight spot = hx_asSpotLight(hx_pointSpotLights[lightIndex]);\n                hx_calculateLight(spot, data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n                if (spot.castShadows == 1)\n                    shadow = hx_calculateShadows(spot, hx_shadowMap, hx_viewPosition);\n            }\n            else {\n                HX_PointLight point = hx_asPointLight(hx_pointSpotLights[lightIndex]);\n                hx_calculateLight(point, data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n                if (point.castShadows == 1)\n                    shadow = hx_calculateShadows(point, hx_shadowMap, hx_viewPosition);\n            }\n\n//            diffuseAccum += float(numLights) / 1000.0;\n            diffuseAccum += diffuse * shadow;\n            specularAccum += specular * shadow;\n        }\n    #endif\n\n    hx_FragColor = vec4(diffuseAccum * data.color.xyz + specularAccum + data.emission, data.color.w);\n}';
 
 	ShaderLibrary._files['material_fwd_tiled_vertex.glsl'] = 'varying_out vec3 hx_viewPosition;\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    hx_geometry();\n    // we need to do an unprojection here to be sure to have skinning - or anything like that - support\n    hx_viewPosition = (hx_inverseProjectionMatrix * gl_Position).xyz;\n}';
 
@@ -3657,6 +3657,18 @@
 	ShaderLibrary._files['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
 
 	ShaderLibrary._files['sh_skybox_fragment.glsl'] = 'varying_in vec3 viewWorldDir;\n\nuniform vec3 hx_sh[9];\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n    data.color = vec4(hx_evaluateSH(hx_sh, normalize(viewWorldDir.xzy)), 1.0);\n    data.emission = vec3(0.0);\n    return data;\n}';
+
+	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
+
+	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
+
+	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
+
+	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
+
+	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
 
 	ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	hx_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
@@ -3687,18 +3699,6 @@
 	ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	hx_FragColor = vec4(l, l, l, 1.0);\n}';
 
 	ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	hx_FragColor = color / (1.0 + lum);\n}';
-
-	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
-
-	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
-
-	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
-
-	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
-
-	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
 
 	ShaderLibrary._files['esm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readValue(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readValue(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValue(uv + offset) + readValue(uv - offset);\n	}\n\n//	hx_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	hx_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
 
@@ -11926,6 +11926,7 @@
 	 * data, and whether or not vertex attributes need to be updated on the GPU can be limited to when the vertex layout
 	 * changes.
 	 * @ignore
+	 * @author derschmale <http://www.derschmale.com>
 	 */
 	function VertexLayoutCache()
 	{
@@ -24637,7 +24638,6 @@
 	    this._projectionMatrix = new Matrix4x4();
 	    this._viewMatrix = new Matrix4x4();
 	    this._projectionMatrixDirty = true;
-		this._cellPlanesDirty = true;
 	    this._nearDistance = .1;
 	    this._farDistance = 1000;
 	    this._frustum = new Frustum();
@@ -24668,32 +24668,6 @@
 	            if (this._farDistance === value) return;
 	            this._farDistance = value;
 	            this._invalidateProjectionMatrix();
-	        }
-	    },
-
-	    // all x's are positive (point to the right)
-	    cellPlanesW: {
-	        get: function() {
-				if (this._viewProjectionMatrixInvalid)
-					this._updateViewProjectionMatrix();
-
-	            if (this._cellPlanesDirty)
-	                this._updateCellPlanes();
-
-	            return this._cellPlanesW;
-	        }
-	    },
-
-		// all z's are positive
-	    cellPlanesH: {
-	        get: function() {
-	            if (this._projectionMatrixDirty)
-					this._updateProjectionMatrix();
-
-	            if (this._cellPlanesDirty)
-	                this._updateCellPlanes();
-
-	            return this._cellPlanesH;
 	        }
 	    },
 
@@ -24823,7 +24797,6 @@
 	Camera.prototype._invalidateProjectionMatrix = function()
 	{
 	    this._projectionMatrixDirty = true;
-	    this._cellPlanesDirty = true;
 	    this._invalidateViewProjectionMatrix();
 	};
 
@@ -24851,82 +24824,6 @@
 	    return "[Camera(name=" + this.name + ")]";
 	};
 
-	/**
-	 * @ignore
-	 * @private
-	 */
-	Camera.prototype._initTiledCellPlanes = function()
-	{
-		this._cellPlanesW = [];
-		this._cellPlanesH = [];
-
-		for (var i = 0; i <= META.OPTIONS.numLightingCellsX; ++i) {
-			this._cellPlanesW[i] = new Float4();
-	    }
-
-		for (i = 0; i <= META.OPTIONS.numLightingCellsY; ++i) {
-			this._cellPlanesH[i] = new Float4();
-		}
-	};
-
-	/**
-	 * @ignore
-	 * @private
-	 */
-	Camera.prototype._updateCellPlanes = function()
-	{
-		var v1 = new Float4();
-		var v2 = new Float4();
-		var v3 = new Float4();
-
-	    return function() {
-	        if (!this._cellPlanesDirty) return;
-
-	        var ex = 2.0 / META.OPTIONS.numLightingCellsX;
-	        var ey = 2.0 / META.OPTIONS.numLightingCellsY;
-
-	        var p;
-
-	        if (!this._cellPlanesW)
-	            this._initTiledCellPlanes();
-
-	        var unproj = this._inverseProjectionMatrix;
-
-			var x = -1.0;
-	        for (var i = 0; i <= META.OPTIONS.numLightingCellsX; ++i) {
-	            v1.set(x, 0.0, 0.0, 1.0);
-	            v2.set(x, 0.0, 1.0, 1.0);
-	            v3.set(x, 1.0, 0.0, 1.0);
-
-				unproj.projectPoint(v1, v1);
-				unproj.projectPoint(v2, v2);
-				unproj.projectPoint(v3, v3);
-
-	            this._cellPlanesW[i].planeFromPoints(v1, v2, v3);
-
-				x += ex;
-	        }
-
-	        var y = -1.0;
-	        for (i = 0; i <= META.OPTIONS.numLightingCellsY; ++i) {
-				p = this._cellPlanesH[i];
-
-				v1.set(0.0, y, 0.0, 1.0);
-				v2.set(1.0, y, 0.0, 1.0);
-				v3.set(0.0, y, 1.0, 1.0);
-
-				unproj.projectPoint(v1, v1);
-				unproj.projectPoint(v2, v2);
-				unproj.projectPoint(v3, v3);
-
-				this._cellPlanesH[i].planeFromPoints(v1, v2, v3);
-
-				y += ey;
-			}
-
-			this._cellPlanesDirty = false;
-	    }
-	}();
 
 	/**
 	 * @ignore
@@ -33534,6 +33431,7 @@
 	 *
 	 * @property depthPrepass Defines whether or not a depth pre-pass needs to be performed when rendering. This may improve
 	 * rendering by spending less time calculating lighting on invisible fragments.
+	 * @property skipEffects Indicates the output should not apply post-processing effects.
 	 * @property renderTarget A render target for the Renderer to draw to. If not provided, it will render to the backbuffer.
 	 *
 	 * @constructor
@@ -33546,6 +33444,7 @@
 	    this._width = 0;
 	    this._height = 0;
 
+	    this.skipEffects = false;
 	    this.depthPrepass = false;
 	    this._gammaApplied = false;
 
@@ -33730,9 +33629,6 @@
 	        this._activeCamera = camera;
 	        this._scene = scene;
 
-	        if (capabilities.WEBGL_2)
-	            camera._updateCellPlanes();
-
 	        GL.setDepthMask(true);
 	        GL.setColorMask(true);
 
@@ -33751,7 +33647,9 @@
 	            this._renderForward();
 
 	        this._swapHDRFrontAndBack();
-	        this._renderEffects(dt);
+
+	        if (!this.skipEffects)
+	            this._renderEffects(dt);
 
 	        GL.setColorMask(true);
 	    },
@@ -33944,74 +33842,92 @@
 
 	            }
 
-	            if (isSpot)
-					viewMatrix.transformPoint(light.entity.worldBounds.center, pos);
+	            var radius;
+	            if (isSpot) {
+	                var bounds = light.entity.worldBounds;
+	                radius = bounds.getRadius();
+	                viewMatrix.transformPoint(bounds.center, pos);
+	            }
+	            else
+	                radius = light.radius;
 
-	            this.assignToCells(light, camera, index, pos, cells, isSpot? dir : null);
+	            this.assignToCells(light, camera, index, pos, cells, radius);
 			}
 	    }(),
 
-		assignToCells: function(light, camera, index, viewPos, cells, dir)
+		assignToCells: function(light, camera, index, viewPos, cells, radius)
 	    {
-	    	var p = new Float4();
-	    	return function(light, camera, index, viewPos, cells, dir) {
+	    	var projC = new Float4();
+	    	return function(light, camera, index, viewPos, cells, radius) {
 				var cellStride = this._cellStride;
-				var bounds = light.entity.worldBounds;
-				var radius = bounds.getRadius();
+				var proj = camera.projectionMatrix;
+				var m = proj._m;
 
 				var nx = META.OPTIONS.numLightingCellsX;
 				var ny = META.OPTIONS.numLightingCellsY;
+	            var near = viewPos.y - radius;
+	            var fXstart, fXend, fYstart, fYend;
 
-				var planesW = camera._cellPlanesW;
-				var planesH = camera._cellPlanesH;
+	            if (near > 0) {
+	                // find bounding box of projected sphere in NDC
+	                // https://gamedev.stackexchange.com/questions/49222/aabb-of-a-spheres-screen-space-projection
+	                var cx = viewPos.x, cy = viewPos.y, cz = viewPos.z;
+	                var d2 = cx * cx + cy * cy + cz * cz;
+	                // pythagoras: one right edge goes from camera to center, the other from the center to the point sphere
+	                var a = Math.sqrt(d2 - radius * radius);
+	                a = radius / a;
+	                proj.transform(viewPos, projC);
 
-				// should we project viewPos to NDC to figure out which frustum we're in?
-				// then we don't need to calculate all of the above, only until it's considered "outside"
-				camera.projectionMatrix.projectPoint(viewPos, p);
+	                // x and w for projection of [cy * a, -cx * a, 0, 0]
+	                var xp = cy * a;
+	                var yp = -cx * a;
+	                var rx = m[0] * xp + m[4] * yp;
+	                var rw = m[3] * xp + m[7] * yp;
 
-				var fX = Math.floor((p.x * .5 + .5) * nx);
-				var fY = Math.floor((p.y * .5 + .5) * ny);
-				if (fX < 0) fX = 0;
-				else if (fX >= nx) fX = nx - 1;
-				if (fY < 0) fY = 0;
-				else if (fY >= ny) fY = ny - 1;
+	                // y and w for projection of [0, 0, radius, 0]
+	                var uy = m[9] * radius;
+	                var uw = m[11] * radius;
 
-				// left and right plane distances1
-				var minX = fX, maxX = fX;
 
-				for (var x = fX; x >= 0; --x) {
-					minX = x;
-					if (planesW[x].dot4(viewPos) > radius) break;
-				}
+	                var tmp;
+	                var l = (projC.x - rx) / (projC.w - rw);
+	                var r = (projC.x + rx) / (projC.w + rw);
+	                if (l > r) {
+	                    tmp = l;
+	                    l = r;
+	                    r = tmp;
+	                }
+	                var t = (projC.y + uy) / (projC.w + uw);
+	                var b = (projC.y - uy) / (projC.w - uw);
+	                if (b > t) {
+	                    tmp = b;
+	                    b = t;
+	                    t = tmp;
+	                }
 
-				for (x = fX + 1; x < nx; ++x) {
-					maxX = x;
-					if (-planesW[x + 1].dot4(viewPos) > radius) break;
-				}
+	                // find covered cells
+	                fXstart = MathX.clamp(Math.floor((l * .5 + .5) * nx), 0, nx);
+	                fXend = MathX.clamp(Math.ceil((r * .5 + .5) * nx), 0, nx);
+	                fYstart = MathX.clamp(Math.floor((b * .5 + .5) * ny), 0, ny);
+	                fYend = MathX.clamp(Math.ceil((t * .5 + .5) * ny), 0, ny);
+	            }
+	            else {
+	                fXstart = 0;
+	                fXend = nx;
+	                fYstart = 0;
+	                fYend = ny;
+	            }
+
 
 				var i, pi, c;
-				for (var y = fY; y >= 0; --y) {
-					for (x = minX; x <= maxX; ++x) {
+				for (var y = fYstart; y < fYend; ++y) {
+					for (var x = fXstart; x < fXend; ++x) {
 						// TODO: Another test to check if the nearest corner actually falls inside the sphere
 						i = x + y * nx;
 						pi = i * cellStride;
 						c = ++cells[pi];
 						cells[pi + c] = index;
 					}
-
-					if (planesH[y].dot4(viewPos) > radius) break;
-				}
-
-				for (y = fY + 1; y < ny; ++y) {
-					for (x = minX; x <= maxX; ++x) {
-						// TODO: Another test to check if the nearest corner actually falls inside the sphere
-						i = x + y * nx;
-						pi = i * cellStride;
-						c = ++cells[pi];
-						cells[pi + c] = index;
-					}
-
-					if (-planesH[y + 1].dot4(viewPos) > radius) break;
 				}
 	    	}
 	    }(),
@@ -34503,9 +34419,13 @@
 	{
 	    // TODO: Do not wrap renderer, but make this a bonafide extension to Renderer with its own custom collection (similar to OmniShadowMapRenderer)
 	    this._renderer = new Renderer();
+	    this._renderer.skipEffects = true;
 	    this._targetTexture = targetTexture;
 	    this._fbos = [];
-	    this._initFBOs();
+
+	    // may be set later
+	    if (targetTexture)
+	        this._initFBOs();
 	}
 
 	CubeRenderer.prototype =

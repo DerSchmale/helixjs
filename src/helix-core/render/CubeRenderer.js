@@ -18,9 +18,13 @@ function CubeRenderer(targetTexture)
 {
     // TODO: Do not wrap renderer, but make this a bonafide extension to Renderer with its own custom collection (similar to OmniShadowMapRenderer)
     this._renderer = new Renderer();
+    this._renderer.skipEffects = true;
     this._targetTexture = targetTexture;
     this._fbos = [];
-    this._initFBOs();
+
+    // may be set later
+    if (targetTexture)
+        this._initFBOs();
 }
 
 CubeRenderer.prototype =

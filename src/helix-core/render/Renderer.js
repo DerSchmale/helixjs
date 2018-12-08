@@ -5,6 +5,7 @@ import {Texture2D} from "../texture/Texture2D";
 import {MaterialPass} from "../material/MaterialPass";
 import {TextureFormat, TextureFilter, TextureWrapMode, META, capabilities} from "../Helix";
 import {FrameBuffer} from "../texture/FrameBuffer";
+import {MathX} from "../math/MathX";
 import {GL} from "../core/GL";
 import {renderPass} from "./RenderUtils";
 import {WriteOnlyDepthBuffer} from "../texture/WriteOnlyDepthBuffer";
@@ -31,6 +32,7 @@ var probeObject = {};
  *
  * @property depthPrepass Defines whether or not a depth pre-pass needs to be performed when rendering. This may improve
  * rendering by spending less time calculating lighting on invisible fragments.
+ * @property skipEffects Indicates the output should not apply post-processing effects.
  * @property renderTarget A render target for the Renderer to draw to. If not provided, it will render to the backbuffer.
  *
  * @constructor
@@ -43,6 +45,7 @@ function Renderer(renderTarget)
     this._width = 0;
     this._height = 0;
 
+    this.skipEffects = false;
     this.depthPrepass = false;
     this._gammaApplied = false;
 
@@ -227,9 +230,6 @@ Renderer.prototype =
         this._activeCamera = camera;
         this._scene = scene;
 
-        if (capabilities.WEBGL_2)
-            camera._updateCellPlanes();
-
         GL.setDepthMask(true);
         GL.setColorMask(true);
 
@@ -248,7 +248,9 @@ Renderer.prototype =
             this._renderForward();
 
         this._swapHDRFrontAndBack();
-        this._renderEffects(dt);
+
+        if (!this.skipEffects)
+            this._renderEffects(dt);
 
         GL.setColorMask(true);
     },
@@ -441,74 +443,94 @@ Renderer.prototype =
 
             }
 
-            if (isSpot)
-				viewMatrix.transformPoint(light.entity.worldBounds.center, pos);
+            var radius;
+            if (isSpot) {
+                var bounds = light.entity.worldBounds;
+                radius = bounds.getRadius();
+                viewMatrix.transformPoint(bounds.center, pos);
+            }
+            else
+                radius = light.radius;
 
-            this.assignToCells(light, camera, index, pos, cells, isSpot? dir : null);
+            this.assignToCells(light, camera, index, pos, cells, radius);
 		}
     }(),
 
-	assignToCells: function(light, camera, index, viewPos, cells, dir)
+	assignToCells: function(light, camera, index, viewPos, cells, radius)
     {
-    	var p = new Float4();
-    	return function(light, camera, index, viewPos, cells, dir) {
+    	var projC = new Float4();
+    	var projR = new Float4();   // projected right vector
+    	var projU = new Float4();   // projected up vector
+    	return function(light, camera, index, viewPos, cells, radius) {
 			var cellStride = this._cellStride;
-			var bounds = light.entity.worldBounds;
-			var radius = bounds.getRadius();
+			var proj = camera.projectionMatrix;
+			var m = proj._m;
 
 			var nx = META.OPTIONS.numLightingCellsX;
 			var ny = META.OPTIONS.numLightingCellsY;
+            var near = viewPos.y - radius;
+            var fXstart, fXend, fYstart, fYend;
 
-			var planesW = camera._cellPlanesW;
-			var planesH = camera._cellPlanesH;
+            if (near > 0) {
+                // find bounding box of projected sphere in NDC
+                // https://gamedev.stackexchange.com/questions/49222/aabb-of-a-spheres-screen-space-projection
+                var cx = viewPos.x, cy = viewPos.y, cz = viewPos.z;
+                var d2 = cx * cx + cy * cy + cz * cz;
+                // pythagoras: one right edge goes from camera to center, the other from the center to the point sphere
+                var a = Math.sqrt(d2 - radius * radius);
+                a = radius / a;
+                proj.transform(viewPos, projC);
 
-			// should we project viewPos to NDC to figure out which frustum we're in?
-			// then we don't need to calculate all of the above, only until it's considered "outside"
-			camera.projectionMatrix.projectPoint(viewPos, p);
+                // x and w for projection of [cy * a, -cx * a, 0, 0]
+                var xp = cy * a;
+                var yp = -cx * a;
+                var rx = m[0] * xp + m[4] * yp;
+                var rw = m[3] * xp + m[7] * yp;
 
-			var fX = Math.floor((p.x * .5 + .5) * nx);
-			var fY = Math.floor((p.y * .5 + .5) * ny);
-			if (fX < 0) fX = 0;
-			else if (fX >= nx) fX = nx - 1;
-			if (fY < 0) fY = 0;
-			else if (fY >= ny) fY = ny - 1;
+                // y and w for projection of [0, 0, radius, 0]
+                var uy = m[9] * radius;
+                var uw = m[11] * radius;
 
-			// left and right plane distances1
-			var minX = fX, maxX = fX;
 
-			for (var x = fX; x >= 0; --x) {
-				minX = x;
-				if (planesW[x].dot4(viewPos) > radius) break;
-			}
+                var tmp;
+                var l = (projC.x - rx) / (projC.w - rw);
+                var r = (projC.x + rx) / (projC.w + rw);
+                if (l > r) {
+                    tmp = l;
+                    l = r;
+                    r = tmp;
+                }
+                var t = (projC.y + uy) / (projC.w + uw);
+                var b = (projC.y - uy) / (projC.w - uw);
+                if (b > t) {
+                    tmp = b;
+                    b = t;
+                    t = tmp;
+                }
 
-			for (x = fX + 1; x < nx; ++x) {
-				maxX = x;
-				if (-planesW[x + 1].dot4(viewPos) > radius) break;
-			}
+                // find covered cells
+                fXstart = MathX.clamp(Math.floor((l * .5 + .5) * nx), 0, nx);
+                fXend = MathX.clamp(Math.ceil((r * .5 + .5) * nx), 0, nx);
+                fYstart = MathX.clamp(Math.floor((b * .5 + .5) * ny), 0, ny);
+                fYend = MathX.clamp(Math.ceil((t * .5 + .5) * ny), 0, ny);
+            }
+            else {
+                fXstart = 0;
+                fXend = nx;
+                fYstart = 0;
+                fYend = ny;
+            }
+
 
 			var i, pi, c;
-			for (var y = fY; y >= 0; --y) {
-				for (x = minX; x <= maxX; ++x) {
+			for (var y = fYstart; y < fYend; ++y) {
+				for (var x = fXstart; x < fXend; ++x) {
 					// TODO: Another test to check if the nearest corner actually falls inside the sphere
 					i = x + y * nx;
 					pi = i * cellStride;
 					c = ++cells[pi];
 					cells[pi + c] = index;
 				}
-
-				if (planesH[y].dot4(viewPos) > radius) break;
-			}
-
-			for (y = fY + 1; y < ny; ++y) {
-				for (x = minX; x <= maxX; ++x) {
-					// TODO: Another test to check if the nearest corner actually falls inside the sphere
-					i = x + y * nx;
-					pi = i * cellStride;
-					c = ++cells[pi];
-					cells[pi + c] = index;
-				}
-
-				if (-planesH[y + 1].dot4(viewPos) > radius) break;
 			}
     	}
     }(),

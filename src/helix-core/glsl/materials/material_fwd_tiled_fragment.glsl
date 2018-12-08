@@ -225,6 +225,7 @@ void main()
                     shadow = hx_calculateShadows(point, hx_shadowMap, hx_viewPosition);
             }
 
+//            diffuseAccum += float(numLights) / 1000.0;
             diffuseAccum += diffuse * shadow;
             specularAccum += specular * shadow;
         }

@@ -47,7 +47,7 @@ function initScene(scene, assetLibrary)
     var lights = [ ];
     for (var i = 0; i < HX.META.OPTIONS.maxPointSpotLights; ++i) {
         var light = new HX.PointLight();
-        light.radius = 10;
+        light.radius = 7;
         // light.castShadows = true;
 
         light.color.set(

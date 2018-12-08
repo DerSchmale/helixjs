@@ -6,6 +6,7 @@ import {MaterialPass} from "../material/MaterialPass";
  * data, and whether or not vertex attributes need to be updated on the GPU can be limited to when the vertex layout
  * changes.
  * @ignore
+ * @author derschmale <http://www.derschmale.com>
  */
 function VertexLayoutCache()
 {

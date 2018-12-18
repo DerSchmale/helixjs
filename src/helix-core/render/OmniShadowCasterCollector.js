@@ -70,8 +70,8 @@ OmniShadowCasterCollector.prototype.visitEntity = function(entity)
 	var meshInstances = entity.components.meshInstance;
 
 	if (meshInstances) {
-		var worldBounds = this.getProxiedBounds(entity);
-		var worldMatrix = this.getProxiedMatrix(entity);
+		var worldBounds = entity.worldBounds;
+		var worldMatrix = entity.worldMatrix;
 		var center = worldBounds._center;
 		var cameraPos = this._viewCameraPos;
 		var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);
@@ -132,7 +132,6 @@ OmniShadowCasterCollector.prototype._addTo = function(meshInstance, cubeFace, wo
     renderItem.skeletonMatrices = skeletonMatrices;
 
     renderItem.renderOrderHint = renderOrderHint;
-    renderItem.worldMatrix = worldMatrix;
     renderItem.worldBounds = worldBounds;
 
     renderList.push(renderItem);

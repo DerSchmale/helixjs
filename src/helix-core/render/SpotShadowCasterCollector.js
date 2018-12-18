@@ -47,8 +47,8 @@ SpotShadowCasterCollector.prototype.visitEntity = function(entity)
 	if (meshInstances) {
 		for (var i = 0, len = meshInstances.length; i < len; ++i) {
 			var instance = meshInstances[i];
-			var worldBounds = this.getProxiedBounds(entity);
-			var worldMatrix = this.getProxiedMatrix(entity);
+			var worldBounds = entity.worldBounds;
+			var worldMatrix = entity.worldMatrix;
 			var center = worldBounds._center;
 			var cameraPos = this._viewCameraPos;
 			var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);

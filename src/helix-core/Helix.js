@@ -81,6 +81,11 @@ export var META =
 export var onPreFrame = new Signal();
 
 /**
+ * The {@linkcode Signal} that dispatched after a frame renders.
+ */
+export var onPostFrame = new Signal();
+
+/**
  * The {@linkcode Signal} that triggers rendering. Listen to this to call {@linkcode Renderer#render}
  */
 export var onFrame = new Signal();
@@ -766,6 +771,8 @@ function _onFrameTick(dt)
 
     if (META.VR_DISPLAY && META.VR_DISPLAY.isPresenting)
         META.VR_DISPLAY._display.submitFrame();
+
+    onPostFrame.dispatch(dt);
 
     frameTime = (performance || Date).now() - startTime;
 }

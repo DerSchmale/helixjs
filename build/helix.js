@@ -3586,14 +3586,6 @@
 	    }
 	};
 
-	ShaderLibrary._files['lighting_blinn_phong.glsl'] = '/*// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}*/\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = -dot(lightDir, geometry.normal);\n	vec3 irradiance = max(nDotL, 0.0) * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*pow(cosAngle, 5.0);\n\n    #ifdef HX_USE_TRANSLUCENCY\n	    // light for flipped normal\n        diffuseColor += geometry.translucency * max(-nDotL, 0.0) * lightColor;\n    #endif\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
-
-	ShaderLibrary._files['lighting_debug.glsl'] = 'void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	diffuseColor = vec3(0.0);\n	specularColor = vec3(0.0);\n}';
-
-	ShaderLibrary._files['lighting_ggx.glsl'] = '#ifdef HX_VISIBILITY_TERM\nfloat hx_geometryTerm(vec3 normal, vec3 dir, float k)\n{\n    float d = max(-dot(normal, dir), 0.0);\n    return d / (d * (1.0 - k) + k);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness)\n{\n	float k = roughness + 1.0;\n	k = k * k * .125;\n	return hx_geometryTerm(normal, viewDir, k) * hx_geometryTerm(normal, lightDir, k);\n}\n#endif\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = -dot(lightDir, geometry.normal);\n	vec3 irradiance = max(nDotL, 0.0) * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n    float mappedRoughness =  geometry.roughness * geometry.roughness;\n\n	float distribution = hx_ggxDistribution(mappedRoughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);\n\n	diffuseColor = irradiance;\n\n	#ifdef HX_USE_TRANSLUCENCY\n	    // light for flipped normal\n        diffuseColor += geometry.translucency * max(-nDotL, 0.0) * lightColor;\n    #endif\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef HX_VISIBILITY_TERM\n    specularColor *= hx_lightVisibility(geometry.normal, viewDir, lightDir, geometry.roughness);\n#endif\n}';
-
-	ShaderLibrary._files['lighting_lambert.glsl'] = '// also make sure specular probes are ignores\n#define HX_SKIP_SPECULAR\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = -dot(lightDir, geometry.normal);\n    diffuseColor = max(nDotL, 0.0) * lightColor;\n\n	#ifdef HX_USE_TRANSLUCENCY\n	    // light for flipped normal\n        diffuseColor += geometry.translucency * max(-nDotL, 0.0) * lightColor;\n    #endif\n\n	specularColor = vec3(0.0);\n}';
-
 	ShaderLibrary._files['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    hx_FragColor = color;\n}';
 
 	ShaderLibrary._files['debug_bounds_vertex.glsl'] = '\nvertex_attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
@@ -3602,7 +3594,15 @@
 
 	ShaderLibrary._files['debug_normals_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n    vec3 normal = hx_decodeNormal(texture2D(sampler, uv));\n    // swizzle so that it looks more naturally like tangent space normal maps\n    hx_FragColor = vec4(normal.xzy * vec3(.5, .5, -.5) + .5, 1.0);\n}';
 
-	ShaderLibrary._files['debug_velocity_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n    vec2 velocity = hx_decodeVelocity(texture2D(sampler, uv));\n    velocity *= 100.0;\n    // swizzle so that it looks more naturally like tangent space normal maps\n    hx_FragColor = vec4(1.0); vec4(velocity.xy * .5 + .5, 0.0, 1.0);\n}';
+	ShaderLibrary._files['debug_velocity_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n    vec2 velocity = hx_decodeVelocity(texture2D(sampler, uv));\n    // swizzle so that it looks more naturally like tangent space normal maps\n    hx_FragColor = vec4(velocity.xy * .5 + .5, 0.0, 1.0);\n}';
+
+	ShaderLibrary._files['lighting_blinn_phong.glsl'] = '/*// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}*/\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = -dot(lightDir, geometry.normal);\n	vec3 irradiance = max(nDotL, 0.0) * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*pow(cosAngle, 5.0);\n\n    #ifdef HX_USE_TRANSLUCENCY\n	    // light for flipped normal\n        diffuseColor += geometry.translucency * max(-nDotL, 0.0) * lightColor;\n    #endif\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
+
+	ShaderLibrary._files['lighting_debug.glsl'] = 'void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	diffuseColor = vec3(0.0);\n	specularColor = vec3(0.0);\n}';
+
+	ShaderLibrary._files['lighting_ggx.glsl'] = '#ifdef HX_VISIBILITY_TERM\nfloat hx_geometryTerm(vec3 normal, vec3 dir, float k)\n{\n    float d = max(-dot(normal, dir), 0.0);\n    return d / (d * (1.0 - k) + k);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness)\n{\n	float k = roughness + 1.0;\n	k = k * k * .125;\n	return hx_geometryTerm(normal, viewDir, k) * hx_geometryTerm(normal, lightDir, k);\n}\n#endif\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = -dot(lightDir, geometry.normal);\n	vec3 irradiance = max(nDotL, 0.0) * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n    float mappedRoughness =  geometry.roughness * geometry.roughness;\n\n	float distribution = hx_ggxDistribution(mappedRoughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);\n\n	diffuseColor = irradiance;\n\n	#ifdef HX_USE_TRANSLUCENCY\n	    // light for flipped normal\n        diffuseColor += geometry.translucency * max(-nDotL, 0.0) * lightColor;\n    #endif\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef HX_VISIBILITY_TERM\n    specularColor *= hx_lightVisibility(geometry.normal, viewDir, lightDir, geometry.roughness);\n#endif\n}';
+
+	ShaderLibrary._files['lighting_lambert.glsl'] = '// also make sure specular probes are ignores\n#define HX_SKIP_SPECULAR\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = -dot(lightDir, geometry.normal);\n    diffuseColor = max(nDotL, 0.0) * lightColor;\n\n	#ifdef HX_USE_TRANSLUCENCY\n	    // light for flipped normal\n        diffuseColor += geometry.translucency * max(-nDotL, 0.0) * lightColor;\n    #endif\n\n	specularColor = vec3(0.0);\n}';
 
 	ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    int castShadows;\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            if (viewPos.y < light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    vec4 shadowMapCoord = shadowMatrix * vec4(viewPos, 1.0);\n    float shadow = hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n\n    // this can occur when meshInstance.castShadows = false, or using inherited bounds\n    bool isOutside = max(shadowMapCoord.x, shadowMapCoord.y) > 1.0 || min(shadowMapCoord.x, shadowMapCoord.y) < 0.0;\n    if (isOutside) shadow = 1.0;\n\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.y > light.maxShadowDistance));\n}\n#endif';
 
@@ -11263,7 +11263,7 @@
 
 	PrevWorldMatrixSetter.prototype.execute = function (camera, renderItem)
 	{
-	    GL.gl.uniformMatrix4fv(this.location, false, renderItem.meshInstance.entity.prevWorldMatrix._m);
+	    GL.gl.uniformMatrix4fv(this.location, false, renderItem.prevWorldMatrix._m);
 	};
 
 
@@ -13296,6 +13296,11 @@
 	var onPreFrame = new Signal();
 
 	/**
+	 * The {@linkcode Signal} that dispatched after a frame renders.
+	 */
+	var onPostFrame = new Signal();
+
+	/**
 	 * The {@linkcode Signal} that triggers rendering. Listen to this to call {@linkcode Renderer#render}
 	 */
 	var onFrame = new Signal();
@@ -13981,6 +13986,8 @@
 
 	    if (META.VR_DISPLAY && META.VR_DISPLAY.isPresenting)
 	        META.VR_DISPLAY._display.submitFrame();
+
+	    onPostFrame.dispatch(dt);
 
 	    frameTime = (performance || Date).now() - startTime;
 	}
@@ -16676,11 +16683,8 @@
 		this._SceneNode_invalidateWorldMatrix = SceneNode.prototype._invalidateWorldMatrix;
 		this._SceneNode_setScene = SceneNode.prototype._setScene;
 
-		if (META.OPTIONS.renderVelocityBuffer) {
-			this._prevWorldMatrix = new Matrix4x4();
-			// this is the frame mark when _prevWorldMatrix was the current world matrix
-			this._prevFrameMark = -1;
-		}
+		this._prevWorldMatrix = META.OPTIONS.renderVelocityBuffer? new Matrix4x4() : null;
+		this._worldMatrixInvalidFrame = -1;
 	}
 
 	Entity.prototype = Object.create(SceneNode.prototype, {
@@ -16766,13 +16770,7 @@
 	 */
 	Entity.prototype._invalidateWorldMatrix = function()
 	{
-		if (META.OPTIONS.renderVelocityBuffer && this._prevFrameMark !== META.CURRENT_FRAME_MARK) {
-			this._prevFrameMark = META.CURRENT_FRAME_MARK;
-			var tmp = this._worldMatrix;
-			this._worldMatrix = this._prevWorldMatrix;
-			this._prevWorldMatrix = tmp;
-		}
-
+		this._worldMatrixInvalidFrame = META.CURRENT_FRAME_MARK;
 		this._SceneNode_invalidateWorldMatrix();
 
 		this._invalidateWorldBounds();
@@ -16929,11 +16927,17 @@
 		if (this._scene) {
 			this._scene.entityEngine.unregisterEntity(this);
 			this._scene.partitioning.unregisterEntity(this);
+
+			if (META.OPTIONS.renderVelocityBuffer)
+				onPostFrame.unbind(this._onPostFrame);
 		}
 
 		if (scene) {
 			scene.entityEngine.registerEntity(this);
 			scene.partitioning.registerEntity(this);
+
+			if (META.OPTIONS.renderVelocityBuffer)
+				onPostFrame.bind(this._onPostFrame, this);
 		}
 
 		this._SceneNode_setScene(scene);
@@ -17024,6 +17028,14 @@
 	Entity.prototype.acceptVisitor = function(visitor)
 	{
 		visitor.visitEntity(this);
+	};
+
+	/* @ignore */
+	Entity.prototype._onPostFrame = function()
+	{
+		// if the matrix was invalidated in the previous frame, it must still be updated in this frame
+		if (this._worldMatrixInvalidFrame >= META.CURRENT_FRAME_MARK - 1)
+			this._prevWorldMatrix.copyFrom(this.worldMatrix);
 	};
 
 	/**
@@ -20719,113 +20731,18 @@
 	 */
 	function SceneVisitor()
 	{
-	    this._proxyMatrix = null;
-	    this._proxyBounds = null;
-	    this._proxy = null;
-	    this._proxyStack = []; // both a stack and a matrix pool
-	    this._matrixStack = []; // both a stack and a matrix pool
-	    this._matrixPool = new ObjectPool(Matrix4x4);
-	    this._proxyBoundsInvalid = false;
 	}
 
 	SceneVisitor.prototype =
 	{
-	    reset: function()
-	    {
-	        this._matrixPool.reset();
-	    },
+	    reset: function() {},
 
 	    // the entry point method depends on the concrete subclass (collect, cast, etc)
 
 	    qualifiesBounds: function(bounds) {},
 	    qualifies: function(object) {},
 	    visitEntity: function (entity) {},
-	    visitScene: function (scene) {},
-
-	    // used for EntityProxy transforms
-	    pushProxy: function(proxy)
-	    {
-	        var matrix;
-
-	        if (this._proxyMatrix) {
-	            matrix = this._matrixPool.getItem();
-	            // the current (parent) matrix * the child matrix
-	            Matrix4x4.multiply(this._proxyMatrix, proxy.worldMatrix, matrix);
-	            this._proxyBounds = workBounds;
-	            this._proxyBoundsInvalid = true;
-	        }
-	        else {
-	            // won't be changed, can store as is
-	            matrix = proxy.worldMatrix;
-	            this._proxyBounds = proxy.worldBounds;
-	            this._proxyBoundsInvalid = false;
-	        }
-
-	        this._proxy = proxy;
-	        this._proxyMatrix = matrix;
-	        this._matrixStack.push(matrix);
-	        this._proxyStack.push(proxy);
-	    },
-
-	    // used for EntityProxy transforms
-	    popProxy: function()
-	    {
-	        this._matrixStack.pop();
-	        this._proxyStack.pop();
-
-	        var len = this._matrixStack.length;
-
-	        if (len === 0) {
-	            this._proxy = null;
-	            this._proxyMatrix = null;
-	            this._proxyBounds = null;
-	        }
-	        else {
-	            this._proxyMatrix = this._matrixStack[len - 1];
-	            this._proxy = this._proxyStack[len - 1];
-
-	            if (len === 1) {
-	                this._proxyBounds = this._proxy.worldBounds;
-	                this._proxyBoundsInvalid = false;
-	            }
-	            else if (len > 1) {
-	                this._proxyBounds = workBounds;
-	                this._proxyBoundsInvalid = true;
-	            }
-	        }
-	    },
-
-		/**
-		 * This returns the world bounds for an entity, whether it's wrapped in a EntityProxy or not. When wrapped in a proxy,
-		 * the worldBounds do not reflect the real world bounds, since it's reused across proxies.
-		 */
-	    getProxiedBounds: function(node)
-	    {
-	        if (this._proxyMatrix) {
-	            if (this._proxyBoundsInvalid) {
-	                this._proxyBounds.transformFrom(this._proxy.bounds, this._proxyMatrix);
-	                this._proxyBoundsInvalid = false;
-	            }
-	            return this._proxyBounds;
-	        }
-	        else {
-	            return node.worldBounds;
-	        }
-	    },
-
-		/**
-	     * This returns the world matrix for an entity, whether it's wrapped in a EntityProxy or not. When wrapped in a proxy,
-	     * the worldMatrix does not reflect the real world transform, since it's reused across proxies.
-		 */
-		getProxiedMatrix: function(node)
-	    {
-	        if (this._proxyMatrix) {
-	            var matrix = this._matrixPool.getItem();
-	            return Matrix4x4.multiply(this._proxyMatrix, node.worldMatrix, matrix);
-	        }
-	        else
-	            return node.worldMatrix;
-	    }
+	    visitScene: function (scene) {}
 	};
 
 	/**
@@ -22184,94 +22101,6 @@
 	{
 		this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
 	};
-
-	/**
-	 * @classdesc
-	 *
-	 * EntityProxy allows wrapping a SceneNode object and instance it in different positions. A difference with being a
-	 * regular child in is that the same scene node can be shared across entity proxies and their state is always identical,
-	 * with the exception of their final transforms.
-	 *
-	 * @constructor
-	 * @extends Entity
-	 *
-	 * @property node The SceneNode or Entity to be wrapped by the proxy.
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function EntityProxy()
-	{
-	    Entity.call(this);
-	    this._node = null;
-	    this._Entity_acceptVisitor = Entity.prototype.acceptVisitor;
-	    this._Entity_updateBounds = Entity.prototype._updateBounds;
-	    this._growBounds = this._growBounds.bind(this);
-	}
-
-	EntityProxy.prototype = Object.create(Entity.prototype, {
-	    node: {
-	        get: function() {
-	            return this._node;
-	        },
-	        set: function(value) {
-	            this._node = value;
-	            this.invalidateBounds();
-	        }
-	    }
-	});
-
-	/**
-	 * @ignore
-	 */
-	EntityProxy.prototype.acceptVisitor = function(visitor)
-	{
-	    this._Entity_acceptVisitor(visitor);
-
-	    visitor.pushProxy(this);
-	    this._traverse(this._node, visitor);
-	    visitor.popProxy();
-	};
-
-	/**
-	 * Traverse the wrapped children's hierarchy and "acceptVisitor" for all of the entities.
-	 * @ignore
-	 */
-	EntityProxy.prototype._traverse = function(node, visitor)
-	{
-	    // the only validity testing is done on this Entity, the rest is force-accepted.
-	    if (node.acceptVisitor) {
-	        if (!visitor.qualifies(node, true)) {
-	            return;
-	        }
-
-	        node.acceptVisitor(visitor, this.worldMatrix);
-	    }
-
-	    for (var i = 0, len = node._children.length; i < len; ++i) {
-	        var child = node._children[i];
-	        this._traverse(child, visitor);
-	    }
-	};
-
-	/**
-	 * @inheritDoc
-	 */
-	EntityProxy.prototype._updateBounds = function()
-	{
-		this._Entity_updateBounds();
-		this._node.applyFunction(this._growBounds);
-	};
-
-	EntityProxy.prototype._growBounds = function(obj)
-	{
-	    var bound = new BoundingAABB();
-	    return function (obj) {
-	        if (obj.bounds) {
-	            bound.transformFrom(obj.bounds, obj.worldMatrix);
-	            this._bounds.growToIncludeBound(bound);
-	        }
-	    }
-	}();
 
 	/**
 	 * @classdesc
@@ -30212,7 +30041,7 @@
 		SKELETON_POSE: 21,	// properties contain position, rotation, scale per joint
 		KEY_FRAME: 22,
 		SKYBOX: 23,
-		ENTITY_PROXY: 24,
+		// 25 IS AVAILABLE AFTER DELETING ENTITY PROXY
 		MORPH_TARGET: 25,
 		MORPH_ANIMATION: 26,
 		SPERICAL_HARMONICS: 27
@@ -30237,7 +30066,7 @@
 		19: AnimationClip,
 		20: SkeletonAnimation,
 		23: Skybox,
-		24: EntityProxy,
+		// 24: IS AVAILABLE AFTER REMOVING ENTITYPROXY!
 		25: MorphTarget,
 		26: MorphAnimation,
 		27: SphericalHarmonicsRGB
@@ -30503,7 +30332,6 @@
 	                this._target.cameras[object.name] = object;
 					break;
 				case ObjectTypes.ENTITY:
-	            case ObjectTypes.ENTITY_PROXY:
 					object = this._parseObject(ObjectTypeMap[type], data);
 
 					while (this._target.entities[object.name])
@@ -31021,8 +30849,6 @@
 
 			if (parent instanceof Scene)
 	            linkToScene(parent, child, meta, this._target);
-	        else if (parent instanceof EntityProxy && meta === 1)
-	            parent.node = child;
 	        else if (parent instanceof Entity)
 	            linkToEntity(parent, child, meta, this._target);
 			else if (parent instanceof SceneNode)
@@ -32275,12 +32101,10 @@
 	 *
 	 * @author derschmale <http://www.derschmale.com>
 	 */
-
 	function RenderItem()
 	{
 	    this.worldMatrix = null;
 	    this.prevWorldMatrix = null;
-	    this.proxyMatrix = new Matrix4x4();    // assigned if worldMatrix = null
 	    this.meshInstance = null;
 	    this.skeleton = null;
 	    this.skeletonMatrices = null;
@@ -32427,7 +32251,7 @@
 		var instances = comps.meshInstance;
 
 		if (instances || lightProbes) {
-			var worldBounds = this.getProxiedBounds(entity);
+			var worldBounds = entity.worldBounds;
 			var center = worldBounds.center;
 			var cameraPos = this._cameraPos;
 			var cameraPos_X = cameraPos.x, cameraPos_Y = cameraPos.y, cameraPos_Z = cameraPos.z;
@@ -32485,18 +32309,18 @@
 		if (instances) {
 			len = instances.length;
 
-			var worldMatrix = this.getProxiedMatrix(entity);
-
+			var worldMatrix = entity.worldMatrix;
+			var prevWorldMatrix = entity._prevWorldMatrix;
 
 			for (i = 0; i < len; ++i) {
 				var instance = instances[i];
 				if (instance.enabled && distSqr >= instance._lodRangeStartSqr && distSqr < instance._lodRangeEndSqr && instance.numInstances !== 0)
-					this.visitMeshInstance(instance, worldMatrix, worldBounds, distSqr);
+					this.visitMeshInstance(instance, worldMatrix, worldBounds, distSqr, prevWorldMatrix);
 			}
 		}
 	};
 
-	RenderCollector.prototype.visitMeshInstance = function (meshInstance, worldMatrix, worldBounds, renderOrderHint)
+	RenderCollector.prototype.visitMeshInstance = function (meshInstance, worldMatrix, worldBounds, renderOrderHint, prevWorldMatrix)
 	{
 	    var skeleton = meshInstance.skeleton;
 	    var skeletonMatrices = meshInstance.skeletonMatrices;
@@ -32518,6 +32342,7 @@
 	    renderItem.skeletonMatrices = skeletonMatrices;
 	    renderItem.renderOrderHint = renderOrderHint;
 	    renderItem.worldMatrix = worldMatrix;
+	    renderItem.prevWorldMatrix = prevWorldMatrix;
 	    renderItem.prevWorldMatrix = meshInstance.entity._prevWorldMatrix;
 	    renderItem.worldBounds = worldBounds;
 
@@ -32891,8 +32716,8 @@
 		var meshInstances = entity.components.meshInstance;
 
 		if (meshInstances) {
-			var worldBounds = this.getProxiedBounds(entity);
-			var worldMatrix = this.getProxiedMatrix(entity);
+			var worldBounds = entity.worldBounds;
+			var worldMatrix = entity.worldMatrix;
 			var center = worldBounds._center;
 			var cameraPos = this._viewCameraPos;
 			var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);
@@ -32931,7 +32756,6 @@
 	                var renderItem = this._renderItemPool.getItem();
 	                renderItem.pass = material.getPass(passIndex);
 	                renderItem.meshInstance = meshInstance;
-	                renderItem.worldMatrix = worldMatrix;
 	                renderItem.material = material;
 	                renderItem.skeleton = skeleton;
 	                renderItem.skeletonMatrices = skeletonMatrices;
@@ -33255,8 +33079,8 @@
 		var meshInstances = entity.components.meshInstance;
 
 		if (meshInstances) {
-			var worldBounds = this.getProxiedBounds(entity);
-			var worldMatrix = this.getProxiedMatrix(entity);
+			var worldBounds = entity.worldBounds;
+			var worldMatrix = entity.worldMatrix;
 			var center = worldBounds._center;
 			var cameraPos = this._viewCameraPos;
 			var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);
@@ -33317,7 +33141,6 @@
 	    renderItem.skeletonMatrices = skeletonMatrices;
 
 	    renderItem.renderOrderHint = renderOrderHint;
-	    renderItem.worldMatrix = worldMatrix;
 	    renderItem.worldBounds = worldBounds;
 
 	    renderList.push(renderItem);
@@ -33431,8 +33254,8 @@
 		if (meshInstances) {
 			for (var i = 0, len = meshInstances.length; i < len; ++i) {
 				var instance = meshInstances[i];
-				var worldBounds = this.getProxiedBounds(entity);
-				var worldMatrix = this.getProxiedMatrix(entity);
+				var worldBounds = entity.worldBounds;
+				var worldMatrix = entity.worldMatrix;
 				var center = worldBounds._center;
 				var cameraPos = this._viewCameraPos;
 				var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);
@@ -35191,8 +35014,8 @@
 		var instances = entity.components.meshInstance;
 		if (!instances) return;
 
-		var matrix = this.getProxiedMatrix(entity);
-		var bounds = this.getProxiedBounds(entity);
+		var matrix = entity.worldMatrix;
+		var bounds = entity.worldBounds;
 
 		for (var i = 0, len = instances.length; i < len; ++i) {
 			var instance = instances[i];
@@ -35603,7 +35426,6 @@
 	exports.Foliage = Foliage;
 	exports.Terrain = Terrain;
 	exports.Entity = Entity;
-	exports.EntityProxy = EntityProxy;
 	exports.EntitySystem = EntitySystem;
 	exports.EntitySet = EntitySet;
 	exports.Component = Component;

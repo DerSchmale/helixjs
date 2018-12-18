@@ -12,113 +12,18 @@ var workBounds = new BoundingAABB();
  */
 function SceneVisitor()
 {
-    this._proxyMatrix = null;
-    this._proxyBounds = null;
-    this._proxy = null;
-    this._proxyStack = []; // both a stack and a matrix pool
-    this._matrixStack = []; // both a stack and a matrix pool
-    this._matrixPool = new ObjectPool(Matrix4x4);
-    this._proxyBoundsInvalid = false;
 }
 
 SceneVisitor.prototype =
 {
-    reset: function()
-    {
-        this._matrixPool.reset();
-    },
+    reset: function() {},
 
     // the entry point method depends on the concrete subclass (collect, cast, etc)
 
     qualifiesBounds: function(bounds) {},
     qualifies: function(object) {},
     visitEntity: function (entity) {},
-    visitScene: function (scene) {},
-
-    // used for EntityProxy transforms
-    pushProxy: function(proxy)
-    {
-        var matrix;
-
-        if (this._proxyMatrix) {
-            matrix = this._matrixPool.getItem();
-            // the current (parent) matrix * the child matrix
-            Matrix4x4.multiply(this._proxyMatrix, proxy.worldMatrix, matrix);
-            this._proxyBounds = workBounds;
-            this._proxyBoundsInvalid = true;
-        }
-        else {
-            // won't be changed, can store as is
-            matrix = proxy.worldMatrix;
-            this._proxyBounds = proxy.worldBounds;
-            this._proxyBoundsInvalid = false;
-        }
-
-        this._proxy = proxy;
-        this._proxyMatrix = matrix;
-        this._matrixStack.push(matrix);
-        this._proxyStack.push(proxy);
-    },
-
-    // used for EntityProxy transforms
-    popProxy: function()
-    {
-        this._matrixStack.pop();
-        this._proxyStack.pop();
-
-        var len = this._matrixStack.length;
-
-        if (len === 0) {
-            this._proxy = null;
-            this._proxyMatrix = null;
-            this._proxyBounds = null;
-        }
-        else {
-            this._proxyMatrix = this._matrixStack[len - 1];
-            this._proxy = this._proxyStack[len - 1];
-
-            if (len === 1) {
-                this._proxyBounds = this._proxy.worldBounds;
-                this._proxyBoundsInvalid = false;
-            }
-            else if (len > 1) {
-                this._proxyBounds = workBounds;
-                this._proxyBoundsInvalid = true;
-            }
-        }
-    },
-
-	/**
-	 * This returns the world bounds for an entity, whether it's wrapped in a EntityProxy or not. When wrapped in a proxy,
-	 * the worldBounds do not reflect the real world bounds, since it's reused across proxies.
-	 */
-    getProxiedBounds: function(node)
-    {
-        if (this._proxyMatrix) {
-            if (this._proxyBoundsInvalid) {
-                this._proxyBounds.transformFrom(this._proxy.bounds, this._proxyMatrix);
-                this._proxyBoundsInvalid = false;
-            }
-            return this._proxyBounds;
-        }
-        else {
-            return node.worldBounds;
-        }
-    },
-
-	/**
-     * This returns the world matrix for an entity, whether it's wrapped in a EntityProxy or not. When wrapped in a proxy,
-     * the worldMatrix does not reflect the real world transform, since it's reused across proxies.
-	 */
-	getProxiedMatrix: function(node)
-    {
-        if (this._proxyMatrix) {
-            var matrix = this._matrixPool.getItem();
-            return Matrix4x4.multiply(this._proxyMatrix, node.worldMatrix, matrix);
-        }
-        else
-            return node.worldMatrix;
-    }
+    visitScene: function (scene) {}
 };
 
 export { SceneVisitor };

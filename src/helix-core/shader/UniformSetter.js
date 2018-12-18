@@ -96,7 +96,7 @@ function PrevWorldMatrixSetter()
 
 PrevWorldMatrixSetter.prototype.execute = function (camera, renderItem)
 {
-    GL.gl.uniformMatrix4fv(this.location, false, renderItem.meshInstance.entity.prevWorldMatrix._m);
+    GL.gl.uniformMatrix4fv(this.location, false, renderItem.prevWorldMatrix._m);
 };
 
 

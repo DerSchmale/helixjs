@@ -98,8 +98,8 @@ Raycaster.prototype.visitEntity = function (entity)
 	var instances = entity.components.meshInstance;
 	if (!instances) return;
 
-	var matrix = this.getProxiedMatrix(entity);
-	var bounds = this.getProxiedBounds(entity);
+	var matrix = entity.worldMatrix;
+	var bounds = entity.worldBounds;
 
 	for (var i = 0, len = instances.length; i < len; ++i) {
 		var instance = instances[i]

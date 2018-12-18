@@ -4,7 +4,7 @@ import {Bitfield} from "../core/Bitfield";
 import {BoundingAABB} from "../scene/BoundingAABB";
 import {MeshInstance} from "../mesh/MeshInstance";
 import {Messenger} from "../core/Messenger";
-import {META} from "../Helix";
+import {META, onPostFrame} from "../Helix";
 import {Matrix4x4} from "../math/Matrix4x4";
 
 /**
@@ -59,11 +59,8 @@ function Entity(components)
 	this._SceneNode_invalidateWorldMatrix = SceneNode.prototype._invalidateWorldMatrix;
 	this._SceneNode_setScene = SceneNode.prototype._setScene;
 
-	if (META.OPTIONS.renderVelocityBuffer) {
-		this._prevWorldMatrix = new Matrix4x4();
-		// this is the frame mark when _prevWorldMatrix was the current world matrix
-		this._prevFrameMark = -1;
-	}
+	this._prevWorldMatrix = META.OPTIONS.renderVelocityBuffer? new Matrix4x4() : null;
+	this._worldMatrixInvalidFrame = -1;
 }
 
 Entity.prototype = Object.create(SceneNode.prototype, {
@@ -149,13 +146,7 @@ Entity.prototype.addComponent = function(component)
  */
 Entity.prototype._invalidateWorldMatrix = function()
 {
-	if (META.OPTIONS.renderVelocityBuffer && this._prevFrameMark !== META.CURRENT_FRAME_MARK) {
-		this._prevFrameMark = META.CURRENT_FRAME_MARK;
-		var tmp = this._worldMatrix;
-		this._worldMatrix = this._prevWorldMatrix;
-		this._prevWorldMatrix = tmp;
-	}
-
+	this._worldMatrixInvalidFrame = META.CURRENT_FRAME_MARK;
 	this._SceneNode_invalidateWorldMatrix();
 
 	this._invalidateWorldBounds();
@@ -312,11 +303,17 @@ Entity.prototype._setScene = function(scene)
 	if (this._scene) {
 		this._scene.entityEngine.unregisterEntity(this);
 		this._scene.partitioning.unregisterEntity(this);
+
+		if (META.OPTIONS.renderVelocityBuffer)
+			onPostFrame.unbind(this._onPostFrame);
 	}
 
 	if (scene) {
 		scene.entityEngine.registerEntity(this);
 		scene.partitioning.registerEntity(this);
+
+		if (META.OPTIONS.renderVelocityBuffer)
+			onPostFrame.bind(this._onPostFrame, this);
 	}
 
 	this._SceneNode_setScene(scene);
@@ -407,6 +404,14 @@ Entity.prototype._assignMorphPose = function(value)
 Entity.prototype.acceptVisitor = function(visitor)
 {
 	visitor.visitEntity(this);
+};
+
+/* @ignore */
+Entity.prototype._onPostFrame = function()
+{
+	// if the matrix was invalidated in the previous frame, it must still be updated in this frame
+	if (this._worldMatrixInvalidFrame >= META.CURRENT_FRAME_MARK - 1)
+		this._prevWorldMatrix.copyFrom(this.worldMatrix);
 };
 
 export { Entity };

@@ -101,7 +101,7 @@ RenderCollector.prototype.visitEntity = function(entity)
 	var instances = comps.meshInstance;
 
 	if (instances || lightProbes) {
-		var worldBounds = this.getProxiedBounds(entity);
+		var worldBounds = entity.worldBounds;
 		var center = worldBounds.center;
 		var cameraPos = this._cameraPos;
 		var cameraPos_X = cameraPos.x, cameraPos_Y = cameraPos.y, cameraPos_Z = cameraPos.z;
@@ -159,18 +159,18 @@ RenderCollector.prototype.visitEntity = function(entity)
 	if (instances) {
 		len = instances.length;
 
-		var worldMatrix = this.getProxiedMatrix(entity);
-
+		var worldMatrix = entity.worldMatrix;
+		var prevWorldMatrix = entity._prevWorldMatrix;
 
 		for (i = 0; i < len; ++i) {
 			var instance = instances[i];
 			if (instance.enabled && distSqr >= instance._lodRangeStartSqr && distSqr < instance._lodRangeEndSqr && instance.numInstances !== 0)
-				this.visitMeshInstance(instance, worldMatrix, worldBounds, distSqr);
+				this.visitMeshInstance(instance, worldMatrix, worldBounds, distSqr, prevWorldMatrix);
 		}
 	}
 };
 
-RenderCollector.prototype.visitMeshInstance = function (meshInstance, worldMatrix, worldBounds, renderOrderHint)
+RenderCollector.prototype.visitMeshInstance = function (meshInstance, worldMatrix, worldBounds, renderOrderHint, prevWorldMatrix)
 {
     var skeleton = meshInstance.skeleton;
     var skeletonMatrices = meshInstance.skeletonMatrices;
@@ -192,6 +192,7 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance, worldMatri
     renderItem.skeletonMatrices = skeletonMatrices;
     renderItem.renderOrderHint = renderOrderHint;
     renderItem.worldMatrix = worldMatrix;
+    renderItem.prevWorldMatrix = prevWorldMatrix;
     renderItem.prevWorldMatrix = meshInstance.entity._prevWorldMatrix;
     renderItem.worldBounds = worldBounds;
 

@@ -42,21 +42,24 @@ function MaterialPass(shader)
 // if a shader supports multiple lights per pass, they will take up 3 type slots (fe: 3 point lights: POINT_LIGHT_PASS, POINT_LIGHT_PASS + 1, POINT_LIGHT_PASS + 2)
 MaterialPass.BASE_PASS = 0;  // used for unlit, for predefined lights, or for WebGL 2 dynamic  passes
 
+// TODO: If MRT is supported, these two can be merged?
 MaterialPass.NORMAL_DEPTH_PASS = 1;
+MaterialPass.VELOCITY_PASS = 2;
 
 // shadow map generation
-MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = 2;
-MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS = 3;
+MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = 3;
+MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS = 4;
+
 
 // dynamic lighting passes
-MaterialPass.DIR_LIGHT_PASS = 4;
-MaterialPass.POINT_LIGHT_PASS = 5;
-MaterialPass.SPOT_LIGHT_PASS = 6;
+MaterialPass.DIR_LIGHT_PASS = 5;
+MaterialPass.POINT_LIGHT_PASS = 6;
+MaterialPass.SPOT_LIGHT_PASS = 7;
 
 // when using dynamic lighting and there are light probes, use this
-MaterialPass.BASE_PASS_PROBES = 7;
+MaterialPass.BASE_PASS_PROBES = 8;
 
-MaterialPass.NUM_PASS_TYPES = 8;
+MaterialPass.NUM_PASS_TYPES = 9;
 
 MaterialPass.prototype =
     {

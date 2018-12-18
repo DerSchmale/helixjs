@@ -132,4 +132,11 @@ function DebugDepthShader()
 
 DebugDepthShader.prototype = Object.create(CustomCopyShader.prototype);
 
-export { CustomCopyShader, CopyChannelsShader, BlendColorCopyShader, ApplyGammaShader, DebugNormalsShader, DebugDepthShader };
+function DebugVelocityShader()
+{
+    CustomCopyShader.call(this, ShaderLibrary.get("debug_velocity_fragment.glsl"))
+}
+
+DebugVelocityShader.prototype = Object.create(CustomCopyShader.prototype);
+
+export { CustomCopyShader, CopyChannelsShader, BlendColorCopyShader, ApplyGammaShader, DebugNormalsShader, DebugDepthShader, DebugVelocityShader };

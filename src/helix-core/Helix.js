@@ -512,6 +512,12 @@ export function InitOptions()
     this.hdr = false;
 
     /**
+     * Indicates whether the renderer should render a velocity buffer when needed. This has some rendering overhead, but
+     * is required if you want to do things like TAA.
+     */
+    this.renderVelocityBuffer = false;
+
+    /**
      * Apply gamma correction. This allows lighting to happen in linear space, as it should.
      */
     this.useGammaCorrection = true;
@@ -604,7 +610,7 @@ export function init(canvas, options)
         defines += "#define HX_GLSL_300_ES\n";
 
         // throw away all the dynamic passes
-        MaterialPass.NUM_PASS_TYPES = 4;
+        MaterialPass.NUM_PASS_TYPES = 5;
     }
     else {
         // so the user can query it's not supported

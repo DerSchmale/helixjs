@@ -36,6 +36,7 @@ function RenderCollector()
 	this.ambientColor = new Color();
 	this.needsNormalDepth = false;
     this.needsBackbuffer = false;
+    this.needsVelocity = false;
     this.numShadowPlanes = 0;
     this.shadowPlaneBuckets = null;
 }
@@ -191,6 +192,7 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance, worldMatri
     renderItem.skeletonMatrices = skeletonMatrices;
     renderItem.renderOrderHint = renderOrderHint;
     renderItem.worldMatrix = worldMatrix;
+    renderItem.prevWorldMatrix = meshInstance.entity._prevWorldMatrix;
     renderItem.worldBounds = worldBounds;
 
     var bucket = (material.blendState || material.needsBackbuffer)? transparentList : opaqueLists[path];

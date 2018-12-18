@@ -4,6 +4,7 @@ import {Component} from "../entity/Component";
 import {SkeletonPose} from "../animation/skeleton/SkeletonPose";
 import {Matrix4x4} from "../math/Matrix4x4";
 import {VertexLayoutCache} from "./VertexLayoutCache";
+import {META} from "../Helix";
 
 var nameCounter = 0;
 var layoutCache = new VertexLayoutCache();

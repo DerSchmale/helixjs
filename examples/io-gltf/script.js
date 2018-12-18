@@ -8,7 +8,9 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.hdr = true;
+    options.debug = true;
     options.defaultLightingModel = HX.LightingModel.GGX_FULL;
+    options.renderVelocityBuffer = true;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -55,4 +57,6 @@ project.onInit = function()
     // use the same texture as environment map
     var lightProbe = new HX.LightProbe(irradianceTexture, skyboxTexture);
     this.scene.attach(new HX.Entity(lightProbe));
+
+    this.renderer.debugMode = HX.Renderer.DebugMode.VELOCITY;
 };

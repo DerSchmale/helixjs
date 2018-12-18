@@ -46,6 +46,7 @@ export var UniformSetter = {
         UniformSetter._passTable = {};
 
         UniformSetter._instanceTable.hx_worldMatrix = WorldMatrixSetter;
+        UniformSetter._instanceTable.hx_prevWorldMatrix = PrevWorldMatrixSetter;
         UniformSetter._instanceTable.hx_worldViewMatrix = WorldViewMatrixSetter;
         UniformSetter._instanceTable.hx_wvpMatrix = WorldViewProjectionSetter;
         UniformSetter._instanceTable.hx_inverseWVPMatrix = InverseWVPSetter;
@@ -61,6 +62,7 @@ export var UniformSetter = {
         UniformSetter._passTable.hx_projectionMatrix = ProjectionSetter;
         UniformSetter._passTable.hx_inverseProjectionMatrix = InverseProjectionSetter;
         UniformSetter._passTable.hx_viewProjectionMatrix = ViewProjectionSetter;
+        UniformSetter._passTable.hx_prevViewProjectionMatrix = PrevViewProjectionSetter;
         UniformSetter._passTable.hx_inverseViewProjectionMatrix = InverseViewProjectionSetter;
         UniformSetter._passTable.hx_cameraWorldPosition = CameraWorldPosSetter;
         UniformSetter._passTable.hx_cameraWorldMatrix = CameraWorldMatrixSetter;
@@ -88,6 +90,15 @@ WorldMatrixSetter.prototype.execute = function (camera, renderItem)
     GL.gl.uniformMatrix4fv(this.location, false, renderItem.worldMatrix._m);
 };
 
+function PrevWorldMatrixSetter()
+{
+}
+
+PrevWorldMatrixSetter.prototype.execute = function (camera, renderItem)
+{
+    GL.gl.uniformMatrix4fv(this.location, false, renderItem.meshInstance.entity.prevWorldMatrix._m);
+};
+
 
 function ViewProjectionSetter()
 {
@@ -96,6 +107,15 @@ function ViewProjectionSetter()
 ViewProjectionSetter.prototype.execute = function(camera)
 {
     GL.gl.uniformMatrix4fv(this.location, false, camera.viewProjectionMatrix._m);
+};
+
+function PrevViewProjectionSetter()
+{
+}
+
+PrevViewProjectionSetter.prototype.execute = function(camera)
+{
+    GL.gl.uniformMatrix4fv(this.location, false, camera._prevViewProjectionMatrix._m);
 };
 
 function InverseViewProjectionSetter()

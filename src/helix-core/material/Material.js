@@ -14,6 +14,7 @@ import {NormalDepthPass} from "./passes/NormalDepthPass";
 import {RenderPath} from "../render/RenderPath";
 import {PointShadowPass} from "./passes/PointShadowPass";
 import {DynamicLitBaseProbesPass} from "./passes/DynamicLitBaseProbesPass";
+import {VelocityPass} from "./passes/VelocityPass";
 
 /**
  * @ignore
@@ -152,6 +153,7 @@ Material.prototype =
         this.setPass(MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS, new PointShadowPass(vertex, fragment, defines));
 
         this.setPass(MaterialPass.NORMAL_DEPTH_PASS, new NormalDepthPass(vertex, fragment, defines));
+        this.setPass(MaterialPass.VELOCITY_PASS, new VelocityPass(vertex, fragment, defines));
 
         // We will also need to order per shader
         this._shaderRenderOrderHint = this._passes[MaterialPass.BASE_PASS].shader.renderOrderHint;

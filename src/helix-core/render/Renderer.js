@@ -1,6 +1,12 @@
 import {Color} from "../core/Color";
 import {RenderCollector} from "./RenderCollector";
-import {ApplyGammaShader, CopyChannelsShader, DebugDepthShader, DebugNormalsShader} from "./UtilShaders";
+import {
+    ApplyGammaShader,
+    CopyChannelsShader,
+    DebugDepthShader,
+    DebugNormalsShader,
+    DebugVelocityShader
+} from "./UtilShaders";
 import {Texture2D} from "../texture/Texture2D";
 import {MaterialPass} from "../material/MaterialPass";
 import {TextureFormat, TextureFilter, TextureWrapMode, META, capabilities} from "../Helix";
@@ -65,6 +71,13 @@ function Renderer(renderTarget)
     this._normalDepthBuffer.wrapMode = TextureWrapMode.CLAMP;
     this._normalDepthFBO = new FrameBuffer(this._normalDepthBuffer, this._depthBuffer);
 
+    if (META.OPTIONS.renderVelocityBuffer) {
+        this._velocityBuffer = new Texture2D();
+        this._velocityBuffer.filter = TextureFilter.BILINEAR_NOMIP;
+        this._velocityBuffer.wrapMode = TextureWrapMode.CLAMP;
+        this._velocityFBO = new FrameBuffer(this._velocityBuffer, this._depthBuffer);
+    }
+
     this._backgroundColor = Color.BLACK.clone();
     this._debugMode = Renderer.DebugMode.NONE;
     this._ssaoTexture = null;
@@ -111,7 +124,8 @@ Renderer.DebugMode = {
     SSAO: 1,
     NORMALS: 2,
     DEPTH: 3,
-    SHADOW_MAP: 4
+    SHADOW_MAP: 4,
+    VELOCITY: 5
 };
 
 /**
@@ -169,6 +183,8 @@ Renderer.prototype =
 			this._debugShader = new DebugNormalsShader();
 		else if (value === Renderer.DebugMode.DEPTH)
 			this._debugShader = new DebugDepthShader();
+		else if (value === Renderer.DebugMode.VELOCITY)
+			this._debugShader = new DebugVelocityShader();
 		else
 			this._debugShader = this._copyTextureShader;
 	},
@@ -234,6 +250,8 @@ Renderer.prototype =
         GL.setColorMask(true);
 
         this._renderNormalDepth();
+        if (META.OPTIONS.renderVelocityBuffer)
+            this._renderVelocity();
         this._renderAO();
 
         GL.setRenderTarget(this._hdrFront.fboDepth);
@@ -815,18 +833,38 @@ Renderer.prototype =
      * @ignore
      * @private
      */
+    _renderVelocity: function()
+    {
+        if (this.skipEffects)
+            return;
+
+        var rc = this._renderCollector;
+        if (rc.needsVelocity || this._debugMode === Renderer.DebugMode.VELOCITY) {
+            GL.setRenderTarget(this._velocityFBO);
+            GL.setClearColor(Color.HALF);
+            GL.clear();
+
+            renderPass(this, this._activeCamera, MaterialPass.VELOCITY_PASS, rc.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC), null);
+            renderPass(this, this._activeCamera, MaterialPass.VELOCITY_PASS, rc.getOpaqueRenderList(RenderPath.FORWARD_FIXED), null);
+            renderPass(this, this._activeCamera, MaterialPass.VELOCITY_PASS, rc.getTransparentRenderList(RenderPath.FORWARD_DYNAMIC), null);
+            renderPass(this, this._activeCamera, MaterialPass.VELOCITY_PASS, rc.getTransparentRenderList(RenderPath.FORWARD_FIXED), null);
+        }
+    },
+
+    /**
+     * @ignore
+     * @private
+     */
     _renderNormalDepth: function()
     {
         var rc = this._renderCollector;
-        var dynamic = rc.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC);
-        var fixed = rc.getOpaqueRenderList(RenderPath.FORWARD_FIXED);
 
         if (rc.needsNormalDepth || this._debugMode === Renderer.DebugMode.NORMALS || this._debugMode === Renderer.DebugMode.DEPTH) {
             GL.setRenderTarget(this._normalDepthFBO);
             GL.setClearColor(Color.BLUE);
             GL.clear();
-            renderPass(this, this._activeCamera, MaterialPass.NORMAL_DEPTH_PASS, dynamic, null);
-            renderPass(this, this._activeCamera, MaterialPass.NORMAL_DEPTH_PASS, fixed, null);
+            renderPass(this, this._activeCamera, MaterialPass.NORMAL_DEPTH_PASS, rc.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC), null);
+            renderPass(this, this._activeCamera, MaterialPass.NORMAL_DEPTH_PASS, rc.getOpaqueRenderList(RenderPath.FORWARD_FIXED), null);
         }
     },
 
@@ -904,6 +942,9 @@ Renderer.prototype =
                 case Renderer.DebugMode.NORMALS:
                     tex = this._normalDepthBuffer;
                     break;
+                case Renderer.DebugMode.VELOCITY:
+                    tex = this._velocityBuffer;
+                    break;
                 case Renderer.DebugMode.DEPTH:
                     tex = this._normalDepthBuffer;
                     break;
@@ -959,6 +1000,23 @@ Renderer.prototype =
      * @ignore
      * @private
      */
+    _updatePreviousWorldMatrices: function(renderItems)
+    {
+        var frameMark = META.CURRENT_FRAME_MARK;
+        for (var i = 0, len = renderItems.length; i < len; ++i) {
+            var instance = renderItems[i].meshInstance;
+            // make sure a second render in the same frame doesn't overwrite the original value
+            if (instance._prevFrameMark !== frameMark) {
+                instance._prevFrameMark = frameMark;
+                instance._prevWorldMatrix.copyFrom(instance.entity.worldMatrix);
+            }
+        }
+    },
+
+    /**
+     * @ignore
+     * @private
+     */
     _updateSize: function ()
     {
         var width, height;
@@ -979,6 +1037,11 @@ Renderer.prototype =
             this._hdrFront.resize(this._width, this._height);
             this._normalDepthBuffer.initEmpty(width, height);
             this._normalDepthFBO.init();
+
+            if (this._velocityBuffer) {
+                this._velocityBuffer.initEmpty(width, height);
+                this._velocityFBO.init();
+            }
         }
     },
 

@@ -42,6 +42,11 @@ function Camera()
     this._frustum = new Frustum();
     this._Entity_invalidateWorldMatrix = Entity.prototype._invalidateWorldMatrix;
 
+    if (META.OPTIONS.renderVelocityBuffer) {
+        this._prevViewProjectionMatrix = new Matrix4x4();
+        this._prevFrameMark = -1;
+    }
+
     this.position.set(0.0, -1.0, 0.0);
 }
 
@@ -165,6 +170,13 @@ Camera.prototype._setRenderTargetResolution = function(width, height)
  */
 Camera.prototype._invalidateViewProjectionMatrix = function()
 {
+    if (META.OPTIONS.renderVelocityBuffer && this._prevFrameMark !== META.CURRENT_FRAME_MARK) {
+        this._prevFrameMark = META.CURRENT_FRAME_MARK;
+        var tmp = this._viewProjectionMatrix;
+        this._viewProjectionMatrix = this._prevViewProjectionMatrix;
+        this._prevViewProjectionMatrix = tmp;
+    }
+
     this._viewProjectionMatrixInvalid = true;
 };
 

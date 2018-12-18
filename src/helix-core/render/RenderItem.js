@@ -9,6 +9,7 @@ import {Matrix4x4} from "../math/Matrix4x4";
 export function RenderItem()
 {
     this.worldMatrix = null;
+    this.prevWorldMatrix = null;
     this.proxyMatrix = new Matrix4x4();    // assigned if worldMatrix = null
     this.meshInstance = null;
     this.skeleton = null;

@@ -243,5 +243,9 @@ Color.CYAN = new Color(0, 1, 1, 1);
  * Preset for white
  */
 Color.WHITE = new Color(1, 1, 1, 1);
+/**
+ * Preset for 50% rgb and alpha
+ */
+Color.HALF = new Color(.5, .5, .5, .5);
 
 export { Color };

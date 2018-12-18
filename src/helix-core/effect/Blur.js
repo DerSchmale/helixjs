@@ -36,7 +36,7 @@ Blur.prototype = Object.create(Effect.prototype);
 Blur.prototype.draw = function(renderer, dt)
 {
     var ratio = this.radius / this._numSamples;
-    // we're manually setting source textures instead of using hx_backbuffer because the GaussianBlurPass needs to
+    // we're manually setting source textures instead of using hx_backBuffer because the GaussianBlurPass needs to
     // handle different textures too (see bloom)
     GL.setRenderTarget(this.hdrTarget);
     GL.clear();

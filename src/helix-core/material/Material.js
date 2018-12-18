@@ -71,7 +71,7 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
     this._additiveBlendState = BlendState.ADD;    // additive blend state is used for dynamic lighting
 
     this.needsNormalDepth = false;
-    this.needsBackbuffer = false;
+    this.needsBackBuffer = false;
 
     ++MATERIAL_ID_COUNTER;
 }
@@ -92,7 +92,7 @@ Material.prototype =
             return;
 
         this.needsNormalDepth = false;
-        this.needsBackbuffer = false;
+        this.needsBackBuffer = false;
 
         var vertex = this._geometryVertexShader;
         var fragment = this._geometryFragmentShader;
@@ -345,8 +345,8 @@ Material.prototype =
             if (pass.hasTexture("hx_normalDepthBuffer"))
                 this.needsNormalDepth = true;
 
-            if (pass.hasTexture("hx_backbuffer"))
-                this.needsBackbuffer = true;
+            if (pass.hasTexture("hx_backBuffer"))
+                this.needsBackBuffer = true;
 
             for (var slotName in this._textures) {
                 if (this._textures.hasOwnProperty(slotName)) {

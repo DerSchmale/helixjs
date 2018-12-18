@@ -11,12 +11,12 @@ uniform float hx_cameraNearPlaneDistance;
 uniform vec3 hx_cameraWorldPosition;
 
 uniform sampler2D hx_normalDepthBuffer;
-uniform sampler2D hx_backbuffer;
+uniform sampler2D hx_backBuffer;
 
 void main()
 {
     vec4 normalDepth = texture2D(hx_normalDepthBuffer, uv);
-	vec4 color = texture2D(hx_backbuffer, uv);
+	vec4 color = texture2D(hx_backBuffer, uv);
 	float depth = hx_decodeLinearDepth(normalDepth);
 	// do not fog up skybox
 	if (normalDepth.z == 1.0 && normalDepth.w == 1.0) depth = 0.0;

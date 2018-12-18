@@ -41,8 +41,9 @@ export var TextureSetter = {
         TextureSetter._instanceTable = {};
 
         TextureSetter._passTable.hx_normalDepthBuffer = NormalDepthBufferSetter;
-        TextureSetter._passTable.hx_backbuffer = BackbufferSetter;
-        TextureSetter._passTable.hx_frontbuffer = FrontbufferSetter;
+        TextureSetter._passTable.hx_backBuffer = BackBufferSetter;
+        TextureSetter._passTable.hx_frontBuffer = FrontBufferSetter;
+        TextureSetter._passTable.hx_velocityBuffer = VelocityBufferSetter;
         TextureSetter._passTable.hx_ssao = SSAOSetter;
         TextureSetter._passTable.hx_shadowMap = ShadowMapSetter;
 		TextureSetter._passTable["hx_specularProbeMaps[0]"] = SpecularProbesSetter;
@@ -64,22 +65,31 @@ NormalDepthBufferSetter.prototype.execute = function (renderer)
     this.pass.setTextureByIndex(this.slot, renderer._normalDepthBuffer);
 };
 
-
-function FrontbufferSetter()
+function VelocityBufferSetter()
 {
 }
 
-FrontbufferSetter.prototype.execute = function (renderer)
+VelocityBufferSetter.prototype.execute = function (renderer)
+{
+    this.pass.setTextureByIndex(this.slot, renderer._velocityBuffer);
+};
+
+
+function FrontBufferSetter()
+{
+}
+
+FrontBufferSetter.prototype.execute = function (renderer)
 {
     if (renderer._hdrFront)
 		this.pass.setTextureByIndex(this.slot, renderer._hdrFront.texture);
 };
 
-function BackbufferSetter()
+function BackBufferSetter()
 {
 }
 
-BackbufferSetter.prototype.execute = function (renderer)
+BackBufferSetter.prototype.execute = function (renderer)
 {
     if (renderer._hdrBack)
 		this.pass.setTextureByIndex(this.slot, renderer._hdrBack.texture);

@@ -39,7 +39,7 @@ var probeObject = {};
  * @property depthPrepass Defines whether or not a depth pre-pass needs to be performed when rendering. This may improve
  * rendering by spending less time calculating lighting on invisible fragments.
  * @property skipEffects Indicates the output should not apply post-processing effects.
- * @property renderTarget A render target for the Renderer to draw to. If not provided, it will render to the backbuffer.
+ * @property renderTarget A render target for the Renderer to draw to. If not provided, it will render to the back-buffer.
  *
  * @constructor
  *
@@ -370,8 +370,8 @@ Renderer.prototype =
         renderPass(this, this._activeCamera, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
         renderPass(this, this._activeCamera, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC));
 
-		if (this._renderCollector.needsBackbuffer)
-			this._copyBackbuffer();
+		if (this._renderCollector.needsBackBuffer)
+			this._copyBackBuffer();
 
         renderPass(this, this._activeCamera, MaterialPass.BASE_PASS, this._renderCollector.getTransparentRenderList(RenderPath.FORWARD_FIXED));
         renderPass(this, this._activeCamera, MaterialPass.BASE_PASS, this._renderCollector.getTransparentRenderList(RenderPath.FORWARD_DYNAMIC));
@@ -662,7 +662,7 @@ Renderer.prototype =
 	 * @ignore
 	 * @private
 	 */
-	_copyBackbuffer: function()
+	_copyBackBuffer: function()
 	{
 		GL.setRenderTarget(this._hdrBack.fbo);
 		GL.clear();
@@ -678,8 +678,8 @@ Renderer.prototype =
     {
 		this._renderForwardOpaque();
 
-		if (this._renderCollector.needsBackbuffer)
-			this._copyBackbuffer();
+		if (this._renderCollector.needsBackBuffer)
+			this._copyBackBuffer();
 
 		this._renderForwardTransparent();
 	},

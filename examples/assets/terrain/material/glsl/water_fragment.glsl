@@ -1,7 +1,7 @@
 uniform sampler2D waveMap;
 
 uniform sampler2D hx_normalDepthBuffer;
-uniform sampler2D hx_backbuffer;
+uniform sampler2D hx_backBuffer;
 
 uniform mat4 hx_viewMatrix;
 uniform float roughness;
@@ -49,7 +49,7 @@ HX_GeometryData hx_geometry()
     if (screenCoord.y > 1.0) screenCoord.y -= (screenCoord.y - 1.0) * 2.0;
     else if (screenCoord.y < 0.0) screenCoord.y -= screenCoord.y * 2.0;
 
-    vec4 backColor = texture2D(hx_backbuffer, screenCoord);
+    vec4 backColor = texture2D(hx_backBuffer, screenCoord);
 
     float scatter = exp(-inScatterDensity * dist);
     vec3 absorb;

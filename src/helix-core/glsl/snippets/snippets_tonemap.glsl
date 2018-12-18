@@ -8,7 +8,7 @@ uniform float hx_luminanceMipLevel;
 uniform float hx_exposure;
 uniform float hx_key;
 
-uniform sampler2D hx_backbuffer;
+uniform sampler2D hx_backBuffer;
 
 
 vec4 hx_getToneMapScaledColor()
@@ -25,5 +25,5 @@ vec4 hx_getToneMapScaledColor()
 	#else
 	float exposure = hx_exposure;
 	#endif
-    return texture2D(hx_backbuffer, uv) * exposure;
+    return texture2D(hx_backBuffer, uv) * exposure;
 }

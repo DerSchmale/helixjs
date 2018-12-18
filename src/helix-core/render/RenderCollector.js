@@ -35,7 +35,7 @@ function RenderCollector()
 	this.effects = null;
 	this.ambientColor = new Color();
 	this.needsNormalDepth = false;
-    this.needsBackbuffer = false;
+    this.needsBackBuffer = false;
     this.needsVelocity = false;
     this.numShadowPlanes = 0;
     this.shadowPlaneBuckets = null;
@@ -182,7 +182,7 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance, worldMatri
 
     // only required for the default lighting model (if not unlit)
     this.needsNormalDepth = this.needsNormalDepth || material.needsNormalDepth;
-    this.needsBackbuffer = this.needsBackbuffer || material.needsBackbuffer;
+    this.needsBackBuffer = this.needsBackBuffer || material.needsBackBuffer;
 
     var renderItem = renderPool.getItem();
 
@@ -196,7 +196,7 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance, worldMatri
     renderItem.prevWorldMatrix = meshInstance.entity._prevWorldMatrix;
     renderItem.worldBounds = worldBounds;
 
-    var bucket = (material.blendState || material.needsBackbuffer)? transparentList : opaqueLists[path];
+    var bucket = (material.blendState || material.needsBackBuffer)? transparentList : opaqueLists[path];
     bucket.push(renderItem);
 
     var numTris = meshInstance.mesh.numIndices / 3;

@@ -595,7 +595,7 @@ export function init(canvas, options)
     var webglFlags = {
         antialias: false,   // we're rendering to texture by default, so native AA has no effect
         alpha: META.OPTIONS.transparentBackground,
-        // we render offscreen, so no depth/stencil needed in backbuffer
+        // we render offscreen, so no depth/stencil needed in back-buffer
         depth: false,
         stencil: false,
         premultipliedAlpha: false,

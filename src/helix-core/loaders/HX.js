@@ -39,7 +39,6 @@ import {TextureCube} from "../texture/TextureCube";
 import {EquirectangularTexture} from "../utils/EquirectangularTexture";
 import {Skybox} from "../scene/Skybox";
 import {OrthographicCamera} from "../camera/OrthographicCamera";
-import {EntityProxy} from "../entity/EntityProxy";
 import {Camera} from "../camera/Camera";
 import {Float2} from "../math/Float2";
 import {MorphTarget} from "../animation/morph/MorphTarget";
@@ -129,7 +128,7 @@ var ObjectTypes = {
 	SKELETON_POSE: 21,	// properties contain position, rotation, scale per joint
 	KEY_FRAME: 22,
 	SKYBOX: 23,
-	ENTITY_PROXY: 24,
+	// 25 IS AVAILABLE AFTER DELETING ENTITY PROXY
 	MORPH_TARGET: 25,
 	MORPH_ANIMATION: 26,
 	SPERICAL_HARMONICS: 27
@@ -154,7 +153,7 @@ var ObjectTypeMap = {
 	19: AnimationClip,
 	20: SkeletonAnimation,
 	23: Skybox,
-	24: EntityProxy,
+	// 24: IS AVAILABLE AFTER REMOVING ENTITYPROXY!
 	25: MorphTarget,
 	26: MorphAnimation,
 	27: SphericalHarmonicsRGB
@@ -420,7 +419,6 @@ HX.prototype._parseObjectList = function()
                 this._target.cameras[object.name] = object;
 				break;
 			case ObjectTypes.ENTITY:
-            case ObjectTypes.ENTITY_PROXY:
 				object = this._parseObject(ObjectTypeMap[type], data);
 
 				while (this._target.entities[object.name])
@@ -938,8 +936,6 @@ HX.prototype._parseLinkList = function()
 
 		if (parent instanceof Scene)
             linkToScene(parent, child, meta, this._target);
-        else if (parent instanceof EntityProxy && meta === 1)
-            parent.node = child;
         else if (parent instanceof Entity)
             linkToEntity(parent, child, meta, this._target);
 		else if (parent instanceof SceneNode)

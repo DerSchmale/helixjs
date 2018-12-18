@@ -69,8 +69,8 @@ CascadeShadowCasterCollector.prototype.visitEntity = function(entity)
 	var meshInstances = entity.components.meshInstance;
 
 	if (meshInstances) {
-		var worldBounds = this.getProxiedBounds(entity);
-		var worldMatrix = this.getProxiedMatrix(entity);
+		var worldBounds = entity.worldBounds;
+		var worldMatrix = entity.worldMatrix;
 		var center = worldBounds._center;
 		var cameraPos = this._viewCameraPos;
 		var dx = (center.x - cameraPos.x), dy = (center.y - cameraPos.y), dz = (center.z - cameraPos.z);
@@ -109,7 +109,6 @@ CascadeShadowCasterCollector.prototype.visitMeshInstance = function(meshInstance
                 var renderItem = this._renderItemPool.getItem();
                 renderItem.pass = material.getPass(passIndex);
                 renderItem.meshInstance = meshInstance;
-                renderItem.worldMatrix = worldMatrix;
                 renderItem.material = material;
                 renderItem.skeleton = skeleton;
                 renderItem.skeletonMatrices = skeletonMatrices;

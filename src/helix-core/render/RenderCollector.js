@@ -100,7 +100,7 @@ RenderCollector.prototype.visitEntity = function(entity)
 	var instances = comps.meshInstance;
 
 	if (instances || lightProbes) {
-		var worldBounds = this.getProxiedBounds(entity);
+		var worldBounds = entity.worldBounds;
 		var center = worldBounds.center;
 		var cameraPos = this._cameraPos;
 		var cameraPos_X = cameraPos.x, cameraPos_Y = cameraPos.y, cameraPos_Z = cameraPos.z;
@@ -158,7 +158,7 @@ RenderCollector.prototype.visitEntity = function(entity)
 	if (instances) {
 		len = instances.length;
 
-		var worldMatrix = this.getProxiedMatrix(entity);
+		var worldMatrix = entity.worldMatrix;
 
 
 		for (i = 0; i < len; ++i) {
@@ -190,7 +190,6 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance, worldMatri
     renderItem.skeleton = skeleton;
     renderItem.skeletonMatrices = skeletonMatrices;
     renderItem.renderOrderHint = renderOrderHint;
-    renderItem.worldMatrix = worldMatrix;
     renderItem.worldBounds = worldBounds;
 
     var bucket = (material.blendState || material.needsBackbuffer)? transparentList : opaqueLists[path];

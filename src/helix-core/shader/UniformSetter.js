@@ -85,7 +85,7 @@ function WorldMatrixSetter()
 
 WorldMatrixSetter.prototype.execute = function (camera, renderItem)
 {
-    GL.gl.uniformMatrix4fv(this.location, false, renderItem.worldMatrix._m);
+    GL.gl.uniformMatrix4fv(this.location, false, renderItem.entity.worldMatrix._m);
 };
 
 
@@ -144,7 +144,7 @@ WorldViewProjectionSetter.prototype.execute = function()
     var m = matrix._m;
     return function(camera, renderItem)
     {
-        matrix.multiply(camera.viewProjectionMatrix, renderItem.worldMatrix);
+        matrix.multiply(camera.viewProjectionMatrix, renderItem.entity.worldMatrix);
         GL.gl.uniformMatrix4fv(this.location, false, m);
     };
 }();
@@ -159,7 +159,7 @@ WorldViewMatrixSetter.prototype.execute = function(){
     var m = matrix._m;
     return function (camera, renderItem)
     {
-        matrix.multiply(camera.viewMatrix, renderItem.worldMatrix);
+        matrix.multiply(camera.viewMatrix, renderItem.entity.worldMatrix);
         GL.gl.uniformMatrix4fv(this.location, false, m);
     }
 }();
@@ -173,7 +173,7 @@ NormalWorldMatrixSetter.prototype.execute = function() {
     var data = new Float32Array(9);
     return function (camera, renderItem)
     {
-        renderItem.worldMatrix.writeNormalMatrix(data);
+        renderItem.entity.worldMatrix.writeNormalMatrix(data);
         GL.gl.uniformMatrix3fv(this.location, false, data);    // transpose of inverse
     }
 }();
@@ -190,11 +190,11 @@ NormalWorldViewMatrixSetter.prototype.execute = function() {
     return function (camera, renderItem)
     {
         // the following code is the same as the following two lines, but inlined and reducing the need for all field to be multiplied
-        //matrix.multiply(camera.viewMatrix, renderItem.worldMatrix);
+        //matrix.multiply(camera.viewMatrix, renderItem.entity.worldMatrix);
         //matrix.writeNormalMatrix(data);
 
         var am = camera.viewMatrix._m;
-        var bm = renderItem.worldMatrix._m;
+        var bm = renderItem.entity.worldMatrix._m;
 
         var a_m00 = am[0], a_m10 = am[1], a_m20 = am[2];
         var a_m01 = am[4], a_m11 = am[5], a_m21 = am[6];

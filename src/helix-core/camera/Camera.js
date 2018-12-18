@@ -41,11 +41,10 @@ function Camera()
     this._farDistance = 1000;
     this._frustum = new Frustum();
     this._Entity_invalidateWorldMatrix = Entity.prototype._invalidateWorldMatrix;
+    this._Entity_onPostFrame = Entity.prototype._onPostFrame;
 
-    if (META.OPTIONS.renderVelocityBuffer) {
-        this._prevViewProjectionMatrix = new Matrix4x4();
-        this._prevFrameMark = -1;
-    }
+    this._prevViewProjectionMatrix = META.OPTIONS.renderVelocityBuffer? new Matrix4x4() : null;
+    this._viewProjectionInvalidFrame = -1;
 
     this.position.set(0.0, -1.0, 0.0);
 }
@@ -170,13 +169,7 @@ Camera.prototype._setRenderTargetResolution = function(width, height)
  */
 Camera.prototype._invalidateViewProjectionMatrix = function()
 {
-    if (META.OPTIONS.renderVelocityBuffer && this._prevFrameMark !== META.CURRENT_FRAME_MARK) {
-        this._prevFrameMark = META.CURRENT_FRAME_MARK;
-        var tmp = this._viewProjectionMatrix;
-        this._viewProjectionMatrix = this._prevViewProjectionMatrix;
-        this._prevViewProjectionMatrix = tmp;
-    }
-
+    this._viewProjectionInvalidFrame = META.CURRENT_FRAME_MARK;
     this._viewProjectionMatrixInvalid = true;
 };
 
@@ -253,6 +246,15 @@ Camera.prototype.acceptVisitorPost = Entity.prototype.acceptVisitor;
 
 // don't want effects etc to be added unless it's the render camera (which is handled by acceptVisitorPost)
 Camera.prototype.acceptVisitor = function(visitor) {};
+
+Camera.prototype._onPostFrame = function()
+{
+    this._Entity_onPostFrame();
+
+    // if the matrix was invalidated in the previous frame, it must still be updated in this frame
+    if (this._viewProjectionInvalidFrame >= META.CURRENT_FRAME_MARK - 1)
+        this._prevViewProjectionMatrix.copyFrom(this.viewProjectionMatrix);
+};
 
 
 export { Camera };

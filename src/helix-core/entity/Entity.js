@@ -17,6 +17,7 @@ import {Matrix4x4} from "../math/Matrix4x4";
  * `entity.components.meshInstance` contains the array of all {@linkcode MeshInstance} components.
  * @property {BoundingVolume} worldBounds The bounding volume for this entity in world coordinates. This does not include
  * children.
+ * @property {boolean} static Whether or not this Entity can move or not.
  *
  * @property {Messenger} messenger The Messenger to which elements can listen for certain names Signals related to this Entity.
  *
@@ -42,6 +43,7 @@ function Entity(components)
 	this._spatialPrev = null;
 	this._spatialNext = null;
 
+	this._static = false;
 	this._boundsInvalid = true;
 	this._worldBoundsInvalid = true;
 	this._worldBounds = this._createBoundingVolume();
@@ -84,6 +86,27 @@ Entity.prototype = Object.create(SceneNode.prototype, {
 			}
 
 			return this._bounds;
+		}
+	},
+	static: {
+		get: function()
+		{
+			return this._static;
+		},
+
+		set: function(value)
+		{
+			if (this._static === value)
+				return;
+
+			this._static = value;
+
+			if (META.OPTIONS.renderVelocityBuffer && this._scene) {
+				if (value)
+					onPostFrame.bind(this._onPostFrame, this);
+				else
+					onPostFrame.unbind(this._onPostFrame);
+			}
 		}
 	}
 });
@@ -304,7 +327,7 @@ Entity.prototype._setScene = function(scene)
 		this._scene.entityEngine.unregisterEntity(this);
 		this._scene.partitioning.unregisterEntity(this);
 
-		if (META.OPTIONS.renderVelocityBuffer)
+		if (META.OPTIONS.renderVelocityBuffer && !this._static)
 			onPostFrame.unbind(this._onPostFrame);
 	}
 
@@ -312,7 +335,7 @@ Entity.prototype._setScene = function(scene)
 		scene.entityEngine.registerEntity(this);
 		scene.partitioning.registerEntity(this);
 
-		if (META.OPTIONS.renderVelocityBuffer)
+		if (META.OPTIONS.renderVelocityBuffer && !this._static)
 			onPostFrame.bind(this._onPostFrame, this);
 	}
 

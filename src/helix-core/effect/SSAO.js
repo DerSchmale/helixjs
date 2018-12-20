@@ -17,6 +17,7 @@ import {Effect} from "./Effect";
  * @property {number} fallOffDistance The maximum distance for occluders to still count.
  * @property {number} strength The strength of the ambient occlusion effect.
  * @property {number} scale The scale at which to calculate the ambient occlusion (usually 0.5, half-resolution)
+ * @property {number} numSamples The amount of samples to take per pixel
  *
  * @constructor
  * @param numSamples The amount of samples to take per pixel.
@@ -29,10 +30,8 @@ import {Effect} from "./Effect";
  */
 function SSAO(numSamples)
 {
-    numSamples = numSamples || 16;
-    if (numSamples > 64) numSamples = 64;
-
-    this._numSamples = numSamples;
+    this._numSamples = -1;
+    this.numSamples = numSamples || 16;
     this._strength = 1.0;
     this._fallOffDistance = 1.0;
     this._radius = .5;
@@ -80,6 +79,25 @@ SSAO.prototype = Object.create(Effect.prototype, {
             if (this._ssaoPass)
                 this._ssaoPass.setUniform("strengthPerSample", 2.0 * this._strength / this._numSamples);
         }
+    },
+
+    numSamples: {
+        get: function()
+        {
+            return this._numSamples;
+        },
+
+        set: function(value)
+        {
+            value = Math.floor(value);
+            if (value > 64) value = 64;
+
+            if (this._numSamples === value) return;
+            this._numSamples = value;
+
+            // invalidate
+            this._ssaoPass = null;
+        }
     }
 });
 
@@ -95,24 +113,29 @@ SSAO.prototype.init = function()
                 NUM_SAMPLES: this._numSamples
             }
         ));
-    this._blurPass = new EffectPass(ShaderLibrary.get("ao_blur_vertex.glsl"), ShaderLibrary.get("ao_blur_fragment.glsl"));
 
-    this._initSamples();
-    this._initDitherTexture();
+    if (!this._blurPass)
+        this._blurPass = new EffectPass(ShaderLibrary.get("ao_blur_vertex.glsl"), ShaderLibrary.get("ao_blur_fragment.glsl"));
+
+    // never needs to be reinitialized
+    if (!this._ssaoTexture) {
+        this._ssaoTexture = new Texture2D();
+        this._ssaoTexture.filter = TextureFilter.BILINEAR_NOMIP;
+        this._ssaoTexture.wrapMode = TextureWrapMode.CLAMP;
+        this._backTexture = new Texture2D();
+        this._backTexture.filter = TextureFilter.BILINEAR_NOMIP;
+        this._backTexture.wrapMode = TextureWrapMode.CLAMP;
+        this._fbo1 = new FrameBuffer(this._backTexture);
+        this._fbo2 = new FrameBuffer(this._ssaoTexture);
+        this._initDitherTexture();
+    }
+
     this._ssaoPass.setUniform("strengthPerSample", 2.0 * this._strength / this._numSamples);
     this._ssaoPass.setUniform("rcpFallOffDistance", 1.0 / this._fallOffDistance);
     this._ssaoPass.setUniform("sampleRadius", this._radius);
     this._ssaoPass.setTexture("ditherTexture", this._ditherTexture);
     this._sourceTextureSlot = this._blurPass.getTextureIndex("source");
-
-    this._ssaoTexture = new Texture2D();
-    this._ssaoTexture.filter = TextureFilter.BILINEAR_NOMIP;
-    this._ssaoTexture.wrapMode = TextureWrapMode.CLAMP;
-    this._backTexture = new Texture2D();
-    this._backTexture.filter = TextureFilter.BILINEAR_NOMIP;
-    this._backTexture.wrapMode = TextureWrapMode.CLAMP;
-    this._fbo1 = new FrameBuffer(this._backTexture);
-    this._fbo2 = new FrameBuffer(this._ssaoTexture);
+    this._initSamples();
 };
 
 /**
@@ -123,6 +146,7 @@ SSAO.prototype.init = function()
  */
 SSAO.prototype.getAOTexture = function()
 {
+    if (!this._ssaoTexture) this.init();
     return this._ssaoTexture;
 };
 
@@ -153,6 +177,9 @@ SSAO.prototype._initSamples = function()
  */
 SSAO.prototype.draw = function(renderer, dt)
 {
+    if (!this._ssaoPass)
+        this.init();
+
     var w = this._renderer._width * this.scale;
     var h = this._renderer._height * this.scale;
 

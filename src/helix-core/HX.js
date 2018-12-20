@@ -125,6 +125,7 @@ export {GaussianBlurPass} from "./effect/GaussianBlurPass";
 export {HBAO} from "./effect/HBAO";
 export {SSAO} from "./effect/SSAO";
 export {ReinhardToneMapping} from "./effect/ReinhardToneMapping";
+export {MotionBlur} from "./effect/MotionBlur";
 
 export {Input} from "./input/Input";
 export {Gamepad} from "./input/Gamepad";

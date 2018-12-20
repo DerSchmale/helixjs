@@ -517,10 +517,10 @@ export function InitOptions()
     this.hdr = false;
 
     /**
-     * Indicates whether the renderer should render a velocity buffer when needed. This has some rendering overhead, but
-     * is required if you want to do things like TAA.
+     * Indicates whether the renderer should render a motion vector buffer when needed. This has some rendering overhead,
+     * but is required if you want to do things like TAA or motion blur.
      */
-    this.renderVelocityBuffer = false;
+    this.renderMotionVectors = false;
 
     /**
      * Apply gamma correction. This allows lighting to happen in linear space, as it should.
@@ -734,9 +734,6 @@ export function init(canvas, options)
     // default copy shader
     // TODO: Provide a default copy mechanic, can be replaced with blit in WebGL 2.0
     DEFAULTS.COPY_SHADER = new CopyChannelsShader();
-
-	if (options.ambientOcclusion)
-		options.ambientOcclusion.init();
 
     GL.setClearColor(Color.BLACK);
 

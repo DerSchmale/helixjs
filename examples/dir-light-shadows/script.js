@@ -50,7 +50,6 @@ project.onInit = function()
 {
     initCamera(this.camera);
     initScene(this.scene, this.assetLibrary);
-    // this.renderer.debugMode = HX.Renderer.DebugMode.SSAO;
 };
 
 project.onUpdate = function(dt)

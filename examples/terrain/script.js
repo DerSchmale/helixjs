@@ -53,7 +53,6 @@ window.onload = function ()
 
 project.onInit = function()
 {
-	// this.renderer.debugMode = HX.Renderer.DebugMode.SSAO;
 	initCamera();
 	initScene();
 

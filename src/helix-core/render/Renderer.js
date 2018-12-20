@@ -71,11 +71,11 @@ function Renderer(renderTarget)
     this._normalDepthBuffer.wrapMode = TextureWrapMode.CLAMP;
     this._normalDepthFBO = new FrameBuffer(this._normalDepthBuffer, this._depthBuffer);
 
-    if (META.OPTIONS.renderVelocityBuffer) {
-        this._velocityBuffer = new Texture2D();
-        this._velocityBuffer.filter = TextureFilter.BILINEAR_NOMIP;
-        this._velocityBuffer.wrapMode = TextureWrapMode.CLAMP;
-        this._velocityFBO = new FrameBuffer(this._velocityBuffer, this._depthBuffer);
+    if (META.OPTIONS.renderMotionVectors) {
+        this._motionVectorBuffer = new Texture2D();
+        this._motionVectorBuffer.filter = TextureFilter.BILINEAR_NOMIP;
+        this._motionVectorBuffer.wrapMode = TextureWrapMode.CLAMP;
+        this._velocityFBO = new FrameBuffer(this._motionVectorBuffer, this._depthBuffer);
     }
 
     this._backgroundColor = Color.BLACK.clone();
@@ -121,7 +121,7 @@ function Renderer(renderTarget)
  */
 Renderer.DebugMode = {
     NONE: 0,
-    SSAO: 1,
+    AMBIENT_OCCLUSION: 1,
     NORMALS: 2,
     DEPTH: 3,
     SHADOW_MAP: 4,
@@ -250,7 +250,7 @@ Renderer.prototype =
         GL.setColorMask(true);
 
         this._renderNormalDepth();
-        if (META.OPTIONS.renderVelocityBuffer)
+        if (META.OPTIONS.renderMotionVectors)
             this._renderVelocity();
         this._renderAO();
 
@@ -935,15 +935,14 @@ Renderer.prototype =
         GL.setClearColor(this._backgroundColor);
         GL.clear();
 
-        if (this.debugMode) {
+        if (this._debugMode) {
             var tex;
-
-            switch (this.debugMode) {
+            switch (this._debugMode) {
                 case Renderer.DebugMode.NORMALS:
                     tex = this._normalDepthBuffer;
                     break;
                 case Renderer.DebugMode.VELOCITY:
-                    tex = this._velocityBuffer;
+                    tex = this._motionVectorBuffer;
                     break;
                 case Renderer.DebugMode.DEPTH:
                     tex = this._normalDepthBuffer;
@@ -951,11 +950,11 @@ Renderer.prototype =
                 case Renderer.DebugMode.SHADOW_MAP:
                     tex = this._shadowAtlas.texture;
                     break;
-                case Renderer.DebugMode.SSAO:
+                case Renderer.DebugMode.AMBIENT_OCCLUSION:
                     tex = this._ssaoTexture;
                     break;
                 default:
-                    // nothing
+                    throw new Error("Unknown debug mode " + this._debugMode);
             }
             this._debugShader.execute(tex);
             return;
@@ -1038,8 +1037,8 @@ Renderer.prototype =
             this._normalDepthBuffer.initEmpty(width, height);
             this._normalDepthFBO.init();
 
-            if (this._velocityBuffer) {
-                this._velocityBuffer.initEmpty(width, height);
+            if (this._motionVectorBuffer) {
+                this._motionVectorBuffer.initEmpty(width, height);
                 this._velocityFBO.init();
             }
         }

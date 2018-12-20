@@ -133,8 +133,15 @@ function InverseWVPSetter()
 
 InverseWVPSetter.prototype.execute = function(camera)
 {
-    GL.gl.uniformMatrix4fv(this.location, false, camera.inverseViewProjectionMatrix._m);
-};
+    var matrix = new Matrix4x4();
+    var m = matrix._m;
+    return function(camera, renderItem)
+    {
+        matrix.inverseAffineOf(renderItem.worldMatrix);
+        matrix.prepend(camera.inverseViewProjectionMatrix);
+        GL.gl.uniformMatrix4fv(this.location, false, matrix._m);
+    };
+}();
 
 function ProjectionSetter()
 {
@@ -171,8 +178,7 @@ WorldViewProjectionSetter.prototype.execute = function()
 
 function WorldViewMatrixSetter()
 {
-    this._matrix = new Matrix4x4();
-};
+}
 
 WorldViewMatrixSetter.prototype.execute = function(){
     var matrix = new Matrix4x4();

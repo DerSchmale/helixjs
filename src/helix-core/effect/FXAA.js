@@ -32,7 +32,7 @@ FXAA.prototype.draw = function(renderer, dt)
 {
     GL.setRenderTarget(this.hdrTarget);
     GL.clear();
-    this._pass.draw(renderer)
+    this._pass.draw(renderer);
 };
 
 export { FXAA };

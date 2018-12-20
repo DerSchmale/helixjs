@@ -43,7 +43,7 @@ function Camera()
     this._Entity_invalidateWorldMatrix = Entity.prototype._invalidateWorldMatrix;
     this._Entity_onPostFrame = Entity.prototype._onPostFrame;
 
-    this._prevViewProjectionMatrix = META.OPTIONS.renderVelocityBuffer? new Matrix4x4() : null;
+    this._prevViewProjectionMatrix = META.OPTIONS.renderMotionVectors? new Matrix4x4() : null;
     this._viewProjectionInvalidFrame = -1;
 
     this.position.set(0.0, -1.0, 0.0);

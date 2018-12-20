@@ -43,7 +43,7 @@ export var TextureSetter = {
         TextureSetter._passTable.hx_normalDepthBuffer = NormalDepthBufferSetter;
         TextureSetter._passTable.hx_backBuffer = BackBufferSetter;
         TextureSetter._passTable.hx_frontBuffer = FrontBufferSetter;
-        TextureSetter._passTable.hx_velocityBuffer = VelocityBufferSetter;
+        TextureSetter._passTable.hx_motionVectorBuffer = MotionVectorBufferSetter;
         TextureSetter._passTable.hx_ssao = SSAOSetter;
         TextureSetter._passTable.hx_shadowMap = ShadowMapSetter;
 		TextureSetter._passTable["hx_specularProbeMaps[0]"] = SpecularProbesSetter;
@@ -65,13 +65,13 @@ NormalDepthBufferSetter.prototype.execute = function (renderer)
     this.pass.setTextureByIndex(this.slot, renderer._normalDepthBuffer);
 };
 
-function VelocityBufferSetter()
+function MotionVectorBufferSetter()
 {
 }
 
-VelocityBufferSetter.prototype.execute = function (renderer)
+MotionVectorBufferSetter.prototype.execute = function (renderer)
 {
-    this.pass.setTextureByIndex(this.slot, renderer._velocityBuffer);
+    this.pass.setTextureByIndex(this.slot, renderer._motionVectorBuffer);
 };
 
 

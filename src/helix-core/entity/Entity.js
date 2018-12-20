@@ -61,7 +61,7 @@ function Entity(components)
 	this._SceneNode_invalidateWorldMatrix = SceneNode.prototype._invalidateWorldMatrix;
 	this._SceneNode_setScene = SceneNode.prototype._setScene;
 
-	this._prevWorldMatrix = META.OPTIONS.renderVelocityBuffer? new Matrix4x4() : null;
+	this._prevWorldMatrix = META.OPTIONS.renderMotionVectors? new Matrix4x4() : null;
 	this._worldMatrixInvalidFrame = -1;
 }
 
@@ -101,7 +101,7 @@ Entity.prototype = Object.create(SceneNode.prototype, {
 
 			this._static = value;
 
-			if (META.OPTIONS.renderVelocityBuffer && this._scene) {
+			if (META.OPTIONS.renderMotionVectors && this._scene) {
 				if (value)
 					onPostFrame.bind(this._onPostFrame, this);
 				else
@@ -169,7 +169,7 @@ Entity.prototype.addComponent = function(component)
  */
 Entity.prototype._invalidateWorldMatrix = function()
 {
-	this._worldMatrixInvalidFrame = META.CURRENT_FRAME_MARK;
+    this._worldMatrixInvalidFrame = META.CURRENT_FRAME_MARK;
 	this._SceneNode_invalidateWorldMatrix();
 
 	this._invalidateWorldBounds();
@@ -327,7 +327,7 @@ Entity.prototype._setScene = function(scene)
 		this._scene.entityEngine.unregisterEntity(this);
 		this._scene.partitioning.unregisterEntity(this);
 
-		if (META.OPTIONS.renderVelocityBuffer && !this._static)
+		if (META.OPTIONS.renderMotionVectors && !this._static)
 			onPostFrame.unbind(this._onPostFrame);
 	}
 
@@ -335,7 +335,7 @@ Entity.prototype._setScene = function(scene)
 		scene.entityEngine.registerEntity(this);
 		scene.partitioning.registerEntity(this);
 
-		if (META.OPTIONS.renderVelocityBuffer && !this._static)
+		if (META.OPTIONS.renderMotionVectors && !this._static)
 			onPostFrame.bind(this._onPostFrame, this);
 	}
 
@@ -432,9 +432,11 @@ Entity.prototype.acceptVisitor = function(visitor)
 /* @ignore */
 Entity.prototype._onPostFrame = function()
 {
-	// if the matrix was invalidated in the previous frame, it must still be updated in this frame
-	if (this._worldMatrixInvalidFrame >= META.CURRENT_FRAME_MARK - 1)
-		this._prevWorldMatrix.copyFrom(this.worldMatrix);
+	// TODO: Only if a meshInstance component is present, this step is required, actually... Even the whole callback is only needed for this and cameras
+
+    // if the matrix was invalidated in the previous frame, it must still be updated in this frame
+    if (this._worldMatrixInvalidFrame >= META.CURRENT_FRAME_MARK - 1)
+        this._prevWorldMatrix.copyFrom(this.worldMatrix);
 };
 
 export { Entity };

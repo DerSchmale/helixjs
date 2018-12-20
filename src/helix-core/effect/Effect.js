@@ -6,6 +6,7 @@ import {Component} from "../entity/Component";
  * to the Camera, but some could be tied to a different Entity (for example: a DirectionalLight for crepuscular rays)
  *
  * @property {boolean} needsNormalDepth Defines whether this Effect needs normal/depth information from the renderer.
+ * @property {boolean} needsVelocity Defines whether this Effect needs velocity information from the renderer.
  * @property {FrameBuffer} hdrTarget The current full-resolution render target.
  * @property {Texture2D} hdrSource The current full-resolution source texture.
  *
@@ -19,6 +20,7 @@ function Effect()
 {
     Component.call(this);
 	this.needsNormalDepth = false;
+	this.needsVelocity = false;
 	this.outputsGamma = false;
 	this._mesh = null;
 }

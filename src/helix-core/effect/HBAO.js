@@ -13,6 +13,8 @@ import {Color} from "../core/Color";
  * @classdesc
  * HBAO adds Horizon-Based Ambient Occlusion to the renderer.
  *
+ * @property {number} numRays The amount of rays to march over.
+ * @property {number} numSamplesPerRay The samples per ray during a march.
  * @property {number} sampleRadius The sample radius in world space to search for occluders.
  * @property {number} fallOffDistance The maximum distance for occluders to still count.
  * @property {number} strength The strength of the ambient occlusion effect.
@@ -33,11 +35,11 @@ function HBAO(numRays, numSamplesPerRay)
 {
     numRays = numRays || 4;
     numSamplesPerRay = numSamplesPerRay || 4;
-    if (numRays > 32) numRays = 32;
-    if (numSamplesPerRay > 32) numSamplesPerRay = 32;
 
-    this._numRays = numRays;
-    this._numSamplesPerRay = numSamplesPerRay
+    this._numRays = 0;
+    this._numSamplesPerRay = 0;
+    this.numRays = numRays;
+    this.numSamplesPerRay = numSamplesPerRay;
     this._strength = 1.0;
     this._bias = .1;
     this._fallOffDistance = 1.0;
@@ -50,6 +52,36 @@ function HBAO(numRays, numSamplesPerRay)
 }
 
 HBAO.prototype = Object.create(Effect.prototype, {
+    numRays: {
+        get: function()
+        {
+            return this._numRays;
+        },
+
+        set: function(value)
+        {
+            value = Math.floor(value);
+            if (value === this._numRays) return;
+            if (value > 32) value = 32;
+            this._numRays = value;
+            this._aoPass = null;
+        }
+    },
+    numSamplesPerRay: {
+        get: function()
+        {
+            return this._numSamplesPerRay;
+        },
+
+        set: function(value)
+        {
+            value = Math.floor(value);
+            if (value === this._numSamplesPerRay) return;
+            if (value > 32) value = 32;
+            this._numSamplesPerRay = value;
+            this._aoPass = null;
+        }
+    },
     sampleRadius: {
         get: function ()
         {
@@ -105,7 +137,6 @@ HBAO.prototype = Object.create(Effect.prototype, {
 });
 
 /**
- * Called by Helix when initialized
  * @ignore
  */
 HBAO.prototype.init = function()
@@ -118,10 +149,23 @@ HBAO.prototype.init = function()
         })
     );
 
-    this._blurPass = new EffectPass(ShaderLibrary.get("ao_blur_vertex.glsl"), ShaderLibrary.get("ao_blur_fragment.glsl"));
+    if (!this._blurPass)
+        this._blurPass = new EffectPass(ShaderLibrary.get("ao_blur_vertex.glsl"), ShaderLibrary.get("ao_blur_fragment.glsl"));
 
-    this._initSampleDirTexture();
-    this._initDitherTexture();
+    // never needs to be reinitialized
+    if (!this._ssaoTexture) {
+        this._aoTexture = new Texture2D();
+        this._aoTexture.filter = TextureFilter.BILINEAR_NOMIP;
+        this._aoTexture.wrapMode = TextureWrapMode.CLAMP;
+        this._backTexture = new Texture2D();
+        this._backTexture.filter = TextureFilter.BILINEAR_NOMIP;
+        this._backTexture.wrapMode = TextureWrapMode.CLAMP;
+        this._fbo1 = new FrameBuffer(this._backTexture);
+        this._fbo2 = new FrameBuffer(this._aoTexture);
+        this._initSampleDirTexture();
+        this._initDitherTexture();
+    }
+
     this._aoPass.setUniform("strengthPerRay", this._strength / this._numRays);
     this._aoPass.setUniform("rcpFallOffDistance", 1.0 / this._fallOffDistance);
     this._aoPass.setUniform("halfSampleRadius", this._radius *.5);
@@ -129,15 +173,6 @@ HBAO.prototype.init = function()
     this._aoPass.setTexture("ditherTexture", this._ditherTexture);
     this._aoPass.setTexture("sampleDirTexture", this._sampleDirTexture);
     this._sourceTextureSlot = this._blurPass.getTextureIndex("source");
-
-    this._aoTexture = new Texture2D();
-    this._aoTexture.filter = TextureFilter.BILINEAR_NOMIP;
-    this._aoTexture.wrapMode = TextureWrapMode.CLAMP;
-    this._backTexture = new Texture2D();
-    this._backTexture.filter = TextureFilter.BILINEAR_NOMIP;
-    this._backTexture.wrapMode = TextureWrapMode.CLAMP;
-    this._fbo1 = new FrameBuffer(this._backTexture);
-    this._fbo2 = new FrameBuffer(this._aoTexture);
 };
 
 /**
@@ -148,6 +183,7 @@ HBAO.prototype.init = function()
  */
 HBAO.prototype.getAOTexture = function()
 {
+    if (!this._aoTexture) this.init();
     return this._aoTexture;
 };
 
@@ -156,6 +192,9 @@ HBAO.prototype.getAOTexture = function()
  */
 HBAO.prototype.draw = function(renderer, dt)
 {
+    if (!this._aoPass)
+        this.init();
+
     var w = this._renderer._width * this.scale;
     var h = this._renderer._height * this.scale;
 

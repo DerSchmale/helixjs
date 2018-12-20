@@ -10,7 +10,6 @@ window.onload = function ()
     options.hdr = true;
     options.debug = true;
     options.defaultLightingModel = HX.LightingModel.GGX_FULL;
-    options.renderVelocityBuffer = true;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -41,7 +40,7 @@ project.onInit = function()
     this.scene.attach(dirLight);
 
     var skyboxTexture = this.assetLibrary.get("skybox");
-    var irradianceTexture = this.assetLibrary.get("irradiance");
+    var irradiance = this.assetLibrary.get("irradiance");
 
     // use it as skybox
     var skybox = new HX.Skybox(skyboxTexture);
@@ -55,8 +54,6 @@ project.onInit = function()
     this.camera.addComponent(bloom);
 
     // use the same texture as environment map
-    var lightProbe = new HX.LightProbe(irradianceTexture, skyboxTexture);
+    var lightProbe = new HX.LightProbe(irradiance, skyboxTexture);
     this.scene.attach(new HX.Entity(lightProbe));
-
-    this.renderer.debugMode = HX.Renderer.DebugMode.VELOCITY;
 };

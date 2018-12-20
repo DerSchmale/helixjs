@@ -115,6 +115,7 @@ RenderCollector.prototype.visitEntity = function(entity)
 			var effect = effects[i];
 			if (!effect.enabled) continue;
 			this.needsNormalDepth = this.needsNormalDepth || effect.needsNormalDepth;
+			this.needsVelocity = this.needsVelocity || effect.needsVelocity;
 			this.effects.push(effect);
 		}
 	}
@@ -182,6 +183,7 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance, worldMatri
 
     // only required for the default lighting model (if not unlit)
     this.needsNormalDepth = this.needsNormalDepth || material.needsNormalDepth;
+    this.needsVelocity = this.needsVelocity || material.needsVelocity;
     this.needsBackBuffer = this.needsBackBuffer || material.needsBackBuffer;
 
     var renderItem = renderPool.getItem();
@@ -193,7 +195,6 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance, worldMatri
     renderItem.renderOrderHint = renderOrderHint;
     renderItem.worldMatrix = worldMatrix;
     renderItem.prevWorldMatrix = prevWorldMatrix;
-    renderItem.prevWorldMatrix = meshInstance.entity._prevWorldMatrix;
     renderItem.worldBounds = worldBounds;
 
     var bucket = (material.blendState || material.needsBackBuffer)? transparentList : opaqueLists[path];
@@ -232,7 +233,8 @@ RenderCollector.prototype._reset = function()
     this.specularProbes = [];
     this.shadowCasters = [];
     this.effects = [];
-    this.needsNormalDepth = META.OPTIONS.ambientOcclusion;
+    this.needsNormalDepth = !!META.OPTIONS.ambientOcclusion;
+    this.needsVelocity = false;
     this.ambientColor.set(0, 0, 0, 1);
     this.numShadowPlanes = 0;
     this.shadowPlaneBuckets = [];

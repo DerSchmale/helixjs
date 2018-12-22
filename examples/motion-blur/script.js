@@ -24,7 +24,8 @@ project.onInit = function()
     this.camera.nearDistance = .1;
     this.camera.farDistance = 100.0;
 
-    motionBlur = new HX.MotionBlur(8);
+    motionBlur = new HX.MotionBlur(16);
+    motionBlur.maxRadius = 100;
     this.camera.addComponent(motionBlur);
 
     initScene(this.scene, this.assetLibrary);

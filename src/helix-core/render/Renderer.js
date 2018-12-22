@@ -3,9 +3,8 @@ import {RenderCollector} from "./RenderCollector";
 import {
     ApplyGammaShader,
     CopyChannelsShader,
-    DebugDepthShader,
-    DebugNormalsShader,
-    DebugVelocityShader
+    DebugDepthShader, DebugMotionVectorShader,
+    DebugNormalsShader
 } from "./UtilShaders";
 import {Texture2D} from "../texture/Texture2D";
 import {MaterialPass} from "../material/MaterialPass";
@@ -75,7 +74,7 @@ function Renderer(renderTarget)
         this._motionVectorBuffer = new Texture2D();
         this._motionVectorBuffer.filter = TextureFilter.BILINEAR_NOMIP;
         this._motionVectorBuffer.wrapMode = TextureWrapMode.CLAMP;
-        this._velocityFBO = new FrameBuffer(this._motionVectorBuffer, this._depthBuffer);
+        this._motionVectorFBO = new FrameBuffer(this._motionVectorBuffer, this._depthBuffer);
     }
 
     this._backgroundColor = Color.BLACK.clone();
@@ -125,7 +124,7 @@ Renderer.DebugMode = {
     NORMALS: 2,
     DEPTH: 3,
     SHADOW_MAP: 4,
-    VELOCITY: 5
+    MOTION_VECTORS: 5
 };
 
 /**
@@ -183,8 +182,8 @@ Renderer.prototype =
 			this._debugShader = new DebugNormalsShader();
 		else if (value === Renderer.DebugMode.DEPTH)
 			this._debugShader = new DebugDepthShader();
-		else if (value === Renderer.DebugMode.VELOCITY)
-			this._debugShader = new DebugVelocityShader();
+		else if (value === Renderer.DebugMode.MOTION_VECTORS)
+			this._debugShader = new DebugMotionVectorShader();
 		else
 			this._debugShader = this._copyTextureShader;
 	},
@@ -251,7 +250,7 @@ Renderer.prototype =
 
         this._renderNormalDepth();
         if (META.OPTIONS.renderMotionVectors)
-            this._renderVelocity();
+            this._renderMotionVectors();
         this._renderAO();
 
         GL.setRenderTarget(this._hdrFront.fboDepth);
@@ -833,21 +832,21 @@ Renderer.prototype =
      * @ignore
      * @private
      */
-    _renderVelocity: function()
+    _renderMotionVectors: function()
     {
         if (this.skipEffects)
             return;
 
         var rc = this._renderCollector;
-        if (rc.needsVelocity || this._debugMode === Renderer.DebugMode.VELOCITY) {
-            GL.setRenderTarget(this._velocityFBO);
+        if (rc.needsMotionVectors || this._debugMode === Renderer.DebugMode.MOTION_VECTORS) {
+            GL.setRenderTarget(this._motionVectorFBO);
             GL.setClearColor(Color.HALF);
             GL.clear();
 
-            renderPass(this, this._activeCamera, MaterialPass.VELOCITY_PASS, rc.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC), null);
-            renderPass(this, this._activeCamera, MaterialPass.VELOCITY_PASS, rc.getOpaqueRenderList(RenderPath.FORWARD_FIXED), null);
-            renderPass(this, this._activeCamera, MaterialPass.VELOCITY_PASS, rc.getTransparentRenderList(RenderPath.FORWARD_DYNAMIC), null);
-            renderPass(this, this._activeCamera, MaterialPass.VELOCITY_PASS, rc.getTransparentRenderList(RenderPath.FORWARD_FIXED), null);
+            renderPass(this, this._activeCamera, MaterialPass.MOTION_VECTOR_PASS, rc.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC), null);
+            renderPass(this, this._activeCamera, MaterialPass.MOTION_VECTOR_PASS, rc.getOpaqueRenderList(RenderPath.FORWARD_FIXED), null);
+            renderPass(this, this._activeCamera, MaterialPass.MOTION_VECTOR_PASS, rc.getTransparentRenderList(RenderPath.FORWARD_DYNAMIC), null);
+            renderPass(this, this._activeCamera, MaterialPass.MOTION_VECTOR_PASS, rc.getTransparentRenderList(RenderPath.FORWARD_FIXED), null);
         }
     },
 
@@ -941,7 +940,7 @@ Renderer.prototype =
                 case Renderer.DebugMode.NORMALS:
                     tex = this._normalDepthBuffer;
                     break;
-                case Renderer.DebugMode.VELOCITY:
+                case Renderer.DebugMode.MOTION_VECTORS:
                     tex = this._motionVectorBuffer;
                     break;
                 case Renderer.DebugMode.DEPTH:
@@ -1038,8 +1037,9 @@ Renderer.prototype =
             this._normalDepthFBO.init();
 
             if (this._motionVectorBuffer) {
+                // TODO: Should we allow scaling down the vbuffer? Not sure if this is a good idea for reprojection
                 this._motionVectorBuffer.initEmpty(width, height);
-                this._velocityFBO.init();
+                this._motionVectorFBO.init();
             }
         }
     },

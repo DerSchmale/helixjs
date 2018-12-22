@@ -36,7 +36,7 @@ function RenderCollector()
 	this.ambientColor = new Color();
 	this.needsNormalDepth = false;
     this.needsBackBuffer = false;
-    this.needsVelocity = false;
+    this.needsMotionVectors = false;
     this.numShadowPlanes = 0;
     this.shadowPlaneBuckets = null;
 }
@@ -115,7 +115,7 @@ RenderCollector.prototype.visitEntity = function(entity)
 			var effect = effects[i];
 			if (!effect.enabled) continue;
 			this.needsNormalDepth = this.needsNormalDepth || effect.needsNormalDepth;
-			this.needsVelocity = this.needsVelocity || effect.needsVelocity;
+			this.needsMotionVectors = this.needsMotionVectors || effect.needsMotionVectors;
 			this.effects.push(effect);
 		}
 	}
@@ -183,7 +183,7 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance, worldMatri
 
     // only required for the default lighting model (if not unlit)
     this.needsNormalDepth = this.needsNormalDepth || material.needsNormalDepth;
-    this.needsVelocity = this.needsVelocity || material.needsVelocity;
+    this.needsMotionVectors = this.needsMotionVectors || material.needsMotionVectors;
     this.needsBackBuffer = this.needsBackBuffer || material.needsBackBuffer;
 
     var renderItem = renderPool.getItem();
@@ -234,7 +234,7 @@ RenderCollector.prototype._reset = function()
     this.shadowCasters = [];
     this.effects = [];
     this.needsNormalDepth = !!META.OPTIONS.ambientOcclusion;
-    this.needsVelocity = false;
+    this.needsMotionVectors = false;
     this.ambientColor.set(0, 0, 0, 1);
     this.numShadowPlanes = 0;
     this.shadowPlaneBuckets = [];

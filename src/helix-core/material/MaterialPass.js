@@ -44,7 +44,7 @@ MaterialPass.BASE_PASS = 0;  // used for unlit, for predefined lights, or for We
 
 // TODO: If MRT is supported, these two can be merged?
 MaterialPass.NORMAL_DEPTH_PASS = 1;
-MaterialPass.VELOCITY_PASS = 2;
+MaterialPass.MOTION_VECTOR_PASS = 2;
 
 // shadow map generation
 MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = 3;

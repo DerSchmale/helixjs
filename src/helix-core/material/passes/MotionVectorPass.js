@@ -11,14 +11,14 @@ import {ShaderUtils} from "../../utils/ShaderUtils";
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function VelocityPass(geometryVertex, geometryFragment, defines)
+function MotionVectorPass(geometryVertex, geometryFragment, defines)
 {
     MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, defines));
 }
 
-VelocityPass.prototype = Object.create(MaterialPass.prototype);
+MotionVectorPass.prototype = Object.create(MaterialPass.prototype);
 
-VelocityPass.prototype._generateShader = function(geometryVertex, geometryFragment, defines)
+MotionVectorPass.prototype._generateShader = function(geometryVertex, geometryFragment, defines)
 {
 	defines = ShaderUtils.processDefines(defines) + "#define HX_SKIP_SPECULAR\n";
     var vertexShader = defines + geometryVertex + "\n" + ShaderLibrary.get("material_velocity_vertex.glsl");
@@ -26,4 +26,4 @@ VelocityPass.prototype._generateShader = function(geometryVertex, geometryFragme
     return new Shader(vertexShader, fragmentShader);
 };
 
-export { VelocityPass };
+export { MotionVectorPass };

@@ -50,7 +50,7 @@ function initScene(scene, assetLibrary)
 
 	// we're assigning the ambient to the dir light, considering it as the "bounce" coming from this one
     var ambientLight = new HX.AmbientLight();
-    ambientLight.intensity = .02;
+    ambientLight.intensity = .3;
     light.addComponent(ambientLight);
 
     var greyMaterial = new HX.BasicMaterial();
@@ -70,8 +70,8 @@ function initScene(scene, assetLibrary)
     entity.addComponent(new HX.MeshInstance(primitive, redMaterial));
 
     var rotator = new AnimateRotateComponent();
-    rotator.speed = 10.0;
-    // entity.addComponent(rotator);
+    rotator.speed = -30.0;
+    entity.addComponent(rotator);
     scene.attach(entity);
 
     primitive = new HX.SpherePrimitive();
@@ -88,6 +88,7 @@ function initGui()
     var gui = new dat.gui.GUI();
     gui.remember(motionBlur);
     gui.add(motionBlur, "enabled");
+    gui.add(motionBlur, "amount").min(0).max(1).step(.01);
     gui.add(motionBlur, "numSamples").min(4).max(64).step(1);
     gui.add(motionBlur, "maxRadius").min(1).max(500).step(1);
 }

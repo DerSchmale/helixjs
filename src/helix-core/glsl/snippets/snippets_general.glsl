@@ -75,7 +75,7 @@ vec2 hx_encodeNormal(vec3 normal)
     return data;
 }
 
-vec2 hx_decodeVelocity(vec4 data)
+vec2 hx_decodeMotionVector(vec4 data)
 {
     vec2 vel;
     vel.x = hx_RG8ToFloat(data.xy);

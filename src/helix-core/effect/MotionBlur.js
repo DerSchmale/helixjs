@@ -13,6 +13,7 @@ import {META} from "../Helix";
  * @constructor
  *
  * @property numSamples The amount of samples used to calculate the blur in each direction.
+ * @property maxRadius The maximum distance to blur, in pixels.
  *
  * @extends Effect
  *
@@ -27,6 +28,7 @@ function MotionBlur(numSamples)
 
     this.needsVelocity = true;
 
+    this.maxRadius = 100;
     this._numSamples = -1;
     this.numSamples = numSamples || 8;
 }
@@ -46,9 +48,21 @@ MotionBlur.prototype = Object.create(Effect.prototype, {
                 NUM_BLUR_SAMPLES: value,
                 STEP_SCALE: 1 / (value - 1)
             }));
+            this._pass.setUniform("maxRadius", this._maxRadius);
+        }
+    },
+    maxRadius: {
+        get: function()
+        {
+            return this._maxRadius;
+        },
+        set: function(value)
+        {
+            this._maxRadius = value;
+            if (this._pass)
+                this._pass.setUniform("maxRadius", value);
         }
     }
-
 });
 
 /**

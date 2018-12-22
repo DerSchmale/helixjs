@@ -70,7 +70,7 @@ function initScene(scene, assetLibrary)
     entity.addComponent(new HX.MeshInstance(primitive, redMaterial));
 
     var rotator = new AnimateRotateComponent();
-    rotator.speed = 2.0;
+    rotator.speed = 10.0;
     // entity.addComponent(rotator);
     scene.attach(entity);
 
@@ -89,5 +89,6 @@ function initGui()
     gui.remember(motionBlur);
     gui.add(motionBlur, "enabled");
     gui.add(motionBlur, "numSamples").min(4).max(64).step(1);
+    gui.add(motionBlur, "maxRadius").min(1).max(500).step(1);
 }
 

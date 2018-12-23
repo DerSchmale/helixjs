@@ -35,6 +35,7 @@ function RenderCollector()
 	this.effects = null;
 	this.ambientColor = new Color();
 	this.needsNormalDepth = false;
+	this.needsCameraJitter = false;
     this.needsBackBuffer = false;
     this.needsMotionVectors = false;
     this.numShadowPlanes = 0;
@@ -115,6 +116,7 @@ RenderCollector.prototype.visitEntity = function(entity)
 			var effect = effects[i];
 			if (!effect.enabled) continue;
 			this.needsNormalDepth = this.needsNormalDepth || effect.needsNormalDepth;
+			this.needsCameraJitter = this.needsCameraJitter || effect.needsCameraJitter;
 			this.needsMotionVectors = this.needsMotionVectors || effect.needsMotionVectors;
 			this.effects.push(effect);
 		}
@@ -183,7 +185,6 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance, worldMatri
 
     // only required for the default lighting model (if not unlit)
     this.needsNormalDepth = this.needsNormalDepth || material.needsNormalDepth;
-    this.needsMotionVectors = this.needsMotionVectors || material.needsMotionVectors;
     this.needsBackBuffer = this.needsBackBuffer || material.needsBackBuffer;
 
     var renderItem = renderPool.getItem();
@@ -235,6 +236,7 @@ RenderCollector.prototype._reset = function()
     this.effects = [];
     this.needsNormalDepth = !!META.OPTIONS.ambientOcclusion;
     this.needsMotionVectors = false;
+    this.needsCameraJitter = false;
     this.ambientColor.set(0, 0, 0, 1);
     this.numShadowPlanes = 0;
     this.shadowPlaneBuckets = [];

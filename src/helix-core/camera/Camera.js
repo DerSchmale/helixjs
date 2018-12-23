@@ -45,6 +45,7 @@ function Camera()
 
     this._prevViewProjectionMatrix = META.OPTIONS.renderMotionVectors? new Matrix4x4() : null;
     this._viewProjectionInvalidFrame = -1;
+    this._jitter = null;
 
     this.position.set(0.0, -1.0, 0.0);
 }
@@ -97,7 +98,7 @@ Camera.prototype = Object.create(Entity.prototype, {
         get: function()
         {
             if (this._projectionMatrixDirty)
-                this._updateProjectionMatrix();
+                this._updateJitteredProjectionMatrix();
 
             return this._projectionMatrix;
         }
@@ -117,7 +118,7 @@ Camera.prototype = Object.create(Entity.prototype, {
         get: function()
         {
             if (this._projectionMatrixDirty)
-                this._updateProjectionMatrix();
+                this._updateJitteredProjectionMatrix();
 
             return this._inverseProjectionMatrix;
         }
@@ -150,6 +151,17 @@ Camera.prototype.getRay = function(x, y)
     dir.normalize();
     this.worldMatrix.getColumn(3, ray.origin);
     return ray;
+};
+
+/**
+ * Offsets the projection matrix. Is called by the renderer AFTER updating the resolution.
+ * @param {Float2} v A Float2 object with components in range from [-1, 1]. 0 represents the center of the subpixel, 1
+ * to the right.
+ */
+Camera.prototype.setJitterOffset = function(v)
+{
+    this._jitter = v;
+    this._invalidateProjectionMatrix();
 };
 
 /**
@@ -202,6 +214,21 @@ Camera.prototype._invalidateProjectionMatrix = function()
 {
     this._projectionMatrixDirty = true;
     this._invalidateViewProjectionMatrix();
+};
+
+
+/**
+ *
+ */
+Camera.prototype._updateJitteredProjectionMatrix = function()
+{
+    this._updateProjectionMatrix();
+
+    if (this._jitter) {
+        var m = this._projectionMatrix._m;
+        m[4] += (this._jitter.x * .5) / this._renderTargetWidth;
+        m[5] += (this._jitter.y * .5) / this._renderTargetHeight;
+    }
 };
 
 /**

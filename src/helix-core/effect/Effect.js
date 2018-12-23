@@ -7,7 +7,8 @@ import {Component} from "../entity/Component";
  *
  * @property {boolean} needsNormalDepth Defines whether this Effect needs normal/depth information from the renderer.
  * @property {boolean} needsMotionVectors Defines whether this Effect needs motion vector information from the renderer.
- * @property {FrameBuffer} hdrTarget The current full-resolution render target.
+ * @property {FrameBuffer} hdrTarget The current full-resolution render target framebuffer.
+ * @property {Texture2D} hdrTargetTexture The current full-resolution texture.
  * @property {Texture2D} hdrSource The current full-resolution source texture.
  *
  * @constructor
@@ -21,6 +22,7 @@ function Effect()
     Component.call(this);
 	this.needsNormalDepth = false;
 	this.needsMotionVectors = false;
+	this.needsCameraJitter = false; // only used for things like TAA
 	this.outputsGamma = false;
 	this._mesh = null;
 }
@@ -29,6 +31,10 @@ Effect.prototype = Object.create(Component.prototype,
     {
         hdrTarget: {
             get: function() { return this._renderer._hdrFront.fbo; }
+        },
+
+        hdrTargetTexture: {
+            get: function() { return this._renderer._hdrFront.texture; }
         },
 
         hdrSource: {

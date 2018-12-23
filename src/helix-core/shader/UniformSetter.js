@@ -70,6 +70,7 @@ export var UniformSetter = {
         UniformSetter._passTable.hx_rcpCameraFrustumRange = RCPCameraFrustumRangeSetter;
         UniformSetter._passTable.hx_cameraNearPlaneDistance = CameraNearPlaneDistanceSetter;
         UniformSetter._passTable.hx_cameraFarPlaneDistance = CameraFarPlaneDistanceSetter;
+        UniformSetter._passTable.hx_cameraJitter = CameraJitterSetter;
         UniformSetter._passTable.hx_renderTargetResolution = RenderTargetResolutionSetter;
         UniformSetter._passTable.hx_rcpRenderTargetResolution = RCPRenderTargetResolutionSetter;
         UniformSetter._passTable.hx_dither2DTextureScale = Dither2DTextureScaleSetter;
@@ -321,6 +322,19 @@ function CameraFarPlaneDistanceSetter()
 CameraFarPlaneDistanceSetter.prototype.execute = function (camera)
 {
     GL.gl.uniform1f(this.location, camera._farDistance);
+};
+
+function CameraJitterSetter()
+{
+}
+
+CameraJitterSetter.prototype.execute = function (camera)
+{
+    var j = camera._jitter;
+    if (j)
+        GL.gl.uniform2f(this.location, j.x, j.y);
+    else
+        GL.gl.uniform2f(this.location, 0.0, 0.0);
 };
 
 function ViewMatrixSetter()

@@ -26,8 +26,13 @@ import {Float4} from "../math/Float4";
 import {Matrix4x4} from "../math/Matrix4x4";
 import {UniformBuffer} from "../core/UniformBuffer";
 import {TextureCube} from "../texture/TextureCube";
+import {PoissonDisk} from "../math/PoissonDisk";
 
 var probeObject = {};
+// TODO: Use Halton
+var numJitterPoints = 16;
+var jitterOffsets = new PoissonDisk(PoissonDisk.SQUARE);
+jitterOffsets.generatePoints(numJitterPoints);
 
 /**
  * @classdesc
@@ -86,6 +91,8 @@ function Renderer(renderTarget)
     this._spotShadowRenderer = new SpotShadowMapRenderer();
     this._shadowAtlas = new ShadowAtlas(!!META.OPTIONS.shadowFilter.blurShader);
     this._shadowAtlas.resize(2048, 2048);
+
+    this._jitterIndex = 0;
 
     if (capabilities.WEBGL_2) {
 		var size = 16 + META.OPTIONS.maxDirLights * 320 + META.OPTIONS.maxPointSpotLights * 224 + META.OPTIONS.maxDiffuseProbes * 176 + META.OPTIONS.maxSpecularProbes * 32;
@@ -227,6 +234,13 @@ Renderer.prototype =
         this._updateSize(this.renderTarget);
         camera._setRenderTargetResolution(this._width, this._height);
 
+        var doJitter = this._renderCollector.needsCameraJitter;
+        if (doJitter) {
+            // TODO: use Halton method for staggering
+            camera.setJitterOffset(jitterOffsets.points[this._jitterIndex]);
+            if (++this._jitterIndex === numJitterPoints) this._jitterIndex = 0;
+        }
+
         this._renderCollector.collect(camera, scene);
 
 		this._ambientColor = this._renderCollector.ambientColor;
@@ -237,6 +251,11 @@ Renderer.prototype =
 
 		GL.setBlendState();
 		GL.setDepthMask(true);
+
+        if (doJitter)
+            // pretend nothing ever happened
+            camera.setJitterOffset(null);
+
     },
 
     _renderView: function(camera, scene, dt)

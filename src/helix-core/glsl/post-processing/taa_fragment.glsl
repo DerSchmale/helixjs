@@ -26,8 +26,8 @@ void main()
     vec4 r = texture2D(hx_backBuffer, uv + vec2(hx_rcpRenderTargetResolution.x, 0.0));
     vec4 t = texture2D(hx_backBuffer, uv - vec2(0.0, hx_rcpRenderTargetResolution.y));
     vec4 b = texture2D(hx_backBuffer, uv + vec2(0.0, hx_rcpRenderTargetResolution.y));
-    vec3 minBound = min(min(min(l, r), t), b).xyz;
-    vec3 maxBound = max(max(max(l, r), t), b).xyz;
+    vec3 minBound = min(min(min(min(l, r), t), b), col).xyz;
+    vec3 maxBound = max(max(max(max(l, r), t), b), col).xyz;
 
     if (any(lessThan(old.xyz, minBound)) || any(greaterThan(old.xyz, maxBound)))
         amount = 1.0;

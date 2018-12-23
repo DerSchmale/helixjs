@@ -226,8 +226,8 @@ Camera.prototype._updateJitteredProjectionMatrix = function()
 
     if (this._jitter) {
         var m = this._projectionMatrix._m;
-        m[4] += (this._jitter.x * .5) / this._renderTargetWidth;
-        m[5] += (this._jitter.y * .5) / this._renderTargetHeight;
+        m[4] += this._jitter.x / this._renderTargetWidth * .5;
+        m[5] += this._jitter.y / this._renderTargetHeight * .5;
     }
 };
 

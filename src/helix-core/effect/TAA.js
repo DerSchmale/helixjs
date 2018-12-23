@@ -36,7 +36,7 @@ function TAA()
     this._historyTexture.wrapMode = TextureWrapMode.CLAMP;
     this._pass = new EffectPass(null, ShaderLibrary.get("taa_fragment.glsl"));
     this._pass.setTexture("historyBuffer", this._historyTexture);
-    this.alpha = .1;
+    this.alpha = .01;
 }
 
 TAA.prototype = Object.create(Effect.prototype, {

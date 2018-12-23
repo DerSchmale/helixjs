@@ -83,7 +83,7 @@ function initScene(scene, camera, assetLibrary)
     var material = new HX.BasicMaterial();
     material.cullMode = HX.CullMode.NONE;
     material.metallicness = 1.0;
-    material.roughness = .1;
+    material.roughness = .3;
     replaceMaterials(model, material);
 	scene.startSystem(new HX.FixedLightsSystem());
 }

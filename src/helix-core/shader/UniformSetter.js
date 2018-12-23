@@ -332,7 +332,7 @@ CameraJitterSetter.prototype.execute = function (camera)
 {
     var j = camera._jitter;
     if (j)
-        GL.gl.uniform2f(this.location, j.x, j.y);
+        GL.gl.uniform2f(this.location, j.x / camera._renderTargetWidth * .5, j.y / camera._renderTargetHeight * .5);
     else
         GL.gl.uniform2f(this.location, 0.0, 0.0);
 };

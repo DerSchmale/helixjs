@@ -30,7 +30,7 @@ import {PoissonDisk} from "../math/PoissonDisk";
 
 var probeObject = {};
 // TODO: Use Halton
-var numJitterPoints = 16;
+var numJitterPoints = 8;
 var jitterOffsets = new PoissonDisk(PoissonDisk.SQUARE);
 jitterOffsets.generatePoints(numJitterPoints);
 
@@ -236,7 +236,6 @@ Renderer.prototype =
 
         var doJitter = this._renderCollector.needsCameraJitter;
         if (doJitter) {
-            // TODO: use Halton method for staggering
             camera.setJitterOffset(jitterOffsets.points[this._jitterIndex]);
             if (++this._jitterIndex === numJitterPoints) this._jitterIndex = 0;
         }
@@ -495,8 +494,6 @@ Renderer.prototype =
 	assignToCells: function(light, camera, index, viewPos, cells, radius)
     {
     	var projC = new Float4();
-    	var projR = new Float4();   // projected right vector
-    	var projU = new Float4();   // projected up vector
     	return function(light, camera, index, viewPos, cells, radius) {
 			var cellStride = this._cellStride;
 			var proj = camera.projectionMatrix;

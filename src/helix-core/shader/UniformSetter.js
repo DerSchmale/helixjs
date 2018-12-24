@@ -137,6 +137,7 @@ InverseWVPSetter.prototype.execute = function(camera)
     var matrix = new Matrix4x4();
     return function(camera, renderItem)
     {
+        // using (A*B)^-1 = B^-1 * A^-1
         matrix.inverseAffineOf(renderItem.worldMatrix);
         matrix.prepend(camera.inverseViewProjectionMatrix);
         GL.gl.uniformMatrix4fv(this.location, false, matrix._m);

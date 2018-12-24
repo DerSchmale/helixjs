@@ -57,6 +57,7 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.hdr = !HX.Platform.isMobile;
+    // options.renderMotionVectors = !HX.Platform.isMobile;
     options.defaultLightingModel = HX.LightingModel.GGX;
     project.init(document.getElementById("webglContainer"), options);
 };
@@ -69,15 +70,10 @@ function initHDRSettings()
     var bloom2 = new HX.Bloom(100, .25, 4,.8);
     bloom2.thresholdLuminance = 5.0;
 
-    var bloom3 = new HX.Bloom(500, .1, 8,.2);
-    bloom3.thresholdLuminance = 15.0;
-
-    // TODO: Implement pseudo lens flare
-
     var tonemap = new HX.FilmicToneMapping(true);
     tonemap.exposure = -1.0;
 
-    settings.effects = [bloom1, bloom2, bloom3, tonemap];
+    settings.effects = [bloom1, bloom2, tonemap];
     settings.sunIntensity = 10.0;
     settings.cloudColor = new HX.Color(0.8, 0.78, 0.75);
 
@@ -102,8 +98,8 @@ function initCamera(camera)
     camera.lookAt(HX.Float4.ORIGIN_POINT);
     // earth sun distance ~150
 
-    camera.nearDistance = 0.0001;
-    camera.farDistance = 1000.0;
+    camera.nearDistance = 0.0005;
+    camera.farDistance = 10.0;
 
     var controller = new FloatController();
 	camera.addComponent(controller);
@@ -113,18 +109,20 @@ function initCamera(camera)
 	controller.pitch = -0.15;
 	controller.yaw = -0.6484073464101978;
 
+    camera.name = "Camera";
     camera.addComponents(settings.effects);
 }
 
 function initSun(container, assetLibrary)
 {
-    var distanceToSun = 150;    // same as with moon, we're bringing it 5x closer than it is
+    var distanceToSun = 10;    // same as with moon, we're bringing it 5x closer than it is
     var sunPosX = 0;
     var sunPosY = 15;
     var sunPosZ = 8;
 
     sunLight = new HX.Entity();
-	sunLight.lookAt(new HX.Float4(-sunPosX, -sunPosY, -sunPosZ));
+    sunLight.name = "sunLight";
+    sunLight.lookAt(new HX.Float4(-sunPosX, -sunPosY, -sunPosZ));
 
     var dirLight = new HX.DirectionalLight();
     // sunlight actually has more green in its spectrum, but it's filtered out by the atmosphere
@@ -136,7 +134,7 @@ function initSun(container, assetLibrary)
 
     var sunSpherePrimitive = new HX.SpherePrimitive(
         {
-            radius: 0.696
+            radius: 0.0696
         }
     );
 
@@ -144,6 +142,7 @@ function initSun(container, assetLibrary)
     sunMaterial.lightingModel = HX.LightingModel.Unlit;
 
     var sun = new HX.Entity(new HX.MeshInstance(sunSpherePrimitive, sunMaterial));
+    sun.name = "sunMesh";
     // not heliocentric, apparently ;)
     // let's put the sun away and the earth at 0, so camera animation is easier
     var len = distanceToSun / Math.sqrt(sunPosX * sunPosX + sunPosY * sunPosY + sunPosZ * sunPosZ);
@@ -180,11 +179,12 @@ function initEarth(container, assetLibrary)
     earthMaterial.setUniform("expThicknessOverScaleDepth", Math.exp((earthRadius - atmosphereRadius) / avgDensityHeight));
 
     var globe = new HX.Entity(new HX.MeshInstance(earthSpherePrimitive, earthMaterial));
+    globe.name = "earthGlobe";
     earth.attach(globe);
 
     var atmosMaterial = assetLibrary.get("atmosMaterial");
     var atmosphere = new HX.Entity(new HX.MeshInstance(earthSpherePrimitive, atmosMaterial));
-
+    atmosphere.name = "atmosphere";
     atmosphere.scale.set(atmosphereScale, atmosphereScale, atmosphereScale);
     earth.attach(atmosphere);
     atmosMaterial.setUniform("atmosphereRadius", atmosphereRadius);
@@ -215,7 +215,7 @@ function initMoon(container, assetLibrary)
 
     var moonMaterial = assetLibrary.get("moon-material");
     var moon = new HX.Entity(new HX.MeshInstance(moonSpherePrimitive, moonMaterial));
-
+    moon.name = "moon";
     var dir = new HX.Float4(5.0,1.0,2.0);
     dir.normalize();
     dir.scale(distanceToEarth);
@@ -229,6 +229,7 @@ function initScene(scene, assetLibrary)
 {
     // rotate everything so the skybox is oriented
     var container = new HX.SceneNode();
+    container.name = "container";
     container.rotation.fromEuler(0, .6, 0);
     scene.attach(container);
     initSun(container, assetLibrary);

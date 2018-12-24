@@ -62,7 +62,7 @@ function Entity(components)
 	this._SceneNode_setScene = SceneNode.prototype._setScene;
 
 	this._prevWorldMatrix = META.OPTIONS.renderMotionVectors? new Matrix4x4() : null;
-	this._worldMatrixInvalidFrame = -1;
+	this._prevWorldMatrixInvalid = 1;
 }
 
 Entity.prototype = Object.create(SceneNode.prototype, {
@@ -101,7 +101,7 @@ Entity.prototype = Object.create(SceneNode.prototype, {
 
 			this._static = value;
 			if (value)
-				// store transform
+				// store transform once
 				this._storePrevTransform();
 		}
 	}
@@ -165,7 +165,7 @@ Entity.prototype.addComponent = function(component)
  */
 Entity.prototype._invalidateWorldMatrix = function()
 {
-    this._worldMatrixInvalidFrame = META.CURRENT_FRAME_MARK;
+	this._prevWorldMatrixInvalid = 2;
 	this._SceneNode_invalidateWorldMatrix();
 
 	this._invalidateWorldBounds();
@@ -347,6 +347,8 @@ Entity.prototype._createBoundingVolume = function()
 Entity.prototype.copyFrom = function(src)
 {
 	SceneNode.prototype.copyFrom.call(this, src);
+	this.static = src.static;
+	this.ignoreSpatialPartition = src.ignoreSpatialPartition;
 
 	for (var i = 0, len = src._components.length; i < len; ++i) {
 		this.addComponent(src._components[i].clone());
@@ -419,12 +421,17 @@ Entity.prototype.acceptVisitor = function(visitor)
 	visitor.visitEntity(this);
 };
 
-/* @ignore */
+/**
+ * @ignore
+ */
 Entity.prototype._storePrevTransform = function()
 {
     // if the matrix was invalidated in the previous frame, it must still be updated in this frame
-    if (this._worldMatrixInvalidFrame >= META.CURRENT_FRAME_MARK - 1)
-        this._prevWorldMatrix.copyFrom(this.worldMatrix);
+    // this uses a COUNT invalidation, because it still needs to be updated one frame AFTER invalidation
+	if (this._prevWorldMatrixInvalid) {
+		this._prevWorldMatrix.copyFrom(this.worldMatrix);
+		--this._prevWorldMatrixInvalid;
+	}
 };
 
 export { Entity };

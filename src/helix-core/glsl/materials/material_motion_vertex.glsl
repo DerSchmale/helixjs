@@ -9,6 +9,5 @@ void main()
 {
     hx_geometry();
     hx_newPos = gl_Position;
-    // TODO: Should hx_geometry output local position?
     hx_oldPos = hx_prevViewProjectionMatrix * hx_prevWorldMatrix * hx_inverseWVPMatrix * gl_Position;
 }

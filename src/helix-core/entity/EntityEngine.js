@@ -87,6 +87,8 @@ EntityEngine.prototype =
     registerEntity: function(entity)
     {
         this._entities.push(entity);
+        if (META.OPTIONS.renderMotionVectors)
+            entity._storePrevTransform();
 
         entity._onComponentsChange.bind(this._onEntityComponentsChange, this);
         if (entity._requiresUpdates)
@@ -101,7 +103,7 @@ EntityEngine.prototype =
     unregisterEntity: function(entity)
     {
         var index = this._entities.indexOf(entity);
-        this._entities.splice(index);
+        this._entities.splice(index, 1);
 
         entity._onComponentsChange.unbind(this);
         if (entity._requiresUpdates)

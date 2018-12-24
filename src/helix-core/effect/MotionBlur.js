@@ -29,7 +29,7 @@ function MotionBlur(numSamples)
     else
         this.needsNormalDepth = true;
 
-    this.amount = 1;
+    this.amount = 1.0;
     this.maxRadius = 40;
     this._numSamples = -1;
     this.numSamples = numSamples || 8;

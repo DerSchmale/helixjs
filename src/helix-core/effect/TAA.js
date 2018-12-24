@@ -10,7 +10,8 @@ import {META, TextureFilter, TextureWrapMode} from "../Helix";
 
 /**
  * @classdesc
- * TAA is an {@linkcode Effect} added to the Camera that applies Temporal Anti-Aliasing on the render.
+ * TAA is an {@linkcode Effect} added to the Camera that applies Temporal Anti-Aliasing on the render. When ghosting
+ * occurs due to depth precision issues, try setting {@linkcode InitOptions#renderMotionVectors} to true.
  *
  * @constructor
  *

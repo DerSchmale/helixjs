@@ -24,7 +24,7 @@ vec2 hx_getMotionVector(vec2 uv)
     vec2 ndc = uv * 2.0 - 1.0;
     // view projection matrix is jittered, so hx_inverseProjectionMatrix will "unjitter"
     // so we need to reapply the jitter to counter this
-    vec3 viewVec = hx_getLinearDepthViewVector(ndc + hx_cameraJitter, hx_inverseProjectionMatrix);
+    vec3 viewDir = hx_getLinearDepthViewVector(ndc + hx_cameraJitter, hx_inverseProjectionMatrix);
 
     // reconstruct world position based on linear depth
     vec3 viewPos = viewVec * absViewY;

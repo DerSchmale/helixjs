@@ -518,7 +518,8 @@ export function InitOptions()
 
     /**
      * Indicates whether the renderer should render a motion vector buffer when needed. This has some rendering overhead,
-     * but can improve things such as TAA and motion blur for dynamic scenes.
+     * but can improve things such as TAA and motion blur for dynamic scenes. This can also help if depth precision
+     * issues is introducing ghosting in TAA.
      */
     this.renderMotionVectors = false;
 

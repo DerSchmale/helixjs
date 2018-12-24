@@ -859,8 +859,8 @@ Renderer.prototype =
 
             renderPass(this, this._activeCamera, MaterialPass.MOTION_VECTOR_PASS, rc.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC), null);
             renderPass(this, this._activeCamera, MaterialPass.MOTION_VECTOR_PASS, rc.getOpaqueRenderList(RenderPath.FORWARD_FIXED), null);
-            renderPass(this, this._activeCamera, MaterialPass.MOTION_VECTOR_PASS, rc.getTransparentRenderList(RenderPath.FORWARD_DYNAMIC), null);
-            renderPass(this, this._activeCamera, MaterialPass.MOTION_VECTOR_PASS, rc.getTransparentRenderList(RenderPath.FORWARD_FIXED), null);
+            // renderPass(this, this._activeCamera, MaterialPass.MOTION_VECTOR_PASS, rc.getTransparentRenderList(RenderPath.FORWARD_DYNAMIC), null);
+            // renderPass(this, this._activeCamera, MaterialPass.MOTION_VECTOR_PASS, rc.getTransparentRenderList(RenderPath.FORWARD_FIXED), null);
         }
     },
 

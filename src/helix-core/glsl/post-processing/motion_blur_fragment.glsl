@@ -13,7 +13,7 @@ void main()
 
     // possibly rescale velocity to maxRadius (which is in pixels)
     float ssLen = length(hx_renderTargetResolution * velocity);
-    velocity *= min(ssLen, maxRadius) / ssLen;
+//    velocity *= min(ssLen, maxRadius) / ssLen;
 
     // this is technically incorrect, but it's a cheap way to blur both sides of silhouettes
     vec2 step = velocity * amount * STEP_SCALE;

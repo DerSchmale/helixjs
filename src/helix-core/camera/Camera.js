@@ -42,7 +42,6 @@ function Camera()
     this._Entity_invalidateWorldMatrix = Entity.prototype._invalidateWorldMatrix;
 
     this._prevViewProjectionMatrix = new Matrix4x4();
-    this._viewProjectionInvalidFrame = -1;
     this._jitter = null;
 
     this.position.set(0.0, -1.0, 0.0);
@@ -201,7 +200,6 @@ Camera.prototype._setRenderTargetResolution = function(width, height)
  */
 Camera.prototype._invalidateViewProjectionMatrix = function()
 {
-    this._viewProjectionInvalidFrame = META.CURRENT_FRAME_MARK;
     this._viewProjectionMatrixInvalid = true;
 };
 
@@ -297,9 +295,7 @@ Camera.prototype.acceptVisitor = function(visitor) {};
 // this is needed for all cameras to be able to do reprojection without motion vectors
 Camera.prototype._storePrevProjection = function()
 {
-    // if the matrix was invalidated in the previous frame, it must still be updated in this frame
-    if (this._viewProjectionInvalidFrame >= META.CURRENT_FRAME_MARK - 1)
-        this._prevViewProjectionMatrix.copyFrom(this.viewProjectionMatrix);
+    this._prevViewProjectionMatrix.copyFrom(this.viewProjectionMatrix);
 };
 
 

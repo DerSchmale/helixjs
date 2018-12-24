@@ -112,7 +112,6 @@ OrbitController.prototype.clone = function()
 	clone.radius = this.radius;
 	clone.azimuth = this.azimuth;
 	clone.polar = this.polar;
-	clone.touchZoomSpeed = this.touchZoomSpeed;
 	clone.zoomSpeed = this.zoomSpeed;
 	clone.maxRadius = this.maxRadius;
 	clone.minRadius = this.minRadius;

@@ -15,6 +15,7 @@ window.onload = function ()
     options.ambientOcclusion = ssao;
 
     options.hdr = true;
+    // options.renderMotionVectors = true;
     options.numShadowCascades = 1;
     options.shadowFilter = new HX.VarianceShadowFilter();
     options.defaultLightingModel = HX.LightingModel.GGX;
@@ -54,9 +55,9 @@ function initCamera(camera)
         tonemap.exposure = 2;
     else
         tonemap.exposure = 4;
-    camera.addComponent(tonemap);
 
-    camera.addComponent(new HX.FXAA());
+    // camera.addComponent(new HX.TAA());
+    camera.addComponent(tonemap);
 }
 
 function initScene(scene, assetLibrary)

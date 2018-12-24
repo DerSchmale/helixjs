@@ -56,16 +56,15 @@ void main()
 
         float t = 0.0;
 
-        if (absD.x > 0.0)
+        if (absD.x > 0.0003)
             t = max(tm.x, t);
-        if (absD.y > 0.0)
+        if (absD.y > 0.0003)
             t = max(tm.y, t);
-        if (absD.z > 0.0)
+        if (absD.z > 0.0003)
             t = max(tm.z, t);
 
         old += t * d;
     }
-
 
     hx_FragColor.xyz = mix(old, c, amount);
     hx_FragColor.w = col.w;

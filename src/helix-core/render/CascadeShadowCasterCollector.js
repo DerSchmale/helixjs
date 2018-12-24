@@ -113,6 +113,7 @@ CascadeShadowCasterCollector.prototype.visitMeshInstance = function(meshInstance
                 renderItem.skeleton = skeleton;
                 renderItem.skeletonMatrices = skeletonMatrices;
                 renderItem.renderOrderHint = renderOrderHint;
+                renderItem.worldMatrix = worldMatrix;
                 renderItem.worldBounds = worldBounds;
 
                 renderList.push(renderItem);

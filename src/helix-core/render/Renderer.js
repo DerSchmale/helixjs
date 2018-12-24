@@ -29,7 +29,7 @@ import {TextureCube} from "../texture/TextureCube";
 import {PoissonDisk} from "../math/PoissonDisk";
 
 var probeObject = {};
-// TODO: Use Halton?
+// TODO: Use 4x4 Halton?
 var numJitterPoints = 8;
 var jitterOffsets = new PoissonDisk(PoissonDisk.SQUARE);
 jitterOffsets.generatePoints(numJitterPoints);

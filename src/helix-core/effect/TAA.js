@@ -18,6 +18,7 @@ import {META, TextureFilter, TextureWrapMode} from "../Helix";
  *
  * @property {Number} alpha The amount the newly rendered frame contributes to the final colour each frame, giving an
  * exponential running average.
+ * @property {Number} gamma The amount used to variance clip false samples. Larger values are generally more temporally stable.
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -36,7 +37,8 @@ function TAA()
     this._historyTexture.wrapMode = TextureWrapMode.CLAMP;
     this._pass = new EffectPass(null, ShaderLibrary.get("taa_fragment.glsl"));
     this._pass.setTexture("historyBuffer", this._historyTexture);
-    this.alpha = .01;
+    this.alpha = .1;
+    this.gamma = 1.0;
 }
 
 TAA.prototype = Object.create(Effect.prototype, {
@@ -48,6 +50,16 @@ TAA.prototype = Object.create(Effect.prototype, {
         set: function(value) {
             this._alpha = value;
             this._pass.setUniform("alpha", value);
+        }
+    },
+    gamma: {
+        get: function() {
+            return this._gamma;
+        },
+
+        set: function(value) {
+            this._gamma = value;
+            this._pass.setUniform("gamma", value);
         }
     }
 });

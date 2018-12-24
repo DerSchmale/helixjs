@@ -266,6 +266,7 @@ Renderer.prototype =
         GL.setDepthMask(true);
         GL.setColorMask(true);
 
+        // TODO: If MRT is supported, and both normalDepth and renderMotionVectors are required, render in one pass
         this._renderNormalDepth();
         if (META.OPTIONS.renderMotionVectors)
             this._renderMotionVectors();
@@ -1006,23 +1007,6 @@ Renderer.prototype =
             if (effect.isSupported()) {
                 this._renderEffect(effect, dt);
                 this._swapHDRFrontAndBack();
-            }
-        }
-    },
-
-    /**
-     * @ignore
-     * @private
-     */
-    _updatePreviousWorldMatrices: function(renderItems)
-    {
-        var frameMark = META.CURRENT_FRAME_MARK;
-        for (var i = 0, len = renderItems.length; i < len; ++i) {
-            var instance = renderItems[i].meshInstance;
-            // make sure a second render in the same frame doesn't overwrite the original value
-            if (instance._prevFrameMark !== frameMark) {
-                instance._prevFrameMark = frameMark;
-                instance._prevWorldMatrix.copyFrom(instance.entity.worldMatrix);
             }
         }
     },

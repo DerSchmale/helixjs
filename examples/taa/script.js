@@ -11,8 +11,9 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.defaultLightingModel = HX.LightingModel.GGX;
-    options.hdr = false;
+    options.hdr = true;
     options.renderMotionVectors = true;
+    options.debug = true;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -45,6 +46,9 @@ project.onUpdate = function()
             fxaa.enabled = true;
             break;
     }
+
+    if (this.camera.position.z < 0.2)
+        this.camera.position.z = 0.2;
 };
 
 function initCamera(camera)
@@ -69,36 +73,43 @@ function initScene(scene, camera, assetLibrary)
     var skyboxTexture = assetLibrary.get("skybox");
     var irradiance = assetLibrary.get("irradiance");
     var lightProbe = new HX.LightProbe(irradiance, skyboxTexture);
-    lightProbe.intensity = 3.0;
+    lightProbe.intensity = 5.0;
     scene.attach(new HX.Entity(lightProbe));
 
     var skybox = new HX.Skybox(skyboxTexture);
     scene.skybox = skybox;
 
-
     var model = assetLibrary.get("model");
     model.scale.set(.1, .1, .1);
     scene.attach(model);
 
+    var floorMaterial = new HX.BasicMaterial();
+    floorMaterial.cullMode = HX.CullMode.NONE;
     var material = new HX.BasicMaterial();
     material.cullMode = HX.CullMode.NONE;
     material.metallicness = 1.0;
-    material.roughness = .3;
-    replaceMaterials(model, material);
-	scene.startSystem(new HX.FixedLightsSystem());
+    material.roughness = .01;
+    replaceMaterials(model, material, floorMaterial);
+
+    scene.startSystem(new HX.FixedLightsSystem());
 }
 
-function replaceMaterials(obj, material)
+function replaceMaterials(obj, material, floorMaterial)
 {
     var i;
 
     if (obj.components.meshInstance) {
-        for (i = 0; i < obj.components.meshInstance.length; ++i)
-            obj.components.meshInstance[i].material = material;
+        for (i = 0; i < obj.components.meshInstance.length; ++i) {
+            var meshInstance = obj.components.meshInstance[i];
+            if (meshInstance.material.name === "wire_087225198")
+                meshInstance.material = floorMaterial;
+            else
+                meshInstance.material = material;
+        }
     }
 
     for (i = 0; i < obj.numChildren; ++i)
-        replaceMaterials(obj.getChild(i), material);
+        replaceMaterials(obj.getChild(i), material, floorMaterial);
 }
 
 function initGui()
@@ -110,4 +121,5 @@ function initGui()
 
     var taaFolder = gui.addFolder("TAA");
     taaFolder.add(taa, "alpha").min(0).max(1).step(.001);
+    taaFolder.add(taa, "gamma").min(0).max(1).step(.001);
 }

@@ -27,7 +27,7 @@ vec2 hx_getMotionVector(vec2 uv)
     vec3 viewDir = hx_getLinearDepthViewVector(ndc + hx_cameraJitter, hx_inverseProjectionMatrix);
 
     // reconstruct world position based on linear depth
-    vec3 viewPos = viewVec * absViewY;
+    vec3 viewPos = viewDir * absViewY;
     vec4 worldPos = hx_cameraWorldMatrix * vec4(viewPos, 1.0);
 
     // reproject with previous frame matrix

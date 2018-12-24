@@ -70,10 +70,8 @@ function Renderer(renderTarget)
     this._hdrBack = new Renderer.HDRBuffers(this._depthBuffer);
     this._hdrFront = new Renderer.HDRBuffers(this._depthBuffer);
     this._renderCollector = new RenderCollector();
-    this._normalDepthBuffer = new Texture2D();
-    this._normalDepthBuffer.filter = TextureFilter.BILINEAR_NOMIP;
-    this._normalDepthBuffer.wrapMode = TextureWrapMode.CLAMP;
-    this._normalDepthFBO = new FrameBuffer(this._normalDepthBuffer, this._depthBuffer);
+    this._normalDepthBuffer = null;
+    this._normalDepthFBO = null;
 
     if (META.OPTIONS.renderMotionVectors) {
         this._motionVectorBuffer = new Texture2D();
@@ -875,6 +873,8 @@ Renderer.prototype =
         var rc = this._renderCollector;
 
         if (rc.needsNormalDepth || this._debugMode === Renderer.DebugMode.NORMALS || this._debugMode === Renderer.DebugMode.DEPTH) {
+            if (!this._normalDepthBuffer)
+                this._initNormalDepthBuffer();
             GL.setRenderTarget(this._normalDepthFBO);
             GL.setClearColor(Color.BLUE);
             GL.clear();
@@ -1032,8 +1032,11 @@ Renderer.prototype =
             this._depthBuffer.init(this._width, this._height, true);
             this._hdrBack.resize(this._width, this._height);
             this._hdrFront.resize(this._width, this._height);
-            this._normalDepthBuffer.initEmpty(width, height);
-            this._normalDepthFBO.init();
+
+            if (this._normalDepthBuffer) {
+                this._normalDepthBuffer.initEmpty(width, height);
+                this._normalDepthFBO.init();
+            }
 
             if (this._motionVectorBuffer) {
                 // TODO: Should we allow scaling down the vbuffer? Not sure if this is a good idea for reprojection
@@ -1066,6 +1069,16 @@ Renderer.prototype =
         }
         else {*/
             return new WriteOnlyDepthBuffer();
+    },
+
+    _initNormalDepthBuffer: function()
+    {
+        this._normalDepthBuffer = new Texture2D();
+        this._normalDepthBuffer.filter = TextureFilter.BILINEAR_NOMIP;
+        this._normalDepthBuffer.wrapMode = TextureWrapMode.CLAMP;
+        this._normalDepthBuffer.initEmpty(META.TARGET_CANVAS.width, META.TARGET_CANVAS.height);
+        this._normalDepthFBO = new FrameBuffer(this._normalDepthBuffer, this._depthBuffer);
+        this._normalDepthFBO.init();
     }
 };
 

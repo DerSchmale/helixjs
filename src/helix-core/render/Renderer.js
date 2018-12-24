@@ -29,7 +29,7 @@ import {TextureCube} from "../texture/TextureCube";
 import {PoissonDisk} from "../math/PoissonDisk";
 
 var probeObject = {};
-// TODO: Use Halton
+// TODO: Use Halton?
 var numJitterPoints = 8;
 var jitterOffsets = new PoissonDisk(PoissonDisk.SQUARE);
 jitterOffsets.generatePoints(numJitterPoints);
@@ -254,7 +254,6 @@ Renderer.prototype =
         if (doJitter)
             // pretend nothing ever happened
             camera.setJitterOffset(null);
-
     },
 
     _renderView: function(camera, scene, dt)

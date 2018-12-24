@@ -518,7 +518,7 @@ export function InitOptions()
 
     /**
      * Indicates whether the renderer should render a motion vector buffer when needed. This has some rendering overhead,
-     * but is required if you want to do things like TAA or motion blur.
+     * but can improve things such as TAA and motion blur for dynamic scenes.
      */
     this.renderMotionVectors = false;
 
@@ -648,6 +648,9 @@ export function init(canvas, options)
 
     defines += "#define HX_NUM_SHADOW_CASCADES " + META.OPTIONS.numShadowCascades + "\n";
     defines += "#define HX_MAX_SKELETON_JOINTS " + META.OPTIONS.maxSkeletonJoints + "\n";
+
+    if (META.OPTIONS.renderMotionVectors)
+        defines += "#define HX_MOTION_VECTORS\n";
 
     capabilities.EXT_DRAW_BUFFERS = capabilities.WEBGL_2? true : _getExtension("WEBGL_draw_buffers");
     // can assume this exists

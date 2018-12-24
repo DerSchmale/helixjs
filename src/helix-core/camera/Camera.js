@@ -3,8 +3,7 @@ import {Matrix4x4} from "../math/Matrix4x4";
 import {Frustum} from "./Frustum";
 import {BoundingVolume} from "../scene/BoundingVolume";
 import {Ray} from "../math/Ray";
-import {META} from "../Helix";
-import {Float4} from "../math/Float4";
+import {META, onPostFrame} from "../Helix";
 
 /**
  * @classdesc
@@ -41,9 +40,8 @@ function Camera()
     this._farDistance = 1000;
     this._frustum = new Frustum();
     this._Entity_invalidateWorldMatrix = Entity.prototype._invalidateWorldMatrix;
-    this._Entity_onPostFrame = Entity.prototype._onPostFrame;
 
-    this._prevViewProjectionMatrix = META.OPTIONS.renderMotionVectors? new Matrix4x4() : null;
+    this._prevViewProjectionMatrix = new Matrix4x4();
     this._viewProjectionInvalidFrame = -1;
     this._jitter = null;
 
@@ -136,6 +134,28 @@ Camera.prototype = Object.create(Entity.prototype, {
 });
 
 /**
+ * @inheritDoc
+ */
+Camera.prototype.destroy = function()
+{
+    Entity.prototype.destroy.call(this);
+    onPostFrame.unbind(this._storePrevProjection);
+};
+
+/**
+ * @inheritDoc
+ */
+Camera.prototype._setScene = function(scene)
+{
+    if (this._scene && !scene)
+        onPostFrame.unbind(this._storePrevProjection);
+    else if (!this._scene && scene)
+        onPostFrame.bind(this._storePrevProjection, this);
+
+    Entity.prototype._setScene.call(this, scene);
+};
+
+/**
  * Returns a ray in world space at the given coordinates.
  * @param x The x-coordinate in NDC [-1, 1] range.
  * @param y The y-coordinate in NDC [-1, 1] range.
@@ -218,7 +238,7 @@ Camera.prototype._invalidateProjectionMatrix = function()
 
 
 /**
- *
+ * @private
  */
 Camera.prototype._updateJitteredProjectionMatrix = function()
 {
@@ -274,10 +294,9 @@ Camera.prototype.acceptVisitorPost = Entity.prototype.acceptVisitor;
 // don't want effects etc to be added unless it's the render camera (which is handled by acceptVisitorPost)
 Camera.prototype.acceptVisitor = function(visitor) {};
 
-Camera.prototype._onPostFrame = function()
+// this is needed for all cameras to be able to do reprojection without motion vectors
+Camera.prototype._storePrevProjection = function()
 {
-    this._Entity_onPostFrame();
-
     // if the matrix was invalidated in the previous frame, it must still be updated in this frame
     if (this._viewProjectionInvalidFrame >= META.CURRENT_FRAME_MARK - 1)
         this._prevViewProjectionMatrix.copyFrom(this.viewProjectionMatrix);

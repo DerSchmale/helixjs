@@ -1,4 +1,4 @@
-import { onPreFrame } from '../Helix';
+import {META, onPostFrame, onPreFrame} from '../Helix';
 import {EntitySet} from "./EntitySet";
 import {ArrayUtils} from "../utils/ArrayUtils";
 import {Bitfield} from "../core/Bitfield";
@@ -22,10 +22,21 @@ function EntityEngine()
 
     // TODO: This would update the entity engine even if the current scene is not actually used!
     onPreFrame.bind(this._update, this);
+
+    if (META.OPTIONS.renderMotionVectors)
+        onPostFrame.bind(this._onPostFrame, this);
 }
 
 EntityEngine.prototype =
 {
+    destroy: function()
+    {
+        onPreFrame.unbind(this._update);
+
+        if (META.OPTIONS.renderMotionVectors)
+            onPostFrame.unbind(this._onPostFrame);
+    },
+
     startSystem: function(system)
     {
         if (this._systems.indexOf(system) >= 0)
@@ -149,6 +160,17 @@ EntityEngine.prototype =
         len = systems.length;
         for (i = 0; i < len; ++i)
             systems[i].onUpdate(dt);
+    },
+
+    _onPostFrame: function()
+    {
+        var entities = this._entities;
+
+        for (var i = 0, len = entities.length; i < len; ++i) {
+            var entity = entities[i];
+            if (!entity._static)
+                entity._storePrevTransform();
+        }
     },
 
 	_onSetDisposed: function(set)

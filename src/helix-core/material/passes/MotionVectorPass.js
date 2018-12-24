@@ -21,8 +21,8 @@ MotionVectorPass.prototype = Object.create(MaterialPass.prototype);
 MotionVectorPass.prototype._generateShader = function(geometryVertex, geometryFragment, defines)
 {
 	defines = ShaderUtils.processDefines(defines) + "#define HX_SKIP_SPECULAR\n";
-    var vertexShader = defines + geometryVertex + "\n" + ShaderLibrary.get("material_velocity_vertex.glsl");
-    var fragmentShader = defines + ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_velocity_fragment.glsl");
+    var vertexShader = defines + geometryVertex + "\n" + ShaderLibrary.get("material_motion_vertex.glsl");
+    var fragmentShader = defines + ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_motion_fragment.glsl");
     return new Shader(vertexShader, fragmentShader);
 };
 

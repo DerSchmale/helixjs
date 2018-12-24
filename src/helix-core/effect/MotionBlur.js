@@ -22,12 +22,12 @@ import {META} from "../Helix";
  */
 function MotionBlur(numSamples)
 {
-    if (!META.OPTIONS.renderMotionVectors)
-        console.warn("MotionBlur requires renderMotionVectors to be true in InitOptions");
-
     Effect.call(this);
 
-    this.needsMotionVectors = true;
+    if (META.OPTIONS.renderMotionVectors)
+        this.needsMotionVectors = true;
+    else
+        this.needsNormalDepth = true;
 
     this.amount = 1;
     this.maxRadius = 40;
@@ -46,7 +46,9 @@ MotionBlur.prototype = Object.create(Effect.prototype, {
             if (value === this._numSamples) return;
 
             this._numSamples = value;
-            this._pass = new EffectPass(null, ShaderLibrary.get("motion_blur_fragment.glsl", {
+            this._pass = new EffectPass(null,
+                ShaderLibrary.get("snippets_reproject.glsl") +
+                ShaderLibrary.get("motion_blur_fragment.glsl", {
                 NUM_BLUR_SAMPLES: value,
                 STEP_SCALE: 1 / (value - 1)
             }));
@@ -79,14 +81,6 @@ MotionBlur.prototype = Object.create(Effect.prototype, {
         }
     }
 });
-
-/**
- * @inheritDoc
- */
-MotionBlur.prototype.isSupported = function()
-{
-    return META.OPTIONS.renderMotionVectors;
-};
 
 /**
  * @ignore

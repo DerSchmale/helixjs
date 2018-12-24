@@ -26,16 +26,20 @@ function TAA()
 {
     Effect.call(this);
 
-    if (!META.OPTIONS.renderMotionVectors)
-        console.warn("MotionBlur requires renderMotionVectors to be true in InitOptions! Only camera jitter will be applied.");
+    if (META.OPTIONS.renderMotionVectors)
+        this.needsMotionVectors = true;
+    else
+        this.needsNormalDepth = true;
 
     this.needsCameraJitter = true;
-    this.needsMotionVectors = true;
     this._historyTexture = new Texture2D();
     this._historyFBO = new FrameBuffer(this._historyTexture);
     this._historyTexture.filter = TextureFilter.BILINEAR_NOMIP;
     this._historyTexture.wrapMode = TextureWrapMode.CLAMP;
-    this._pass = new EffectPass(null, ShaderLibrary.get("taa_fragment.glsl"));
+    this._pass = new EffectPass(null,
+        ShaderLibrary.get("snippets_reproject.glsl") +
+        ShaderLibrary.get("taa_fragment.glsl")
+    );
     this._pass.setTexture("historyBuffer", this._historyTexture);
     this.alpha = .1;
     this.gamma = 1.0;
@@ -63,14 +67,6 @@ TAA.prototype = Object.create(Effect.prototype, {
         }
     }
 });
-
-/**
- * @inheritDoc
- */
-TAA.prototype.isSupported = function()
-{
-    return META.OPTIONS.renderMotionVectors;
-};
 
 /**
  * @ignore

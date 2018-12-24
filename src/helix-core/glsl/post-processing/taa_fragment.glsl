@@ -2,7 +2,6 @@ varying_in vec2 uv;
 
 uniform vec2 hx_rcpRenderTargetResolution;
 uniform sampler2D hx_backBuffer;
-uniform sampler2D hx_motionVectorBuffer;
 uniform sampler2D historyBuffer;
 
 uniform float alpha;
@@ -10,10 +9,9 @@ uniform float gamma;
 
 void main()
 {
-	vec2 velocity = hx_decodeMotionVector(texture2D(hx_motionVectorBuffer, uv));
 	vec4 col = texture2D(hx_backBuffer, uv);
 	vec3 c = col.xyz;   // "c"enter
-	vec2 oldUV = uv - velocity;
+	vec2 oldUV = hx_getPreviousFrameUV(uv);
 	vec3 old = texture2D(historyBuffer, oldUV).xyz;
 	float amount = alpha;
 

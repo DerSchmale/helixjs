@@ -12,7 +12,8 @@ window.onload = function ()
     var options = new HX.InitOptions();
     options.defaultLightingModel = HX.LightingModel.GGX;
     options.hdr = true;
-    options.renderMotionVectors = true;
+    // optionally enable this if objects in the scene move
+    // options.renderMotionVectors = true;
     options.debug = true;
     project.init(document.getElementById('webglContainer'), options);
 };

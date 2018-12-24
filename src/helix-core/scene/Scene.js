@@ -73,6 +73,7 @@ Scene.prototype = {
 	destroy: function()
     {
         this._rootNode.destroy();
+        this._entityEngine.destroy();
     },
 
     /**

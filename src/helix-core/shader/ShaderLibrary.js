@@ -19,6 +19,6 @@ export var ShaderLibrary = {
      */
     get: function(filename, defines)
     {
-        return ShaderUtils.processDefines(defines) + ShaderLibrary._files[filename];
+        return ShaderUtils.processDefines(defines) + ShaderLibrary._files[filename] + "\n";
     }
 };

@@ -100,13 +100,9 @@ Entity.prototype = Object.create(SceneNode.prototype, {
 				return;
 
 			this._static = value;
-
-			if (META.OPTIONS.renderMotionVectors && this._scene) {
-				if (value)
-					onPostFrame.bind(this._onPostFrame, this);
-				else
-					onPostFrame.unbind(this._onPostFrame);
-			}
+			if (value)
+				// store transform
+				this._storePrevTransform();
 		}
 	}
 });
@@ -288,7 +284,7 @@ Entity.prototype.destroy = function()
 {
 	SceneNode.prototype.destroy.call(this);
 	if (this._components)
-		this.removeComponents(this._components);
+		this.removeComponents(this._components.concat());
 };
 
 
@@ -326,17 +322,11 @@ Entity.prototype._setScene = function(scene)
 	if (this._scene) {
 		this._scene.entityEngine.unregisterEntity(this);
 		this._scene.partitioning.unregisterEntity(this);
-
-		if (META.OPTIONS.renderMotionVectors && !this._static)
-			onPostFrame.unbind(this._onPostFrame);
 	}
 
 	if (scene) {
 		scene.entityEngine.registerEntity(this);
 		scene.partitioning.registerEntity(this);
-
-		if (META.OPTIONS.renderMotionVectors && !this._static)
-			onPostFrame.bind(this._onPostFrame, this);
 	}
 
 	this._SceneNode_setScene(scene);
@@ -430,10 +420,8 @@ Entity.prototype.acceptVisitor = function(visitor)
 };
 
 /* @ignore */
-Entity.prototype._onPostFrame = function()
+Entity.prototype._storePrevTransform = function()
 {
-	// TODO: Only if a meshInstance component is present, this step is required, actually... Even the whole callback is only needed for this and cameras
-
     // if the matrix was invalidated in the previous frame, it must still be updated in this frame
     if (this._worldMatrixInvalidFrame >= META.CURRENT_FRAME_MARK - 1)
         this._prevWorldMatrix.copyFrom(this.worldMatrix);

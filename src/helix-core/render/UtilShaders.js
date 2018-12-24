@@ -134,7 +134,7 @@ DebugDepthShader.prototype = Object.create(CustomCopyShader.prototype);
 
 function DebugMotionVectorShader()
 {
-    CustomCopyShader.call(this, ShaderLibrary.get("debug_velocity_fragment.glsl"))
+    CustomCopyShader.call(this, ShaderLibrary.get("debug_motion_vector_fragment.glsl"))
 }
 
 DebugMotionVectorShader.prototype = Object.create(CustomCopyShader.prototype);

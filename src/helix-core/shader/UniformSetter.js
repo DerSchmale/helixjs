@@ -135,7 +135,6 @@ function InverseWVPSetter()
 InverseWVPSetter.prototype.execute = function(camera)
 {
     var matrix = new Matrix4x4();
-    var m = matrix._m;
     return function(camera, renderItem)
     {
         matrix.inverseAffineOf(renderItem.worldMatrix);

@@ -12,13 +12,13 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
 
-    ssao = new HX.SSAO(16);
+    ssao = new HX.SSAO(24);
     hbao = new HX.HBAO(5, 5);
     ssao.strength = hbao.strength = 2.0;
     hbao.sampleRadius = 2.0;
     hbao.fallOffDistance = 3.0;
-    ssao.sampleRadius = 1.0;
-    ssao.fallOffDistance = 2.0;
+    ssao.sampleRadius = 2.0;
+    ssao.fallOffDistance = 3.0;
     options.ambientOcclusion = hbao;
     options.defaultLightingModel = HX.LightingModel.GGX;
     options.debug = true;
@@ -69,7 +69,7 @@ function initScene(scene, assetLibrary)
 {
     var irradiance = assetLibrary.get("irradiance");
     var lightProbe = new HX.LightProbe(irradiance);
-    lightProbe.intensity = 3.0;
+    lightProbe.intensity = 10.0;
     scene.attach(new HX.Entity(lightProbe));
 
     scene.attach(assetLibrary.get("model"));

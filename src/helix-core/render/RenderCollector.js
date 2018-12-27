@@ -22,6 +22,7 @@ function RenderCollector()
 
     // Opaques are stored per RenderPath because the render path defines the order of rendering.
     // Transparents need a single list for absolute ordering.
+    this._skipEffects = false;
     this._opaques = [];
     this._transparents = null;
     this._camera = null;
@@ -49,9 +50,10 @@ RenderCollector.prototype = Object.create(SceneVisitor.prototype);
 RenderCollector.prototype.getOpaqueRenderList = function(path) { return this._opaques[path]; };
 RenderCollector.prototype.getTransparentRenderList = function() { return this._transparents; };
 
-RenderCollector.prototype.collect = function(camera, scene)
+RenderCollector.prototype.collect = function(camera, scene, skipEffects)
 {
     this.reset();
+    this._skipEffects = skipEffects;
     this._camera = camera;
     camera.worldMatrix.getColumn(1, this._cameraYAxis);
     camera.worldMatrix.getColumn(3, this._cameraPos);
@@ -110,7 +112,7 @@ RenderCollector.prototype.visitEntity = function(entity)
 		var distSqr = dx * dx + dy * dy + dz * dz;
 	}
 
-	if (effects) {
+	if (effects && !this._skipEffects) {
 		len = effects.length;
 		for (i = 0; i < len; ++i) {
 			var effect = effects[i];

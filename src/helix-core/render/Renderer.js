@@ -232,7 +232,7 @@ Renderer.prototype =
         this._updateSize(this.renderTarget);
         camera._setRenderTargetResolution(this._width, this._height);
 
-        this._renderCollector.collect(camera, scene);
+        this._renderCollector.collect(camera, scene, this.skipEffects);
 
         var doJitter = this._renderCollector.needsCameraJitter;
         if (doJitter) {

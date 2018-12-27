@@ -28,5 +28,5 @@ void main()
         total += texture2D(hx_backBuffer, texcoord) * w;
     }
 
-    gl_FragColor = total / totalWeight;
+    hx_FragColor = total / totalWeight;
 }

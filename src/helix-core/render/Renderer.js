@@ -77,7 +77,10 @@ function Renderer(renderTarget)
         this._motionVectorBuffer = new Texture2D();
         this._motionVectorBuffer.filter = TextureFilter.BILINEAR_NOMIP;
         this._motionVectorBuffer.wrapMode = TextureWrapMode.CLAMP;
-        this._motionVectorFBO = new FrameBuffer(this._motionVectorBuffer, this._depthBuffer);
+
+        // this is drawn with normal/depth if MRT is supported
+        if (!capabilities.EXT_DRAW_BUFFERS)
+            this._motionVectorFBO = new FrameBuffer(this._motionVectorBuffer, this._depthBuffer);
     }
 
     this._backgroundColor = Color.BLACK.clone();
@@ -263,10 +266,7 @@ Renderer.prototype =
         GL.setDepthMask(true);
         GL.setColorMask(true);
 
-        // TODO: If MRT is supported, and both normalDepth and renderMotionVectors are required, render in one pass
-        this._renderNormalDepth();
-        if (META.OPTIONS.renderMotionVectors)
-            this._renderMotionVectors();
+        this._renderNormalDepthMotion();
         this._renderAO();
 
         GL.setRenderTarget(this._hdrFront.fboDepth);
@@ -846,40 +846,36 @@ Renderer.prototype =
      * @ignore
      * @private
      */
-    _renderMotionVectors: function()
+    _renderNormalDepthMotion: function()
     {
-        if (this.skipEffects)
-            return;
+        // TODO: If MRT is supported, and both normalDepth and renderMotionVectors are required, render in one pass
 
         var rc = this._renderCollector;
-        if (rc.needsMotionVectors || this._debugMode === Renderer.DebugMode.MOTION_VECTORS) {
+        var needsNormalDepth = rc.needsNormalDepth || this._debugMode === Renderer.DebugMode.NORMALS || this._debugMode === Renderer.DebugMode.DEPTH;
+        var needsMotion = META.OPTIONS.renderMotionVectors && (rc.needsMotionVectors || this._debugMode === Renderer.DebugMode.MOTION_VECTORS);
+
+        if (capabilities.EXT_DRAW_BUFFERS)
+            needsNormalDepth |= needsMotion;
+
+        if (needsNormalDepth) {
+            if (!this._normalDepthBuffer)
+                this._initNormalDepthBuffer();
+
+            GL.setRenderTarget(this._normalDepthFBO);
+            GL.setClearColor(Color.BLUE);
+            GL.clear();
+            renderPass(this, this._activeCamera, MaterialPass.NORMAL_DEPTH_PASS, rc.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC), null);
+            renderPass(this, this._activeCamera, MaterialPass.NORMAL_DEPTH_PASS, rc.getOpaqueRenderList(RenderPath.FORWARD_FIXED), null);
+        }
+
+        // if MRT is not supported, draw separately
+        if (needsMotion && !capabilities.EXT_DRAW_BUFFERS) {
             GL.setRenderTarget(this._motionVectorFBO);
             GL.setClearColor(Color.HALF);
             GL.clear();
 
             renderPass(this, this._activeCamera, MaterialPass.MOTION_VECTOR_PASS, rc.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC), null);
             renderPass(this, this._activeCamera, MaterialPass.MOTION_VECTOR_PASS, rc.getOpaqueRenderList(RenderPath.FORWARD_FIXED), null);
-            // renderPass(this, this._activeCamera, MaterialPass.MOTION_VECTOR_PASS, rc.getTransparentRenderList(RenderPath.FORWARD_DYNAMIC), null);
-            // renderPass(this, this._activeCamera, MaterialPass.MOTION_VECTOR_PASS, rc.getTransparentRenderList(RenderPath.FORWARD_FIXED), null);
-        }
-    },
-
-    /**
-     * @ignore
-     * @private
-     */
-    _renderNormalDepth: function()
-    {
-        var rc = this._renderCollector;
-
-        if (rc.needsNormalDepth || this._debugMode === Renderer.DebugMode.NORMALS || this._debugMode === Renderer.DebugMode.DEPTH) {
-            if (!this._normalDepthBuffer)
-                this._initNormalDepthBuffer();
-            GL.setRenderTarget(this._normalDepthFBO);
-            GL.setClearColor(Color.BLUE);
-            GL.clear();
-            renderPass(this, this._activeCamera, MaterialPass.NORMAL_DEPTH_PASS, rc.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC), null);
-            renderPass(this, this._activeCamera, MaterialPass.NORMAL_DEPTH_PASS, rc.getOpaqueRenderList(RenderPath.FORWARD_FIXED), null);
         }
     },
 
@@ -1039,9 +1035,10 @@ Renderer.prototype =
             }
 
             if (this._motionVectorBuffer) {
-                // TODO: Should we allow scaling down the vbuffer? Not sure if this is a good idea for reprojection
                 this._motionVectorBuffer.initEmpty(width, height);
-                this._motionVectorFBO.init();
+                // is null when using MRT
+                if (this._motionVectorFBO)
+                    this._motionVectorFBO.init();
             }
         }
     },
@@ -1077,7 +1074,9 @@ Renderer.prototype =
         this._normalDepthBuffer.filter = TextureFilter.BILINEAR_NOMIP;
         this._normalDepthBuffer.wrapMode = TextureWrapMode.CLAMP;
         this._normalDepthBuffer.initEmpty(META.TARGET_CANVAS.width, META.TARGET_CANVAS.height);
-        this._normalDepthFBO = new FrameBuffer(this._normalDepthBuffer, this._depthBuffer);
+
+        var buffers = capabilities.EXT_DRAW_BUFFERS && META.OPTIONS.renderMotionVectors? [this._normalDepthBuffer, this._motionVectorBuffer] : this._normalDepthBuffer;
+        this._normalDepthFBO = new FrameBuffer(buffers, this._depthBuffer);
         this._normalDepthFBO.init();
     }
 };

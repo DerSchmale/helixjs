@@ -467,6 +467,11 @@ export function InitOptions()
     this.webgl2 = false;
 
     /**
+     * This disables all optional WebGL extensions; generally for debugging purposes.
+     */
+    this.ignoreExtensions = false;
+
+    /**
      * The maximum supported number of joints for skinning animations.
      */
     this.maxSkeletonJoints = 64;
@@ -635,8 +640,7 @@ export function init(canvas, options)
 
     function _getExtension(name)
     {
-
-        var ext = glExtensions.indexOf(name) >= 0 ? gl.getExtension(name) : null;
+        var ext = !META.OPTIONS.ignoreExtensions && glExtensions.indexOf(name) >= 0? gl.getExtension(name) : null;
         if (!ext) console.warn(name + " extension not supported!");
         return ext;
     }
@@ -671,6 +675,9 @@ export function init(canvas, options)
     capabilities.EXT_COMPRESSED_TEXTURE_S3TC = _getExtension("WEBKIT_WEBGL_compressed_texture_s3tc") || _getExtension("WEBGL_compressed_texture_s3tc");
     capabilities.EXT_INSTANCED_ARRAYS = _getExtension("ANGLE_instanced_arrays");
     capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY = capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC ? gl.getParameter(capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 0;
+
+    if (capabilities.EXT_DRAW_BUFFERS)
+        defines += "#define HX_MRT\n";
 
     if (capabilities.EXT_FLOAT_TEXTURES)
         defines += "#define HX_FLOAT_TEXTURES\n";

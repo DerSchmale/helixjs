@@ -39,6 +39,8 @@ function Skybox(materialOrTexture)
 
     this._meshInstance = new MeshInstance(mesh, materialOrTexture);
     this.addComponent(this._meshInstance);
+
+    this.intensity = 1.0;
 }
 
 Skybox.prototype = Object.create(Entity.prototype, {
@@ -49,6 +51,15 @@ Skybox.prototype = Object.create(Entity.prototype, {
 
 		set: function(value) {
 			this._meshInstance.material = value;
+		}
+	},
+	intensity: {
+		get: function() {
+			return this._intensity;
+		},
+		set: function(value) {
+			this._intensity = value;
+			this._meshInstance.material.setUniform("hx_intensity", value);
 		}
 	}
 });

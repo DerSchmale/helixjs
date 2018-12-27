@@ -2,21 +2,19 @@
 
 ## Introduction
 
-What is Helix? In a nutshell: it's a WebGL 3D engine\* built in Javascript.
+What is Helix? In a nutshell: it's a WebGL 3D/game engine built in Javascript.
 
 I didn't build it to compete with other Javascript 3D engines. Building and maintaining 3D engines is a sort of hobby of 
 mine. It allows me to experiment much more freely than when I'm confined to an existing engine. I do occasionally use it
 for real projects depending on their requirements.
 
-If you're interested in playing around with it, go ahead! Want to go straight ahead and use it in a professional project?
-You may want to think twice (and the risk is entirely yours). As the engine is built by me and especially *for myself*, 
-you may run into some quirks and pedantries that may be confusing at first. The original code base was ported from a 
-personal C++/DirectX project, and since then large parts of the JS version have been rewritten and remolded. Some 
-concepts from DirectX (blend/stencil states, vertex layouts, ...) stayed in because they were simply good ideas\*. If 
-you're coming from an old-school Flash background, you may also run into approaches that are similar to the original
-Away3D "Broomstick" prototype that I developed back in 2010 before it became 4.0.
-
-*(DirectX 10+ is absolutely awesome, I don't care what your friendly local GL-only fanboy says)*
+If you're interested in playing around with it, go ahead! Want to go straight ahead and use it in a professional project,
+the risk is entirely yours. As the engine is built by me and for myself, you may run  into some quirks and pedantries 
+that may be confusing at first. The original code base was ported from a  personal C++/DirectX project, and since then 
+large parts of the JS version have been rewritten and remolded. Some  concepts from DirectX (blend/stencil states, 
+vertex layouts, ...) stayed in because they were simply good ideas. If you're coming from an old-school Flash background, 
+you may also run into approaches that are similar to the original Away3D "Broomstick" prototype that I developed back in 
+2010 before it became 4.0.
 
 In any case, I think it's worth making things open source. There may always be things to learn and teach doing so.
 
@@ -35,9 +33,6 @@ mapping may require a different lighting setup.
 * More pedantry: adding and removing children to a scene graph node is called "attaching" and "detaching". I feel it
 describes more accurately what the relationship between child/parent is.
 
-
- \* *Actually, it's built as a game engine, but only the rendering and animation engine has been implemented at this 
- point.*
 
 
 ## Getting started

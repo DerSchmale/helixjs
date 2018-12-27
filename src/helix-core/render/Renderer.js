@@ -232,13 +232,13 @@ Renderer.prototype =
         this._updateSize(this.renderTarget);
         camera._setRenderTargetResolution(this._width, this._height);
 
+        this._renderCollector.collect(camera, scene);
+
         var doJitter = this._renderCollector.needsCameraJitter;
         if (doJitter) {
             camera.setJitterOffset(jitterOffsets.points[this._jitterIndex]);
             if (++this._jitterIndex === numJitterPoints) this._jitterIndex = 0;
         }
-
-        this._renderCollector.collect(camera, scene);
 
 		this._ambientColor = this._renderCollector.ambientColor;
 

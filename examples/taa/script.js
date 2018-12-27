@@ -61,6 +61,7 @@ function initCamera(camera)
     controller.lookAtTarget.z = 3.0;
     controller.maxRadius = 100.0;
     controller.radius = 10.0;
+    controller.zoomSpeed = 10.0;
     camera.addComponent(controller);
 
     taa = new HX.TAA();

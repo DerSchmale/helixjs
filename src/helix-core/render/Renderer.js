@@ -862,7 +862,7 @@ Renderer.prototype =
                 this._initNormalDepthBuffer();
 
             GL.setRenderTarget(this._normalDepthFBO);
-            GL.setClearColor(Color.BLUE);
+            GL.setClearColor(Color.HALF);
             GL.clear();
             renderPass(this, this._activeCamera, MaterialPass.NORMAL_DEPTH_PASS, rc.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC), null);
             renderPass(this, this._activeCamera, MaterialPass.NORMAL_DEPTH_PASS, rc.getOpaqueRenderList(RenderPath.FORWARD_FIXED), null);

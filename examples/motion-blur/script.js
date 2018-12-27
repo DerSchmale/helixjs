@@ -11,7 +11,6 @@ window.onload = function ()
     options.hdr = true;
     options.debug = true;
     options.defaultLightingModel = HX.LightingModel.GGX_FULL;
-    options.webgl2 = true;
     project.init(document.getElementById('webglContainer'), options);
 };
 

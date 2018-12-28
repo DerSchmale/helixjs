@@ -42,7 +42,7 @@ function TAA()
         ShaderLibrary.get("taa_fragment.glsl")
     );
     this._pass.setTexture("historyBuffer", this._historyTexture);
-    this.alpha = .1;
+    this.alpha = .01;
     this.gamma = 1.0;
 }
 

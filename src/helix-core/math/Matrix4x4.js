@@ -1528,7 +1528,7 @@ Matrix4x4.prototype =
         cm[10] *= rcpZ;
 
         quat.fromMatrix(clone);
-        this.getColumn(3, pos)
+        this.getColumn(3, pos);
 
         return targetOrPos;
     },

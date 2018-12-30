@@ -105,7 +105,7 @@ Texture2D.prototype.initEmpty = function(width, height, format, dataType)
  * @param {boolean} generateMips Whether or not a mip chain should be generated.
  * @param {TextureFormat} format The texture's format.
  * @param {DataType} dataType The texture's data format.
- * @param {number} mipLevel The target mip map level. Defaults to 0. If provided, generateMips should be false.
+ * @param {number} [mipLevel] The target mip map level. Defaults to 0. If provided, generateMips should be false.
  */
 Texture2D.prototype.uploadData = function(data, width, height, generateMips, format, dataType, mipLevel)
 {

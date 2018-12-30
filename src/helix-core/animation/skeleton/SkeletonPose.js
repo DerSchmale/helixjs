@@ -3,6 +3,7 @@ import {Matrix4x4} from "../../math/Matrix4x4";
 import {DataType, META, TextureFilter, TextureFormat, TextureWrapMode} from "../../Helix";
 import {Texture2D} from "../../texture/Texture2D";
 
+var texData;
 
 /**
  * @classdesc
@@ -47,6 +48,7 @@ SkeletonPose.prototype = {
     {
         this._jointPoses[index] = value;
         value.skeletonPose = this;
+        this.invalidateGlobalPose();
     },
 
     /**
@@ -101,6 +103,7 @@ SkeletonPose.prototype = {
 
             m.decompose(p);
         }
+        this.invalidateGlobalPose();
     },
 
     /**
@@ -117,6 +120,8 @@ SkeletonPose.prototype = {
 
         for (var i = 0; i < len; ++i)
             target[i].copyFrom(a[i]);
+
+        this.invalidateGlobalPose();
     },
 
     /**
@@ -158,18 +163,18 @@ SkeletonPose.prototype = {
     /**
      * @ignore
      */
-    _updateSkeletonMatrices: function (skeleton)
+    _updateSkeletonMatrices: function(skeleton)
     {
         var globals = this._globalMatrices;
-        var binds = this._bindMatrices;
-		var joints = skeleton.joints;
+        var joints = skeleton.joints;
 		var len = joints.length;
 
         if (!globals || globals.length !== len) {
             this._generateGlobalSkeletonData(skeleton);
             globals = this._globalMatrices;
-            binds = this._bindMatrices;
         }
+
+        var binds = this._bindMatrices;
 
         for (var i = 0; i < len; ++i) {
             var pose = this._jointPoses[i];
@@ -191,6 +196,8 @@ SkeletonPose.prototype = {
 
         if (META.OPTIONS.useSkinningTexture)
             this._updateSkinningTexture();
+
+        this._skeletonMatricesInvalid = false;
     },
 
     /**
@@ -211,6 +218,7 @@ SkeletonPose.prototype = {
             this._skinningTexture = new Texture2D();
             this._skinningTexture.filter = TextureFilter.NEAREST_NOMIP;
             this._skinningTexture.wrapMode = TextureWrapMode.CLAMP;
+            this._skinningTexture.initEmpty(META.OPTIONS.maxSkeletonJoints, 3, TextureFormat.RGBA, DataType.FLOAT);
         }
     },
 
@@ -220,36 +228,31 @@ SkeletonPose.prototype = {
      */
     _updateSkinningTexture: function ()
     {
-        var data;
+        texData = texData || new Float32Array(META.OPTIONS.maxSkeletonJoints * 3 * 4);
+        var globals = this._bindMatrices;
+        var len = globals.length;
+        var j = 0;
 
-        return function()
-        {
-            data = data || new Float32Array(META.OPTIONS.maxSkeletonJoints * 3 * 4);
-            var globals = this._bindMatrices;
-            var len = globals.length;
-            var j = 0;
+        for (var r = 0; r < 3; ++r) {
+            for (var i = 0; i < len; ++i) {
+                var m = globals[i]._m;
 
-            for (var r = 0; r < 3; ++r) {
-                for (var i = 0; i < len; ++i) {
-                    var m = globals[i]._m;
-
-                    data[j++] = m[r];
-                    data[j++] = m[r + 4];
-                    data[j++] = m[r + 8];
-                    data[j++] = m[r + 12];
-                }
-
-                for (i = len; i < META.OPTIONS.maxSkeletonJoints; ++i) {
-                    data[j++] = 0.0;
-                    data[j++] = 0.0;
-                    data[j++] = 0.0;
-                    data[j++] = 0.0;
-                }
+                texData[j++] = m[r];
+                texData[j++] = m[r + 4];
+                texData[j++] = m[r + 8];
+                texData[j++] = m[r + 12];
             }
 
-            this._skinningTexture.uploadData(data, META.OPTIONS.maxSkeletonJoints, 3, false, TextureFormat.RGBA, DataType.FLOAT);
+            for (i = len; i < META.OPTIONS.maxSkeletonJoints; ++i) {
+                texData[j++] = 0.0;
+                texData[j++] = 0.0;
+                texData[j++] = 0.0;
+                texData[j++] = 0.0;
+            }
         }
-    }(),
+
+        this._skinningTexture.uploadData(texData, META.OPTIONS.maxSkeletonJoints, 3, false, TextureFormat.RGBA, DataType.FLOAT);
+    },
 
     clone: function()
     {

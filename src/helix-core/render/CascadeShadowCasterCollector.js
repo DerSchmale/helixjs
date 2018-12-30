@@ -90,8 +90,6 @@ CascadeShadowCasterCollector.prototype.visitEntity = function(entity)
 
 CascadeShadowCasterCollector.prototype.visitMeshInstance = function(meshInstance, worldMatrix, worldBounds, renderOrderHint)
 {
-	var skeletonMatrices = meshInstance.skeletonMatrices;
-
     var passIndex = MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS;
     var numCascades = META.OPTIONS.numShadowCascades;
 
@@ -109,7 +107,7 @@ CascadeShadowCasterCollector.prototype.visitMeshInstance = function(meshInstance
                 renderItem.pass = material.getPass(passIndex);
                 renderItem.meshInstance = meshInstance;
                 renderItem.material = material;
-                renderItem.skeletonMatrices = skeletonMatrices;
+                renderItem.skeletonMatrices = meshInstance.skeletonMatrices;
                 renderItem.renderOrderHint = renderOrderHint;
                 renderItem.worldMatrix = worldMatrix;
                 renderItem.worldBounds = worldBounds;

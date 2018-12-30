@@ -118,7 +118,6 @@ OmniShadowCasterCollector.prototype.visitMeshInstance = function(meshInstance, w
 
 OmniShadowCasterCollector.prototype._addTo = function(meshInstance, cubeFace, worldBounds, worldMatrix, renderOrderHint)
 {
-    var skeleton = meshInstance.skeleton;
     var skeletonMatrices = meshInstance.skeletonMatrices;
     var renderPool = this._renderItemPool;
 
@@ -128,7 +127,6 @@ OmniShadowCasterCollector.prototype._addTo = function(meshInstance, cubeFace, wo
 
     renderItem.material = material;
     renderItem.meshInstance = meshInstance;
-    renderItem.skeleton = skeleton;
     renderItem.skeletonMatrices = skeletonMatrices;
 
     renderItem.renderOrderHint = renderOrderHint;

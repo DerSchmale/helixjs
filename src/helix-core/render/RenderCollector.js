@@ -177,7 +177,6 @@ RenderCollector.prototype.visitEntity = function(entity)
 
 RenderCollector.prototype.visitMeshInstance = function (meshInstance, worldMatrix, worldBounds, renderOrderHint, prevWorldMatrix)
 {
-    var skeleton = meshInstance.skeleton;
     var skeletonMatrices = meshInstance.skeletonMatrices;
     var renderPool = this._renderItemPool;
     var opaqueLists = this._opaques;
@@ -193,7 +192,6 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance, worldMatri
 
     renderItem.material = material;
     renderItem.meshInstance = meshInstance;
-    renderItem.skeleton = skeleton;
     renderItem.skeletonMatrices = skeletonMatrices;
     renderItem.renderOrderHint = renderOrderHint;
     renderItem.worldMatrix = worldMatrix;

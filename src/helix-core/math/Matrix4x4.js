@@ -888,17 +888,6 @@ Matrix4x4.prototype =
     },
 
     /**
-     * Writes the matrix into an array for upload
-     */
-    writeData: function(array, index)
-    {
-        index = index || 0;
-        var m = this._m;
-        for (var i = 0; i < 16; ++i)
-            array[index + i] = m[i];
-    },
-
-    /**
      * Inverts the matrix. If the matrix is not invertible, the method returns null and the matrix remains unchanged.
      * Otherwise, it returns itself.
      */

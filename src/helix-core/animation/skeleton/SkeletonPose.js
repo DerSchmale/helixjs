@@ -3,7 +3,7 @@ import {Matrix4x4} from "../../math/Matrix4x4";
 import {DataType, META, TextureFilter, TextureFormat, TextureWrapMode} from "../../Helix";
 import {Texture2D} from "../../texture/Texture2D";
 
-var texData;
+var workMat = new Matrix4x4();
 
 /**
  * @classdesc
@@ -20,7 +20,7 @@ function SkeletonPose()
     this._skinningTexture = null;
     // "global" is in fact model space
     this._globalMatrices = null;
-    this._bindMatrices = null;
+    this._bindMatrices = new Float32Array(META.OPTIONS.maxSkeletonJoints * 12);
     this._skeletonMatricesInvalid = true;
 }
 
@@ -188,14 +188,16 @@ SkeletonPose.prototype = {
             if (parentIndex !== -1)
                 global.appendAffine(globals[parentIndex]);
 
-            if (skeleton.applyInverseBindPose)
-                binds[i].multiplyAffine(global, joint.inverseBindPose);
+            if (skeleton.applyInverseBindPose) {
+                workMat.multiplyAffine(global, joint.inverseBindPose);
+                workMat.writeData4x3(binds, i * 12);
+            }
             else
-                binds[i].copyFrom(global);
+                global.writeData4x3(binds, i * 12);
         }
 
         if (META.OPTIONS.useSkinningTexture)
-            this._updateSkinningTexture();
+            this._skinningTexture.uploadData(binds, META.OPTIONS.maxSkeletonJoints * 3, 1, false, TextureFormat.RGBA, DataType.FLOAT);
 
         this._skeletonMatricesInvalid = false;
     },
@@ -207,51 +209,17 @@ SkeletonPose.prototype = {
     _generateGlobalSkeletonData: function (skeleton)
     {
         this._globalMatrices = [];
-        this._bindMatrices = [];
 
         for (var i = 0, len = skeleton.joints.length; i < len; ++i) {
             this._globalMatrices[i] = new Matrix4x4();
-            this._bindMatrices[i] = new Matrix4x4();
         }
 
         if (META.OPTIONS.useSkinningTexture) {
             this._skinningTexture = new Texture2D();
             this._skinningTexture.filter = TextureFilter.NEAREST_NOMIP;
             this._skinningTexture.wrapMode = TextureWrapMode.CLAMP;
-            this._skinningTexture.initEmpty(META.OPTIONS.maxSkeletonJoints, 3, TextureFormat.RGBA, DataType.FLOAT);
+            this._skinningTexture.initEmpty(META.OPTIONS.maxSkeletonJoints * 3, 1, TextureFormat.RGBA, DataType.FLOAT);
         }
-    },
-
-    /**
-     * @ignore
-     * @private
-     */
-    _updateSkinningTexture: function ()
-    {
-        texData = texData || new Float32Array(META.OPTIONS.maxSkeletonJoints * 3 * 4);
-        var globals = this._bindMatrices;
-        var len = globals.length;
-        var j = 0;
-
-        for (var r = 0; r < 3; ++r) {
-            for (var i = 0; i < len; ++i) {
-                var m = globals[i]._m;
-
-                texData[j++] = m[r];
-                texData[j++] = m[r + 4];
-                texData[j++] = m[r + 8];
-                texData[j++] = m[r + 12];
-            }
-
-            for (i = len; i < META.OPTIONS.maxSkeletonJoints; ++i) {
-                texData[j++] = 0.0;
-                texData[j++] = 0.0;
-                texData[j++] = 0.0;
-                texData[j++] = 0.0;
-            }
-        }
-
-        this._skinningTexture.uploadData(texData, META.OPTIONS.maxSkeletonJoints, 3, false, TextureFormat.RGBA, DataType.FLOAT);
     },
 
     clone: function()

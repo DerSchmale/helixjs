@@ -9,9 +9,7 @@ var project = new DemoProject();
 
 window.onload = function ()
 {
-    var options = new HX.InitOptions();
-    options.hdr = true;
-    project.init(document.getElementById('webglContainer'), options);
+    project.init(document.getElementById('webglContainer'));
 };
 
 project.queueAssets = function(assetLibrary)

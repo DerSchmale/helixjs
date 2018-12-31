@@ -71,7 +71,7 @@ function initHDRSettings()
     bloom2.thresholdLuminance = 5.0;
 
     var tonemap = new HX.FilmicToneMapping(true);
-    tonemap.exposure = 1.0;
+    tonemap.exposure = 0.5;
 
     settings.effects = [bloom1, bloom2, tonemap];
     settings.sunIntensity = 10.0;

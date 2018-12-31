@@ -264,18 +264,20 @@ vec3 hx_intersectCubeMap(vec3 rayOrigin, vec3 cubeCenter, vec3 rayDir, float cub
     return rayOrigin + minT * rayDir;
 }
 
-// sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.
+// this exists because hx_jointWeights etc do not necessarily exist and would cause a compilation error when accessed
+// with a macro, this is not an issue
+// But sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.
 #ifdef HX_USE_SKINNING_TEXTURE
-#define HX_RCP_MAX_SKELETON_JOINTS 1.0 / float(HX_MAX_SKELETON_JOINTS - 1)
+#define HX_SKELETON_PIXEL_SIZE (1.0 / float(3 * HX_MAX_SKELETON_JOINTS - 1))
 mat4 hx_getSkinningMatrixImpl(vec4 weights, vec4 indices, sampler2D tex)
 {
     mat4 m = mat4(0.0);
     for (int i = 0; i < 4; ++i) {
         mat4 t;
-        float index = indices[i] * HX_RCP_MAX_SKELETON_JOINTS;
+        float index = indices[i] * HX_SKELETON_PIXEL_SIZE * 3.0;
         t[0] = texture2D(tex, vec2(index, 0.0));
-        t[1] = texture2D(tex, vec2(index, 0.5));
-        t[2] = texture2D(tex, vec2(index, 1.0));
+        t[1] = texture2D(tex, vec2(index + HX_SKELETON_PIXEL_SIZE, 0.0));
+        t[2] = texture2D(tex, vec2(index + 2.0 * HX_SKELETON_PIXEL_SIZE, 0.0));
         t[3] = vec4(0.0, 0.0, 0.0, 1.0);
         m += weights[i] * t;
     }

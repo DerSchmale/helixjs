@@ -431,27 +431,11 @@ BindShapeMatrixSetter.prototype.execute = function (camera, renderItem)
 
 function SkinningMatricesSetter()
 {
-    this._data = new Float32Array(META.OPTIONS.maxSkeletonJoints * 12);
 }
 
 SkinningMatricesSetter.prototype.execute = function (camera, renderItem)
 {
-    var meshInstance = renderItem.meshInstance;
-    var skeleton = meshInstance.skeleton;
-
-    if (skeleton) {
-        // TODO: Could we store the 4x3 format in renderItem.skeletonMatrices?
-        // no need to store actual matrices in this data
-        var matrices = renderItem.skeletonMatrices;
-        var numJoints = skeleton.joints.length;
-        var j = 0;
-
-        for (var i = 0; i < numJoints; ++i) {
-            matrices[i].writeData4x3(this._data, j);
-            j += 12;
-        }
-        GL.gl.uniform4fv(this.location, this._data);
-    }
+    GL.gl.uniform4fv(this.location, renderItem.skeletonMatrices);
 };
 
 function MorphWeightsSetter()

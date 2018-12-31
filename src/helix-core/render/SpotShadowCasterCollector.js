@@ -62,8 +62,6 @@ SpotShadowCasterCollector.prototype.visitEntity = function(entity)
 
 SpotShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance, worldMatrix, worldBounds, renderOrderHint)
 {
-    var skeleton = meshInstance.skeleton;
-    var skeletonMatrices = meshInstance.skeletonMatrices;
     var renderPool = this._renderItemPool;
     var renderList = this._renderList;
     var material = meshInstance.material;
@@ -71,8 +69,7 @@ SpotShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance, 
 
     renderItem.material = material;
     renderItem.meshInstance = meshInstance;
-    renderItem.skeleton = skeleton;
-    renderItem.skeletonMatrices = skeletonMatrices;
+    renderItem.skeletonMatrices = meshInstance.skeletonMatrices;
     renderItem.renderOrderHint = renderOrderHint;
     renderItem.worldMatrix = worldMatrix;
     renderItem.worldBounds = worldBounds;

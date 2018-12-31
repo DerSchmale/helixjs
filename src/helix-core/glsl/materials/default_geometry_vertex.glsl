@@ -119,7 +119,7 @@ void hx_geometry()
     mat4 skinningMatrix = hx_getSkinningMatrix(0);
 
     // first transform to armature space
-    // then apply skinning in skeleton space
+    // then apply skinning in skeleton space (skinningMatrix is always transposed because we dont have a mat4x3!)
     // then transform back to object space
     vec4 animPosition = hx_bindShapeMatrixInverse * ((hx_bindShapeMatrix * morphedPosition) * skinningMatrix);
 

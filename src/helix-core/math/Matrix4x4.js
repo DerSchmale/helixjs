@@ -265,24 +265,30 @@ Matrix4x4.prototype =
     fromQuaternion: function (q)
     {
         var x = q.x, y = q.y, z = q.z, w = q.w;
+        var xx = x * x, yy = y * y, zz = z * z;
+        var xy = x * y, xz = x * z, xw = w * x;
+        var yz = y * z, yw = y * w;
+        var zw = z * w;
 
         var m = this._m;
-        m[0] = 1 - 2 * (y * y + z * z);
-        m[1] = 2 * (x * y + w * z);
-        m[2] = 2 * (x * z - w * y);
+
+        m[0] = 1 - 2 * (yy + zz);
+        m[1] = 2 * (xy + zw);
+        m[2] = 2 * (xz - yw);
         m[3] = 0;
-        m[4] = 2 * (x * y - w * z);
-        m[5] = 1 - 2 * (x * x + z * z);
-        m[6] = 2 * (y * z + w * x);
+        m[4] = 2 * (xy - zw);
+        m[5] = 1 - 2 * (xx + zz);
+        m[6] = 2 * (yz + xw);
         m[7] = 0;
-        m[8] = 2 * (x * z + w * y);
-        m[9] = 2 * (y * z - w * x);
-        m[10] = 1 - 2 * (x * x + y * y);
+        m[8] = 2 * (xz + yw);
+        m[9] = 2 * (yz - xw);
+        m[10] = 1 - 2 * (xx + yy);
         m[11] = 0;
         m[12] = 0;
         m[13] = 0;
         m[14] = 0;
         m[15] = 1;
+
         return this;
     },
 
@@ -888,38 +894,6 @@ Matrix4x4.prototype =
     },
 
     /**
-     * Writes the matrix into an array for upload
-     */
-    writeData: function(array, index)
-    {
-        index = index || 0;
-        var m = this._m;
-        for (var i = 0; i < 16; ++i)
-            array[index + i] = m[i];
-    },
-
-    /**
-     * Writes the matrix into an array for upload, ignoring the bottom row (for affine matrices)
-     */
-    writeData4x3: function(array, index)
-    {
-        var m = this._m;
-        index = index || 0;
-        array[index] = m[0];
-        array[index + 1] = m[4];
-        array[index + 2] = m[8];
-        array[index + 3] = m[12];
-        array[index + 4] = m[1];
-        array[index + 5] = m[5];
-        array[index + 6] = m[9];
-        array[index + 7] = m[13];
-        array[index + 8] = m[2];
-        array[index + 9] = m[6];
-        array[index + 10] = m[10];
-        array[index + 11] = m[14];
-    },
-
-    /**
      * Inverts the matrix. If the matrix is not invertible, the method returns null and the matrix remains unchanged.
      * Otherwise, it returns itself.
      */
@@ -1456,18 +1430,53 @@ Matrix4x4.prototype =
      */
     compose: function(transformOrPosition, rotation, scale)
     {
+        var m = this._m;
+        m[3] = 0;
+        m[7] = 0;
+        m[11] = 0;
+        m[15] = 1;
+
         // if rotation was provided, the first is a position
         var position = rotation? transformOrPosition : transformOrPosition.position;
         rotation = rotation || transformOrPosition.rotation;
         scale = scale || transformOrPosition.scale;
 
-        if (scale)
-            this.fromScale(scale);
-        else
-            this.copyFrom(Matrix4x4.IDENTITY);
+        // a bunch of inlining
+        var qx = rotation.x, qy = rotation.y, qz = rotation.z, qw = rotation.w;
+        var xx = qx * qx, yy = qy * qy, zz = qz * qz;
+        var xy = qx * qy, xz = qx * qz, xw = qw * qx;
+        var yz = qy * qz, yw = qy * qw;
+        var zw = qz * qw;
 
-        this.appendQuaternion(rotation);
-        this.appendTranslation(position);
+        m[0] = 1 - 2 * (yy + zz);
+        m[1] = 2 * (xy + zw);
+        m[2] = 2 * (xz - yw);
+        m[4] = 2 * (xy - zw);
+        m[5] = 1 - 2 * (xx + zz);
+        m[6] = 2 * (yz + xw);
+        m[8] = 2 * (xz + yw);
+        m[9] = 2 * (yz - xw);
+        m[10] = 1 - 2 * (xx + yy);
+
+        if (scale) {
+            var sx = scale.x;
+            var sy = scale.y;
+            var sz = scale.z;
+            m[0] *= sx;
+            m[1] *= sx;
+            m[2] *= sx;
+            m[4] *= sy;
+            m[5] *= sy;
+            m[6] *= sy;
+            m[8] *= sz;
+            m[9] *= sz;
+            m[10] *= sz;
+        }
+
+        m[12] = position.x;
+        m[13] = position.y;
+        m[14] = position.z;
+
         return this;
     },
 

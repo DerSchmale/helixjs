@@ -349,22 +349,18 @@ Material.prototype =
                 this.needsBackBuffer = true;
 
             for (var slotName in this._textures) {
-                if (this._textures.hasOwnProperty(slotName)) {
-                    var texture = this._textures[slotName];
-                    if (texture instanceof Array)
-                        pass.setTextureArray(slotName, texture);
-                    else
-                        pass.setTexture(slotName, texture);
-                }
+                var texture = this._textures[slotName];
+                if (texture instanceof Array)
+                    pass.setTextureArray(slotName, texture);
+                else
+                    pass.setTexture(slotName, texture);
             }
 
             for (var uniformName in this._uniforms) {
-                if (this._uniforms.hasOwnProperty(uniformName)) {
-                    if (uniformName.charAt(uniformName.length - 1) === ']')
-                        pass.setUniformArray(uniformName.substr(0, uniformName.length - 3), this._uniforms[uniformName]);
-                    else
-                        pass.setUniform(uniformName, this._uniforms[uniformName]);
-                }
+                if (uniformName.charAt(uniformName.length - 1) === ']')
+                    pass.setUniformArray(uniformName.substr(0, uniformName.length - 3), this._uniforms[uniformName]);
+                else
+                    pass.setUniform(uniformName, this._uniforms[uniformName]);
             }
         }
 

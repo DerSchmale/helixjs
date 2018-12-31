@@ -129,6 +129,7 @@ OmniShadowCasterCollector.prototype._addTo = function(meshInstance, cubeFace, wo
     renderItem.skeletonMatrices = meshInstance.skeletonMatrices;
     renderItem.renderOrderHint = renderOrderHint;
     renderItem.worldBounds = worldBounds;
+    renderItem.worldMatrix = worldMatrix;
 
     renderList.push(renderItem);
 };

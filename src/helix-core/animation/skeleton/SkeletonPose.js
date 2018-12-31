@@ -186,7 +186,7 @@ SkeletonPose.prototype = {
             global.compose(pose);
 
             if (parentIndex !== -1)
-                global.append(globals[parentIndex]);
+                global.appendAffine(globals[parentIndex]);
 
             if (skeleton.applyInverseBindPose)
                 binds[i].multiplyAffine(global, joint.inverseBindPose);

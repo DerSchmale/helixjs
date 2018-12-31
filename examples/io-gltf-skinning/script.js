@@ -11,7 +11,6 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.hdr = true;
-    options.debug = true;
     project.init(document.getElementById('webglContainer'), options);
 };
 

@@ -9,7 +9,7 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.hdr = true;
-    options.debug = true;
+    options.renderMotionVectors = true;
     options.defaultLightingModel = HX.LightingModel.GGX_FULL;
     project.init(document.getElementById('webglContainer'), options);
 };
@@ -70,7 +70,7 @@ function initScene(scene, assetLibrary)
     entity.addComponent(new HX.MeshInstance(primitive, redMaterial));
 
     var rotator = new AnimateRotateComponent();
-    rotator.speed = -30.0;
+    rotator.speed = -40.0;
     entity.addComponent(rotator);
     scene.attach(entity);
 

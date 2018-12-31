@@ -1,6 +1,6 @@
 {
   "name": "helix3d",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "JavaScript 3D game engine",
   "main": "build/helix.js",
   "devDependencies": {

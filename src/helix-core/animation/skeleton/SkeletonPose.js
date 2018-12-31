@@ -188,12 +188,27 @@ SkeletonPose.prototype = {
             if (parentIndex !== -1)
                 global.appendAffine(globals[parentIndex]);
 
+            var j = i * 12;
+            var g;
             if (skeleton.applyInverseBindPose) {
                 workMat.multiplyAffine(global, joint.inverseBindPose);
-                workMat.writeData4x3(binds, i * 12);
+                g = workMat._m;
             }
             else
-                global.writeData4x3(binds, i * 12);
+                g = global._m;
+
+            binds[j] = g[0];
+            binds[j + 1] = g[4];
+            binds[j + 2] = g[8];
+            binds[j + 3] = g[12];
+            binds[j + 4] = g[1];
+            binds[j + 5] = g[5];
+            binds[j + 6] = g[9];
+            binds[j + 7] = g[13];
+            binds[j + 8] = g[2];
+            binds[j + 9] = g[6];
+            binds[j + 10] = g[10];
+            binds[j + 11] = g[14];
         }
 
         if (META.OPTIONS.useSkinningTexture)

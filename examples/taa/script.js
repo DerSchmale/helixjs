@@ -65,6 +65,7 @@ function initCamera(camera)
     camera.addComponent(controller);
 
     taa = new HX.TAA();
+    taa.alpha = 0.01;
     fxaa = new HX.FXAA();
     camera.addComponent(taa);
     camera.addComponent(fxaa);
@@ -90,7 +91,7 @@ function initScene(scene, camera, assetLibrary)
     var material = new HX.BasicMaterial();
     material.cullMode = HX.CullMode.NONE;
     material.metallicness = 1.0;
-    material.roughness = .01;
+    material.roughness = .1;
     replaceMaterials(model, material, floorMaterial);
 
     scene.startSystem(new HX.FixedLightsSystem());
@@ -123,5 +124,5 @@ function initGui()
 
     var taaFolder = gui.addFolder("TAA");
     taaFolder.add(taa, "alpha").min(0).max(1).step(.001);
-    taaFolder.add(taa, "gamma").min(0).max(1).step(.001);
+    taaFolder.add(taa, "gamma").min(0).max(2).step(.001);
 }

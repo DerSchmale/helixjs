@@ -262,7 +262,7 @@ Mesh.prototype = {
     extractAttributeData: function(name)
     {
         var attrib = this.getVertexAttributeByName(name);
-        var stride = this.getVertexStride(attrib);
+        var stride = this.getVertexStride(attrib.streamIndex);
         var data = this.getVertexData(attrib.streamIndex);
         var numComps = attrib.numComponents;
         var vertData = [];
@@ -430,12 +430,12 @@ Mesh.prototype = {
         var attrib = this.getVertexAttributeByName("hx_position");
         if (!attrib) return;
 
-        var stride = this.getVertexStride(attrib);
+        var stride = this.getVertexStride(attrib.streamIndex);
         var data = this.getVertexData(attrib.streamIndex);
         for (var i = attrib.offset; i < data.length; i += stride) {
             data[i] += x;
-            data[i + 1] += x;
-            data[i + 2] += x;
+            data[i + 1] += y;
+            data[i + 2] += z;
         }
 
         this._vertexBuffers[attrib.streamIndex].uploadData(this._vertexData[attrib.streamIndex], this._vertexUsage);

@@ -51,7 +51,7 @@ Component.register = function(name, classRef)
 	classRef.prototype.COMPONENT_NAME = classRef.COMPONENT_NAME;
 	if (classRef.dependencies) {
 		classRef.prototype.DEPENDENCY_HASH = new Bitfield();
-		for (var i = 0, len = classRef.dependencies; i < len; ++i) {
+		for (var i = 0, len = classRef.dependencies.length; i < len; ++i) {
 			classRef.prototype.DEPENDENCY_HASH.setBit(classRef.dependencies[i].COMPONENT_ID);
 		}
 	}

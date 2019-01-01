@@ -47,6 +47,6 @@ function DebugAxes()
 }
 
 
-DebugAxes.prototype = Object.create(SceneNode.prototype);
+DebugAxes.prototype = Object.create(Entity.prototype);
 
 export { DebugAxes };

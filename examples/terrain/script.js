@@ -3,7 +3,6 @@
  */
 
 var project = new DemoProject();
-var physics = false;
 var lights;
 var heightData;
 
@@ -55,11 +54,6 @@ project.onInit = function()
 {
 	initCamera();
 	initScene();
-
-	if (physics) {
-		var system = new HX_PHYS.PhysicsSystem();
-		this.scene.startSystem(system);
-	}
 };
 
 project.onUpdate = function(dt)
@@ -69,10 +63,7 @@ project.onUpdate = function(dt)
     pos.x = HX.MathX.clamp(pos.x, -bound, bound);
     pos.y = HX.MathX.clamp(pos.y, -bound, bound);
 
-	var height = waterLevel;
-
-	if (!physics)
-		height = Math.max(height, heightData.getValue(pos.x, pos.y, 0)  * (maxHeight - minHeight) + minHeight);
+	var height = Math.max(waterLevel, heightData.getValue(pos.x, pos.y, 0)  * (maxHeight - minHeight) + minHeight);
 
     pos.z = Math.max(pos.z, height + 1.7);
 
@@ -89,33 +80,12 @@ function initCamera()
     camera.nearDistance = 0.1;
     camera.farDistance = 8000.0;
 
-    if (physics) {
-		var controller = new FPSController();
-		controller.walkAcceleration = 2000.0;
-		controller.runAcceleration = 20000.0;
-		controller.jumpForce = 5.0;
+	controller = new FloatController();
+	controller.shiftMultiplier = 100;
+	camera.addComponent(controller)
 
-
-		var rigidBody = new HX_PHYS.RigidBody(
-			new HX_PHYS.CapsuleCollider(0.5, 2, new HX.Float4(0, 0, -.9)),
-			undefined,
-			new HX_PHYS.PhysicsMaterial(0.12, 0.0)
-		);
-
-		rigidBody.linearDamping = 0.8;
-		rigidBody.mass = 70;
-		// important so the player capsule does not rotate along with the "head"
-		rigidBody.ignoreRotation = true;
-		camera.addComponents([controller, rigidBody])
-	}
-	else {
-		controller = new FloatController();
-		controller.shiftMultiplier = 100;
-		camera.addComponent(controller)
-	}
-
-	// var fog = new HX.Fog(0.001, new HX.Color(0x1155ff), 0.0015, 0);
 	var fog = new HX.Fog(0.0005, new HX.Color(0x4080ff), 0.001, 0);
+	fog.applyToSkybox = true;
 	var toneMap = new HX.FilmicToneMapping();
 	toneMap.exposure = 0.0;
 	camera.addComponents([fog, toneMap]);
@@ -185,16 +155,6 @@ function initTerrain(heightMap, terrainMap)
 
 	var subdiv = HX.Platform.isMobile? 32 : 128;
 	terrain = new HX.Terrain(heightMap, 10000, worldSize, minHeight, maxHeight, terrainMaterial, subdiv);
-
-	if (physics) {
-		var rigidBody = new HX_PHYS.RigidBody(
-			new HX_PHYS.HeightfieldCollider(heightMap, worldSize, minHeight, maxHeight),
-			0,
-			new HX_PHYS.PhysicsMaterial(0.12, 0.0)
-		);
-		terrain.addComponent(rigidBody);
-	}
-
 	scene.attach(terrain);
 }
 

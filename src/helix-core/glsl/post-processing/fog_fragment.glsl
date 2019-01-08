@@ -20,7 +20,7 @@ void main()
 	vec4 color = texture2D(hx_backBuffer, uv);
 	float depth = hx_decodeLinearDepth(normalDepth);
 	// do not fog up skybox, or should we allow this optionally
-	if (!applyToSkybox && normalDepth.z == 1.0 && normalDepth.w == 1.0)
+	if (normalDepth.z == 1.0 && normalDepth.w == 1.0)
 	    depth = 0.0;
 	float absViewY = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;
 	vec3 viewVec = viewDir * absViewY;

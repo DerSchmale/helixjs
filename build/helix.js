@@ -3668,18 +3668,6 @@
 
 	ShaderLibrary._files['sh_skybox_fragment.glsl'] = 'varying_in vec3 viewWorldDir;\n\nuniform vec3 hx_sh[9];\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n    data.color = vec4(hx_evaluateSH(hx_sh, normalize(viewWorldDir.xzy)), 1.0);\n    data.emission = vec3(0.0);\n    return data;\n}';
 
-	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
-
-	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
-
-	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
-
-	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
-
-	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
-
 	ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backBuffer;\nuniform float strength;\n\nvoid main()\n{\n	hx_FragColor = texture2D(hx_backBuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
 	ShaderLibrary._files['bloom_composite_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
@@ -3688,7 +3676,7 @@
 
 	ShaderLibrary._files['default_post_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
 
-	ShaderLibrary._files['fog_fragment.glsl'] = 'varying_in vec2 uv;\nvarying_in vec3 viewDir;\n\nuniform vec3 tint;\nuniform float density;\nuniform float startDistance;\nuniform float heightFallOff;\nuniform bool applyToSkybox;\n\nuniform float hx_cameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\nuniform vec3 hx_cameraWorldPosition;\n\nuniform sampler2D hx_normalDepthBuffer;\nuniform sampler2D hx_backBuffer;\n\nvoid main()\n{\n    vec4 normalDepth = texture2D(hx_normalDepthBuffer, uv);\n	vec4 color = texture2D(hx_backBuffer, uv);\n	float depth = hx_decodeLinearDepth(normalDepth);\n	// do not fog up skybox, or should we allow this optionally\n	if (!applyToSkybox && normalDepth.z == 1.0 && normalDepth.w == 1.0)\n	    depth = 0.0;\n	float absViewY = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n	vec3 viewVec = viewDir * absViewY;\n    float viewLen = length(viewVec);\n    float dist = max(viewLen - startDistance, 0.0);\n    float h = hx_cameraWorldPosition.z, z = viewVec.z / viewLen; // z-slope of normalized direction\n	// a = density, b = falloff, h = o.z (origin height), z = d.z (dir height slope), m = distance to point\n	// the density function is: f(p) = a * exp(-b * p.z) or:\n    // f(t) = ae ^ (-b(zt + h))\n	// anti-derivative:\n	// F(t) = -ae ^ (-b(zt + h)) / bz + C\n\n	float e0 = exp(-heightFallOff * h);\n	float em = exp(-heightFallOff * (z * dist + h));\n	float optThickness = density * (e0 - em) / (heightFallOff * z);\n 	float fog = clamp(exp(-optThickness), 0.0, 1.0);\n\n    // \"fog\" is actually an extinction parameter, so the lower the value, the less original colour\n	color.xyz = mix(tint, color.xyz, fog);\n	hx_FragColor = color;\n}';
+	ShaderLibrary._files['fog_fragment.glsl'] = 'varying_in vec2 uv;\nvarying_in vec3 viewDir;\n\nuniform vec3 tint;\nuniform float density;\nuniform float startDistance;\nuniform float heightFallOff;\nuniform bool applyToSkybox;\n\nuniform float hx_cameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\nuniform vec3 hx_cameraWorldPosition;\n\nuniform sampler2D hx_normalDepthBuffer;\nuniform sampler2D hx_backBuffer;\n\nvoid main()\n{\n    vec4 normalDepth = texture2D(hx_normalDepthBuffer, uv);\n	vec4 color = texture2D(hx_backBuffer, uv);\n	float depth = hx_decodeLinearDepth(normalDepth);\n	// do not fog up skybox, or should we allow this optionally\n	if (normalDepth.z == 1.0 && normalDepth.w == 1.0)\n	    depth = 0.0;\n	float absViewY = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n	vec3 viewVec = viewDir * absViewY;\n    float viewLen = length(viewVec);\n    float dist = max(viewLen - startDistance, 0.0);\n    float h = hx_cameraWorldPosition.z, z = viewVec.z / viewLen; // z-slope of normalized direction\n	// a = density, b = falloff, h = o.z (origin height), z = d.z (dir height slope), m = distance to point\n	// the density function is: f(p) = a * exp(-b * p.z) or:\n    // f(t) = ae ^ (-b(zt + h))\n	// anti-derivative:\n	// F(t) = -ae ^ (-b(zt + h)) / bz + C\n\n	float e0 = exp(-heightFallOff * h);\n	float em = exp(-heightFallOff * (z * dist + h));\n	float optThickness = density * (e0 - em) / (heightFallOff * z);\n 	float fog = clamp(exp(-optThickness), 0.0, 1.0);\n\n    // \"fog\" is actually an extinction parameter, so the lower the value, the less original colour\n	color.xyz = mix(tint, color.xyz, fog);\n	hx_FragColor = color;\n}';
 
 	ShaderLibrary._files['fog_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\nvarying_out vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\nuniform mat4 hx_cameraWorldMatrix;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    viewDir = mat3(hx_cameraWorldMatrix) * hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n    gl_Position = hx_position;\n}';
 
@@ -3713,6 +3701,18 @@
 	ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backBuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backBuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	hx_FragColor = vec4(l, l, l, 1.0);\n}';
 
 	ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	hx_FragColor = color / (1.0 + lum);\n}';
+
+	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
+
+	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
+
+	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
+
+	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
+
+	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
 
 	ShaderLibrary._files['esm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readValue(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readValue(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValue(uv + offset) + readValue(uv - offset);\n	}\n\n//	hx_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	hx_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
 

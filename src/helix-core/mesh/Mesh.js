@@ -191,7 +191,8 @@ Mesh.prototype = {
     },
 
     /**
-     * Uploads index data from an Array or a Uint16Array
+     * Uploads index data from an Array, a Uint16Array, or a Uint32Array (only recommended if the number of vertices
+     * exceeds 65535)
      */
     setIndexData: function (data, usageHint)
     {

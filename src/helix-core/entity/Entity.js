@@ -349,10 +349,6 @@ Entity.prototype.copyFrom = function(src)
 	SceneNode.prototype.copyFrom.call(this, src);
 	this.static = src.static;
 	this.ignoreSpatialPartition = src.ignoreSpatialPartition;
-
-	for (var i = 0, len = src._components.length; i < len; ++i) {
-		this.addComponent(src._components[i].clone());
-	}
 };
 
 /**
@@ -362,6 +358,10 @@ Entity.prototype.clone = function()
 {
 	var clone = new Entity();
 	clone.copyFrom(this);
+
+	for (var i = 0, len = this._components.length; i < len; ++i)
+		clone.addComponent(this._components[i].clone());
+
 	return clone;
 };
 

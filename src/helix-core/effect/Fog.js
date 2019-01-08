@@ -36,7 +36,8 @@ function Fog(density, tint, heightFallOff, startDistance)
     if (tint !== undefined)
         this.tint = tint;
     this.startDistance = startDistance === undefined? 0 : startDistance;
-    this.heightFallOff = heightFallOff === undefined? 0.01 : heightFallOff;
+    this.heightFallOff = heightFallOff === undefined? 0.002 : heightFallOff;
+    this.applyToSkybox = false;
 }
 
 Fog.prototype = Object.create(Effect.prototype,
@@ -90,6 +91,18 @@ Fog.prototype = Object.create(Effect.prototype,
             {
                 this._heightFallOff = value;
                 this._fogPass.setUniform("heightFallOff", value);
+            }
+        },
+
+        applyToSkybox: {
+            get: function()
+            {
+                return this._applyToSkybox;
+            },
+            set: function(value)
+            {
+                this._applyToSkybox = value;
+                this._fogPass.setUniform("applyToSkybox", value? 1 : 0);
             }
         }
     }

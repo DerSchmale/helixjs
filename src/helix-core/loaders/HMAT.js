@@ -35,6 +35,7 @@ HMAT.prototype = Object.create(Importer.prototype);
 HMAT.prototype.parse = function(data, target)
 {
     target = target || new Material();
+    data = data.replace(/\s+\/\/.*[\n|\r\n]/g, "\n");
     data = JSON.parse(data);
 
     if (data.class) {

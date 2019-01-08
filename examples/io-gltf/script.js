@@ -39,7 +39,7 @@ project.onInit = function()
 	dirLight.lookAt(new HX.Float4(-1, -1, -1));
     this.scene.attach(dirLight);
 
-    var skyboxTexture = this.assetLibrary.get("skybox");
+        var skyboxTexture = this.assetLibrary.get("skybox");
     var irradiance = this.assetLibrary.get("irradiance");
 
     // use it as skybox

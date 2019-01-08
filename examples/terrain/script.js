@@ -8,11 +8,11 @@ var lights;
 var heightData;
 
 var worldSize = 20000;
-var waterLevel = 467;
-var minHeight = 0;
-var maxHeight = 4000;
-var treeLineStart = 1000;
-var treeLineEnd = 2000;
+var waterLevel = 0;
+var minHeight = -467;
+var maxHeight = 3533;
+var treeLineStart = 533;
+var treeLineEnd = 1533;
 var terrain = null;
 var numFoliageCells = 64;
 var grassEntity;
@@ -114,7 +114,8 @@ function initCamera()
 		camera.addComponent(controller)
 	}
 
-	var fog = new HX.Fog(0.001, new HX.Color(0x1155ff), 0.005, 0);
+	// var fog = new HX.Fog(0.001, new HX.Color(0x1155ff), 0.0015, 0);
+	var fog = new HX.Fog(0.0005, new HX.Color(0x4080ff), 0.001, 0);
 	var toneMap = new HX.FilmicToneMapping();
 	toneMap.exposure = 0.0;
 	camera.addComponents([fog, toneMap]);

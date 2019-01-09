@@ -2,7 +2,7 @@ function SunComponent()
 {
     HX.Component.call(this);
     this._dirLight = new HX.DirectionalLight();
-    this._dirLight.intensity = 20.0;
+    this._dirLight.intensity = 10.0;
 
     // this just simplfies things to a circular orbit
     this._inclination = 23.5 * HX.MathX.DEG_TO_RAD;    // relative to the orbital plane and the north celestial pole (this is generally "north as well")

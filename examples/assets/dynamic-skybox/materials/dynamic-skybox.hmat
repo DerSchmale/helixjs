@@ -11,11 +11,15 @@
     "uniforms": {
         "sunAngleSize": 0.03,
         "sunSoftness": 0.01,
-        "rayleighFactors": [ 0.0000058, 0.0000135, 0.0000331 ],
-        "rayleighExtinction": [ 0.0000058, 0.0000135, 0.0000331 ],
-        "intensity": 20.0,
+        "rayleighScattering": [ 0.0000058, 0.0000135, 0.0000331 ],
+        "rayleighExtinctionFactor": 1,
+        "rayleighHeightFalloff": 0.000125,
+        "mieScattering": 0.000002,
+        "mieCoefficient": 0.5,
+        "mieExtinctionFactor": 1.11,
+        "mieHeightFalloff": 0.000833,
+        "intensity": 10.0,
         "earthRadius": 6371000.0,
-        "atmosphereRadius": 6386000.0
-
+        "atmosphereRadius": 6426000.0
     }
 }

@@ -7,6 +7,10 @@ var skyboxTexture;
 var sun;
 var cubeSize = 1024;
 var cubeRenderer, cubeScene, cubeCam, cubeSun;
+var settings = {
+    mieScattering: 0.5,
+    mieFactor: -0.3
+};
 
 project.queueAssets = function(assetLibrary)
 {
@@ -32,7 +36,8 @@ project.onInit = function()
     initScene(this.scene, this.assetLibrary);
     initGUI();
 
-    this.camera.addComponent(new HX.Bloom());
+    this.camera.addComponent(new HX.FilmicToneMapping(true));
+    // this.camera.addComponent(new HX.Bloom());
 };
 
 function initSun(scene)
@@ -65,6 +70,10 @@ function initSkybox(assetLibrary)
 
 function renderSkybox()
 {
+    var g = settings.mieFactor;
+    var material = project.assetLibrary.get("skybox-material");
+    material.setUniform("mieCoefficient", 1.55 * g - 0.55 * g * g * g);
+    material.setUniform("mieScattering", settings.mieScattering / 100000.0);
     cubeSun.matrix = sun.matrix;
     cubeRenderer.render(cubeCam, cubeScene);
 }
@@ -89,7 +98,10 @@ function initGUI()
     var sunComp = sun.components.sun[0];
     var gui = new dat.gui.GUI();
     gui.remember(sun.components.sun);
+    gui.remember(settings);
     gui.add(sunComp, "timeOfDay").min(0).max(24).onChange(renderSkybox).step(.0001);
     gui.add(sunComp, "dayOfYear").min(0).max(365).onChange(renderSkybox).step(.0001);
     gui.add(sunComp, "latitude").min(-90).max(90).onChange(renderSkybox).step(.0001);
+    gui.add(settings, "mieFactor").min(-.9).max(.9).onChange(renderSkybox).step(.0001);
+    gui.add(settings, "mieScattering").min(0.0).max(10.0).onChange(renderSkybox).step(.0001);
 }

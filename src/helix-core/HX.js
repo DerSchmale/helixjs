@@ -56,6 +56,7 @@ export {SceneNode} from "./scene/SceneNode";
 export {Scene} from "./scene/Scene";
 export {SceneVisitor} from "./scene/SceneVisitor";
 export {Skybox} from "./scene/Skybox";
+export {DynamicSkybox} from "./scene/DynamicSkybox";
 export {QuadPartitioning} from "./scene/QuadPartitioning";
 
 export {Foliage} from "./terrain/Foliage";

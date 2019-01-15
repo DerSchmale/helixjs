@@ -66,7 +66,10 @@ EffectPass.prototype.draw = function(renderer)
  */
 EffectPass.prototype.updateRenderState = function(renderer)
 {
-	var cam = renderer._camera;
+	var cam;
+	if (renderer)
+		cam = renderer._camera;
+
 	this.updateInstanceRenderState(cam);
 	this.updatePassRenderState(cam, renderer);
 	GL.setVertexLayout(this._vertexLayout);

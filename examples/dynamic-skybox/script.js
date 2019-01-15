@@ -3,18 +3,11 @@
  */
 
 var project = new DemoProject();
-var skyboxTexture;
+var skybox;
 var sun;
-var cubeSize = 1024;
-var cubeRenderer, cubeScene, cubeCam, cubeSun;
-var settings = {
-    mieScattering: 0.5,
-    mieFactor: -0.3
-};
 
 project.queueAssets = function(assetLibrary)
 {
-    assetLibrary.queueAsset("skybox-material", "dynamic-skybox/materials/dynamic-skybox.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
 
 };
 
@@ -31,62 +24,21 @@ project.onInit = function()
     var controller = new OrbitController();
     this.camera.addComponent(controller);
 
-    initSun(this.scene);
-    initSkybox(this.assetLibrary);
     initScene(this.scene, this.assetLibrary);
     initGUI();
 
-    this.camera.addComponent(new HX.FilmicToneMapping(true));
+    // this.camera.addComponent(new HX.FilmicToneMapping(true));
     // this.camera.addComponent(new HX.Bloom());
 };
 
-function initSun(scene)
+
+function initScene(scene, assetLibrary)
 {
     sun = new HX.Entity();
     sun.addComponent(new SunComponent());
     scene.attach(sun);
-}
 
-function initSkybox(assetLibrary)
-{
-    skyboxTexture = new HX.TextureCube();
-    skyboxTexture.initEmpty(cubeSize, HX.TextureFormat.RGBA, HX.capabilities.HDR_DATA_TYPE);
-    cubeRenderer = new HX.CubeRenderer(skyboxTexture);
-    cubeScene = new HX.Scene();
-    cubeCam = new HX.CubeCamera();
-
-    var cube = new HX.BoxPrimitive({invert: true});
-    var material = assetLibrary.get("skybox-material");
-    var entity = new HX.Entity();
-    entity.addComponent(new HX.MeshInstance(cube, material));
-    cubeScene.attach(entity);
-
-    cubeSun = new HX.Entity();
-    cubeSun.addComponent(sun.components.light[0].clone());
-    cubeScene.attach(cubeSun);
-
-    renderSkybox();
-}
-
-function renderSkybox()
-{
-    var g = settings.mieFactor;
-    var material = project.assetLibrary.get("skybox-material");
-    material.setUniform("mieCoefficient", 1.55 * g - 0.55 * g * g * g);
-    material.setUniform("mieScattering", settings.mieScattering / 100000.0);
-    cubeSun.matrix = sun.matrix;
-    cubeRenderer.render(cubeCam, cubeScene);
-}
-
-function initScene(scene, assetLibrary)
-{
-    // debug:
-    // var prim = new HX.SpherePrimitive({radius: .01});
-    // var mat = new HX.BasicMaterial();
-    // sun.addComponent(new HX.MeshInstance(prim, mat));
-
-    // use it as skybox
-    var skybox = new HX.Skybox(skyboxTexture);
+    skybox = new HX.DynamicSkybox(sun.components.light[0]);
     scene.skybox = skybox;
 
     var debugAxes = new HX.DebugAxes();
@@ -98,10 +50,10 @@ function initGUI()
     var sunComp = sun.components.sun[0];
     var gui = new dat.gui.GUI();
     gui.remember(sun.components.sun);
-    gui.remember(settings);
-    gui.add(sunComp, "timeOfDay").min(0).max(24).onChange(renderSkybox).step(.0001);
-    gui.add(sunComp, "dayOfYear").min(0).max(365).onChange(renderSkybox).step(.0001);
-    gui.add(sunComp, "latitude").min(-90).max(90).onChange(renderSkybox).step(.0001);
-    gui.add(settings, "mieFactor").min(-.9).max(.9).onChange(renderSkybox).step(.0001);
-    gui.add(settings, "mieScattering").min(0.0).max(10.0).onChange(renderSkybox).step(.0001);
+    gui.remember(skybox);
+    gui.add(sunComp, "timeOfDay").min(0).max(24).step(.0001);
+    gui.add(sunComp, "dayOfYear").min(0).max(365).step(.0001);
+    gui.add(sunComp, "latitude").min(-90).max(90).step(.0001);
+    gui.add(skybox, "mieCoefficient").min(0.0).max(.9).step(.0001);
+    gui.add(skybox, "mieScattering").min(0.0).max(1.0e-4).step(1e-7);
 }

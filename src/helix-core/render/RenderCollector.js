@@ -89,8 +89,10 @@ RenderCollector.prototype.qualifies = function(object, forceBounds)
 RenderCollector.prototype.visitScene = function(scene)
 {
     var skybox = scene.skybox;
-    if (skybox)
-        this.visitMeshInstance(skybox._meshInstance);
+    if (skybox) {
+		skybox._update();
+        this.visitEntity(skybox);
+	}
 };
 
 RenderCollector.prototype.visitEntity = function(entity)

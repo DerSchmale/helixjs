@@ -4,7 +4,7 @@ import {Bitfield} from "../core/Bitfield";
 import {BoundingAABB} from "../scene/BoundingAABB";
 import {MeshInstance} from "../mesh/MeshInstance";
 import {Messenger} from "../core/Messenger";
-import {META, onPostFrame} from "../Helix";
+import {META} from "../Helix";
 import {Matrix4x4} from "../math/Matrix4x4";
 
 /**
@@ -18,6 +18,7 @@ import {Matrix4x4} from "../math/Matrix4x4";
  * @property {BoundingVolume} worldBounds The bounding volume for this entity in world coordinates. This does not include
  * children.
  * @property {boolean} static Whether or not this Entity can move or not.
+ * @property {Signal} onWorldMatrixInvalidated A {@linkcode Signal} dispatched whenever the transformation matrix is invalidated.
  *
  * @property {Messenger} messenger The Messenger to which elements can listen for certain names Signals related to this Entity.
  *
@@ -77,6 +78,7 @@ Entity.prototype = Object.create(SceneNode.prototype, {
 			return this._worldBounds;
 		}
 	},
+
 	bounds: {
 		get: function()
 		{
@@ -103,6 +105,14 @@ Entity.prototype = Object.create(SceneNode.prototype, {
 			if (value)
 				// store transform once
 				this._storePrevTransform();
+		}
+	},
+	onWorldMatrixInvalidated: {
+		get: function()
+		{
+			if (!this._onWorldMatrixInvalidated)
+				this._onWorldMatrixInvalidated = new Signal();
+			return this._onWorldMatrixInvalidated;
 		}
 	}
 });
@@ -169,6 +179,9 @@ Entity.prototype._invalidateWorldMatrix = function()
 	this._SceneNode_invalidateWorldMatrix();
 
 	this._invalidateWorldBounds();
+
+	if (this._onWorldMatrixInvalidated)
+		this._onWorldMatrixInvalidated.dispatch();
 };
 
 /**

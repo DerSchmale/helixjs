@@ -67,6 +67,14 @@ Skybox.prototype = Object.create(Entity.prototype, {
 /**
  * @ignore
  */
+Skybox.prototype._update = function()
+{
+
+};
+
+/**
+ * @ignore
+ */
 Skybox.prototype.setTexture = function(texture)
 {
 	this.material.setTexture("hx_skybox", texture);

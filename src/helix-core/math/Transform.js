@@ -41,6 +41,8 @@ function Transform()
 	this._rotationChangeListener.add(this._rotation, "z");
 	this._rotationChangeListener.add(this._rotation, "w");
 	this._rotationChangeListener.onChange.bind(this._onRotationChanged, this);
+
+    this._onMatrixInvalid = null;
 }
 
 Transform.prototype =
@@ -51,7 +53,6 @@ Transform.prototype =
     get position() {
         return this._position;
     },
-
 
     set position(value) {
         // make sure position object never changes

@@ -3586,6 +3586,16 @@
 	    }
 	};
 
+	ShaderLibrary._files['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    hx_FragColor = color;\n}';
+
+	ShaderLibrary._files['debug_bounds_vertex.glsl'] = '\nvertex_attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
+
+	ShaderLibrary._files['debug_depth_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n    float depth = hx_decodeLinearDepth(texture2D(sampler, uv));\n    // swizzle so that it looks more naturally like tangent space normal maps\n    hx_FragColor = vec4(depth, depth, depth, 1.0);\n}\n';
+
+	ShaderLibrary._files['debug_motion_vector_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n    vec2 velocity = hx_decodeMotionVector(texture2D(sampler, uv));\n    // swizzle so that it looks more naturally like tangent space normal maps\n    hx_FragColor = vec4(velocity.xy * .5 + .5, 0.0, 1.0);\n}';
+
+	ShaderLibrary._files['debug_normals_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n    vec3 normal = hx_decodeNormal(texture2D(sampler, uv));\n    // swizzle so that it looks more naturally like tangent space normal maps\n    hx_FragColor = vec4(normal.xzy * vec3(.5, .5, -.5) + .5, 1.0);\n}';
+
 	ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    int castShadows;\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            if (viewPos.y < light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    vec4 shadowMapCoord = shadowMatrix * vec4(viewPos, 1.0);\n    float shadow = hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n\n    // this can occur when meshInstance.castShadows = false, or using inherited bounds\n    bool isOutside = max(shadowMapCoord.x, shadowMapCoord.y) > 1.0 || min(shadowMapCoord.x, shadowMapCoord.y) < 0.0;\n    if (isOutside) shadow = 1.0;\n\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.y > light.maxShadowDistance));\n}\n#endif';
 
 	ShaderLibrary._files['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_PROBE_K1 .9921\n\nstruct HX_DiffuseProbe\n{\n    vec3 sh[9]; // rotated to be in view space\n    vec3 position;\n    float intensity;\n    float sizeSqr;\n};\n\nstruct HX_SpecularProbe\n{\n    vec3 position;\n    float intensity;\n    float sizeSqr;\n    float numMips;\n};\n\nfloat hx_getProbeWeight(vec3 viewPos, vec3 pos, float sizeSqr)\n{\n    vec3 diff = viewPos - pos;\n    float distSqr = dot(diff, diff);\n    float weight = 1.0 / distSqr;\n\n    if (sizeSqr > 0.0)\n        weight *= saturate(1.0 - distSqr / sizeSqr);\n\n    return weight;\n}\n\n\nfloat hx_getProbeWeight(HX_SpecularProbe probe, vec3 viewPos)\n{\n    return hx_getProbeWeight(viewPos, probe.position, probe.sizeSqr);\n}\n\nfloat hx_getProbeWeight(HX_DiffuseProbe probe, vec3 viewPos)\n{\n    return hx_getProbeWeight(viewPos, probe.position, probe.sizeSqr);\n}\n\nvec3 hx_calculateSpecularProbeLight(HX_SpecularProbe probe, samplerCube texture, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)\n{\n    #ifdef HX_SKIP_SPECULAR\n        return vec3(0.0);\n    #endif\n\n    #if defined(HX_TEXTURE_LOD) || defined (HX_GLSL_300_ES)\n    // knald method:\n        float power = 2.0/(roughness * roughness) - 2.0;\n        float factor = (exp2(-10.0/sqrt(power)) - HX_PROBE_K0)/HX_PROBE_K1;\n        float mipLevel = probe.numMips * (1.0 - clamp(factor, 0.0, 1.0));\n        #ifdef HX_GLSL_300_ES\n        vec4 specProbeSample = textureLod(texture, reflectedViewDir.xzy, mipLevel);\n        #else\n        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir.xzy, mipLevel);\n        #endif\n    #else\n        vec4 specProbeSample = textureCube(texture, reflectedViewDir.xzy);\n    #endif\n	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor * probe.intensity;\n}';
@@ -3601,16 +3611,6 @@
 	ShaderLibrary._files['lighting_ggx.glsl'] = '#ifdef HX_VISIBILITY_TERM\nfloat hx_geometryTerm(vec3 normal, vec3 dir, float k)\n{\n    float d = max(-dot(normal, dir), 0.0);\n    return d / (d * (1.0 - k) + k);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness)\n{\n	float k = roughness + 1.0;\n	k = k * k * .125;\n	return hx_geometryTerm(normal, viewDir, k) * hx_geometryTerm(normal, lightDir, k);\n}\n#endif\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = -dot(lightDir, geometry.normal);\n	vec3 irradiance = max(nDotL, 0.0) * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n    float mappedRoughness =  geometry.roughness * geometry.roughness;\n\n	float distribution = hx_ggxDistribution(mappedRoughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);\n\n	diffuseColor = irradiance;\n\n	#ifdef HX_USE_TRANSLUCENCY\n	    // light for flipped normal\n        diffuseColor += geometry.translucency * max(-nDotL, 0.0) * lightColor;\n    #endif\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef HX_VISIBILITY_TERM\n    specularColor *= hx_lightVisibility(geometry.normal, viewDir, lightDir, geometry.roughness);\n#endif\n}';
 
 	ShaderLibrary._files['lighting_lambert.glsl'] = '// also make sure specular probes are ignores\n#define HX_SKIP_SPECULAR\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = -dot(lightDir, geometry.normal);\n    diffuseColor = max(nDotL, 0.0) * lightColor;\n\n	#ifdef HX_USE_TRANSLUCENCY\n	    // light for flipped normal\n        diffuseColor += geometry.translucency * max(-nDotL, 0.0) * lightColor;\n    #endif\n\n	specularColor = vec3(0.0);\n}';
-
-	ShaderLibrary._files['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    hx_FragColor = color;\n}';
-
-	ShaderLibrary._files['debug_bounds_vertex.glsl'] = '\nvertex_attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
-
-	ShaderLibrary._files['debug_depth_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n    float depth = hx_decodeLinearDepth(texture2D(sampler, uv));\n    // swizzle so that it looks more naturally like tangent space normal maps\n    hx_FragColor = vec4(depth, depth, depth, 1.0);\n}\n';
-
-	ShaderLibrary._files['debug_motion_vector_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n    vec2 velocity = hx_decodeMotionVector(texture2D(sampler, uv));\n    // swizzle so that it looks more naturally like tangent space normal maps\n    hx_FragColor = vec4(velocity.xy * .5 + .5, 0.0, 1.0);\n}';
-
-	ShaderLibrary._files['debug_normals_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n    vec3 normal = hx_decodeNormal(texture2D(sampler, uv));\n    // swizzle so that it looks more naturally like tangent space normal maps\n    hx_FragColor = vec4(normal.xzy * vec3(.5, .5, -.5) + .5, 1.0);\n}';
 
 	ShaderLibrary._files['default_geometry_fragment.glsl'] = 'uniform vec3 color;\nuniform vec3 emissiveColor;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(METALLIC_ROUGHNESS_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP) || defined(TRANSLUCENCY_MAP)\n    varying_in vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\n    uniform sampler2D colorMap;\n\n    #ifdef COLOR_MAP_SCALE_OFFSET\n        uniform vec2 colorMapScale;\n        uniform vec2 colorMapOffset;\n    #endif\n#endif\n\n#ifdef HX_USE_TRANSLUCENCY\n    uniform vec3 translucency;\n    #ifdef TRANSLUCENCY_MAP\n        uniform sampler2D translucencyMap;\n        #ifdef MASK_MAP_SCALE_OFFSET\n            uniform vec2 translucencyMapScale;\n            uniform vec2 translucencyMapOffset;\n        #endif\n    #endif\n#endif\n\n#ifdef OCCLUSION_MAP\n    uniform sampler2D occlusionMap;\n#endif\n\n#ifdef EMISSION_MAP\n    uniform sampler2D emissionMap;\n\n    #ifdef EMISSION_MAP_SCALE_OFFSET\n        uniform vec2 emissionMapScale;\n        uniform vec2 emissionMapOffset;\n    #endif\n#endif\n\n#ifdef MASK_MAP\n    uniform sampler2D maskMap;\n\n    #ifdef MASK_MAP_SCALE_OFFSET\n        uniform vec2 maskMapScale;\n        uniform vec2 maskMapOffset;\n    #endif\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    varying_in vec3 normal;\n\n    #ifdef NORMAL_MAP\n        varying_in vec3 tangent;\n        varying_in vec3 bitangent;\n\n        uniform sampler2D normalMap;\n\n        #ifdef NORMAL_MAP_SCALE_OFFSET\n            uniform vec2 normalMapScale;\n            uniform vec2 normalMapOffset;\n        #endif\n\n    #endif\n#endif\n\n#ifndef HX_SKIP_SPECULAR\n    uniform float roughness;\n    uniform float roughnessRange;\n    uniform float normalSpecularReflectance;\n    uniform float metallicness;\n\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\n        uniform sampler2D specularMap;\n\n        #ifdef SPECULAR_MAP_SCALE_OFFSET\n            uniform vec2 specularMapScale;\n            uniform vec2 specularMapOffset;\n        #endif\n    #endif\n#endif\n\n#if defined(ALPHA_THRESHOLD)\n    uniform float alphaThreshold;\n#endif\n\n#ifdef VERTEX_COLORS\n    varying_in vec3 vertexColor;\n#endif\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    vec2 uv;\n\n    #ifdef COLOR_MAP\n        uv = texCoords;\n        #ifdef COLOR_MAP_SCALE_OFFSET\n            uv = uv * colorMapScale + colorMapOffset;\n        #endif\n        #ifdef COLOR_MAP_ADD\n            outputColor += texture2D(colorMap, uv);\n        #else\n            outputColor *= texture2D(colorMap, uv);\n        #endif\n    #endif\n\n    #ifdef MASK_MAP\n        uv = texCoords;\n        #ifdef MASK_MAP_SCALE_OFFSET\n            uv = uv * maskMapScale + maskMapOffset;\n        #endif\n        outputColor.w *= texture2D(maskMap, uv).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    #ifdef HX_USE_TRANSLUCENCY\n        vec3 translucencyColor = translucency;\n        #ifdef TRANSLUCENCY_MAP\n            uv = texCoords;\n            #ifdef TRANSLUCENCY_MAP_SCALE_OFFSET\n                uv = uv * translucencyMapScale + translucencyMapOffset;\n            #endif\n        translucencyColor *= texture2D(translucencyMap, uv);\n        #endif\n        data.translucency = hx_gammaToLinear(translucencyColor);\n    #endif\n    data.color = hx_gammaToLinear(outputColor);\n\n#ifndef HX_SKIP_SPECULAR\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = normalSpecularReflectance;\n    float roughnessOut = roughness;\n#endif\n\n#if defined(HX_SKIP_NORMALS) && defined(NORMAL_ROUGHNESS_MAP) && !defined(HX_SKIP_SPECULAR)\n    uv = texCoords;\n    #ifdef NORMAL_MAP_SCALE_OFFSET\n        uv = uv * normalMapScale + normalMapOffset;\n    #endif\n    vec4 normalSample = texture2D(normalMap, uv);\n    roughnessOut -= roughnessRange * (normalSample.w - .5);\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    vec3 fragNormal = normal;\n\n    #ifdef NORMAL_MAP\n        uv = texCoords;\n        #ifdef NORMAL_MAP_SCALE_OFFSET\n            uv = uv * normalMapScale + normalMapOffset;\n        #endif\n        vec4 normalSample = texture2D(normalMap, uv);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz - .5);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (normalSample.w - .5);\n        #endif\n    #endif\n\n    #ifdef DOUBLE_SIDED\n        fragNormal *= gl_FrontFacing? 1.0 : -1.0;\n    #endif\n    data.normal = normalize(fragNormal);\n#endif\n\n#ifndef HX_SKIP_SPECULAR\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\n        uv = texCoords;\n        #ifdef SPECULAR_MAP_SCALE_OFFSET\n            uv = uv * specularMapScale + specularMapOffset;\n        #endif\n        vec4 specSample = texture2D(specularMap, uv);\n\n        #ifdef METALLIC_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (specSample.y - .5);\n            metallicnessOut *= specSample.z;\n\n        #else\n            roughnessOut -= roughnessRange * (specSample.x - .5);\n\n        #ifdef SPECULAR_MAP\n            specNormalReflOut *= specSample.y;\n            metallicnessOut *= specSample.z;\n        #endif\n    #endif\n#endif\n\n    data.metallicness = metallicnessOut;\n    data.normalSpecularReflectance = specNormalReflOut;\n    data.roughness = roughnessOut;\n#endif\n\n    data.occlusion = 1.0;\n\n#ifdef OCCLUSION_MAP\n    data.occlusion = texture2D(occlusionMap, texCoords).x;\n#endif\n\n    vec3 emission = emissiveColor;\n#ifdef EMISSION_MAP\n    uv = texCoords;\n    #ifdef EMISSION_MAP_SCALE_OFFSET\n        uv = uv * emissionMapScale + emissionMapOffset;\n    #endif\n    emission *= texture2D(emissionMap, uv).xyz;\n#endif\n\n    data.emission = hx_gammaToLinear(emission);\n    return data;\n}';
 
@@ -3696,16 +3696,6 @@
 
 	ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	hx_FragColor = color / (1.0 + lum);\n}';
 
-	ShaderLibrary._files['default_skybox_fragment.glsl'] = 'varying_in vec3 viewWorldDir;\n\nuniform samplerCube hx_skybox;\nuniform float hx_intensity;\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n    data.color = textureCube(hx_skybox, viewWorldDir.xzy);\n    data.emission = vec3(0.0);\n    data.color = hx_gammaToLinear(data.color) * hx_intensity;\n    return data;\n}';
-
-	ShaderLibrary._files['default_skybox_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nuniform vec3 hx_cameraWorldPosition;\nuniform float hx_cameraFarPlaneDistance;\nuniform mat4 hx_viewProjectionMatrix;\n\nvarying_out vec3 viewWorldDir;\n\n// using 2D quad for rendering skyboxes rather than 3D cube causes jittering of the skybox\nvoid hx_geometry()\n{\n    viewWorldDir = hx_position.xyz;\n    vec4 pos = hx_position;\n    // use a decent portion of the frustum to prevent FP issues\n    pos.xyz = pos.xyz * hx_cameraFarPlaneDistance + hx_cameraWorldPosition;\n    pos = hx_viewProjectionMatrix * pos;\n    // make sure it\'s drawn behind everything else, so z = 1.0\n    pos.z = pos.w;\n    gl_Position = pos;\n}';
-
-	ShaderLibrary._files['dynamic_skybox_fragment.glsl'] = '#define NUM_SAMPLES 16\n\nuniform vec3 sunDir;\nuniform float earthRadius;\nuniform float atmosphereRadius;\nuniform vec3 rayleighScattering;\nuniform vec3 rayleighExtinction;\nuniform float rayleighHeightFalloff;\nuniform float mieScattering;\nuniform float mieExtinction;\nuniform float mieHeightFalloff;\nuniform float mieCoefficient;\nuniform float intensity;\nuniform vec3 groundColor;\n\nvarying_in vec3 viewDir;\n\n// sign is 1 for the furthest hit (or inside), - for the closest\nfloat getDistanceToSphere(vec3 origin, vec3 dir, float r, float sign)\n{\n    // a = 1, since dir is unit\n    float b = dot(dir, origin);\n    float c = dot(origin, origin) - r * r;\n    float det = max(b*b - c, 0.0);\n    return max(-b + sign * sqrt(det), 0.0);\n}\n\n// cylinder axis goes through origin!\n// if <= 0.0, consider no intersection found\nfloat getDistanceToCylinder(vec3 axis, float r, vec3 orig, vec3 dir)\n{\n    vec3 A = dir - dot(dir, axis) * axis;\n    vec3 C = orig - dot(orig, axis) * axis;\n    float a = dot(A, A);\n    float b = 2.0 * dot(A, C);\n    float c = dot(C, C) - r * r;\n    float det = max(b * b - 4.0 * a * c, 0.0);\n    float t = (-b + sqrt(det)) / (2.0 * a);\n    t = max(t, 0.0);\n    return t;\n}\n\nfloat getDistanceToGround(vec3 p, vec3 dir, float z)\n{\n    return (z - p.z) / dir.z;\n}\n\nvec3 expOpticalThickness(vec3 p1, vec3 p2, vec3 baseDensity, float falloff)\n{\n    float h0 = max(length(p1) - earthRadius, 0.0);\n    float h1 = max(length(p2) - earthRadius, 0.0);\n    float dist = distance(p1, p2);\n    float dz = (h1 - h0) / dist;\n\n    if (abs(dz) < .0001)\n        return baseDensity * exp(-falloff * h0) * dist;\n\n    float e0 = exp(-falloff * h0);\n	float em = exp(-falloff * h1);\n	// this is actually incorrect, because the height function is not linear from p1 to p2, but is in function of length\n	// but perhaps it\'s close enough\n	return baseDensity * (e0 - em) / (falloff * dz);\n}\n\nvec3 transmittance(vec3 p1, vec3 p2)\n{\n    vec3 t1 = expOpticalThickness(p1, p2, rayleighExtinction, rayleighHeightFalloff);\n    vec3 t2 = expOpticalThickness(p1, p2, vec3(mieExtinction), mieHeightFalloff);\n    return  exp(-(t1 + t2));\n}\n\nvec3 inscatterFactor(float height, float falloff, vec3 scatterFactor)\n{\n    return exp(-height * falloff) * scatterFactor;\n}\n\nvec3 inscatter(vec3 p, vec3 lightDir, vec3 scattering, float falloff)\n{\n    vec3 l = p - 2.0 * atmosphereRadius * lightDir;\n    float h = max(length(p) - earthRadius, 0.0);\n    return transmittance(p, l) * inscatterFactor(h, falloff, scattering);\n}\n\n\nvoid main()\n{\n    vec3 view = normalize(viewDir);\n\n    vec3 x0 = vec3(0.0, 0.0, earthRadius + 1.8);\n\n    float t0 = 0.0; // marching segment starts at origin\n    float t1 = getDistanceToSphere(x0, view, atmosphereRadius, 1.0); // marching segment ends at atmosphere\n\n    bool ground = false;\n    // this is the correct form, but it\'s indistuingishable from assuming a flat plane\n    /*float tp = getDistanceToSphere(x0, view, earthRadius, -1.0); // need closest hit\n    if (tp > 0.0) {\n        t1 = tp;\n        ground = true;\n    }*/\n    if (viewDir.z < 0.0) {\n        float tp = getDistanceToGround(x0, view, earthRadius);\n        t1 = min(t1, tp);\n        ground = true;\n    }\n\n    // normally, this should be a test whether the light ray arriving at x0 intersects the earth sphere, but it\'s\n    // *practically* the same as just checking whether it points up\n    if (sunDir.z > 0.0) {\n        // light intersects earth to get to us, so we\'re in shadow. We only need to start marching where the sun is visible.\n        // This is done by sweeping out a cylindrical shadow volume and finding the intersection.\n        t0 = getDistanceToCylinder(-sunDir, earthRadius, x0, view);\n        t0 = min(t0, t1);\n    }\n\n	float vDotL = dot(sunDir, view);\n	float dist = t1 - t0;\n    float dx = dist / float(NUM_SAMPLES);\n    vec3 rayleigh = vec3(0.0);\n    vec3 mie = vec3(0.0);\n\n    // start at t0\n    vec3 x1 = x0 + t0 * view;\n    vec3 tr;\n\n	for (int i = 0; i < NUM_SAMPLES; ++i) {\n        x1 += dx * view;\n        tr = transmittance(x0, x1);\n\n        // in-scattered amount also extinguished through the atmosphere\n        rayleigh += tr * inscatter(x1, sunDir, rayleighScattering, rayleighHeightFalloff);\n        mie += tr * inscatter(x1, sunDir, vec3(mieScattering), mieHeightFalloff);\n	}\n\n    vec3 col = rayleigh * hx_phaseRayleigh(vDotL) + mie * hx_phaseHG(vDotL, mieCoefficient);\n    col *= dx * intensity;\n\n    if (ground)\n        col += tr * groundColor * max(-sunDir.z, 0.0);\n\n	hx_FragColor = vec4(hx_linearToGamma(col), 1.0);\n}';
-
-	ShaderLibrary._files['dynamic_skybox_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvarying_out vec3 viewDir;\n\nuniform mat4 inverseViewProjectionMatrix;\n\nvoid main()\n{\n    vec4 unproj = inverseViewProjectionMatrix * hx_position;\n    viewDir = normalize(unproj.xyz / unproj.w);\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['sh_skybox_fragment.glsl'] = 'varying_in vec3 viewWorldDir;\n\nuniform vec3 hx_sh[9];\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n    data.color = vec4(hx_evaluateSH(hx_sh, normalize(viewWorldDir.xzy)), 1.0);\n    data.emission = vec3(0.0);\n    return data;\n}';
-
 	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
 
 	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
@@ -3729,6 +3719,16 @@
 	ShaderLibrary._files['shadow_vsm.glsl'] = '#derivatives\n\nvec4 hx_getShadowMapValue(float depth)\n{\n    float dx = dFdx(depth);\n    float dy = dFdy(depth);\n    float moment2 = depth * depth + 0.25*(dx*dx + dy*dy);\n\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    return vec4(depth, moment2, 0.0, 1.0);\n    #else\n    return vec4(hx_floatToRG8(depth), hx_floatToRG8(moment2));\n    #endif\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    vec4 s = texture2D(shadowMap, shadowMapCoord.xy);\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    vec2 moments = s.xy;\n    #else\n    vec2 moments = vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    #endif\n    shadowMapCoord.z += depthBias;\n\n    float variance = moments.y - moments.x * moments.x;\n    variance = clamp(variance + HX_VSM_MIN_VARIANCE, 0.0, 1.0);\n\n    float diff = shadowMapCoord.z - moments.x;\n    float upperBound = 1.0;\n\n    // transparents could be closer to the light than casters\n    if (diff > 0.0)\n        upperBound = variance / (variance + diff*diff);\n\n    return saturate((upperBound - HX_VSM_LIGHT_BLEED_REDUCTION) * HX_VSM_RCP_LIGHT_BLEED_REDUCTION_RANGE);\n}';
 
 	ShaderLibrary._files['vsm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nvec2 readValues(vec2 coord)\n{\n    vec4 s = texture2D(source, coord);\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    return s.xy;\n    #else\n    return vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    #endif\n}\n\nvoid main()\n{\n    vec2 total = readValues(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValues(uv + offset) + readValues(uv - offset);\n	}\n\n    total *= RCP_NUM_SAMPLES;\n\n#if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    hx_FragColor = vec4(total, 0.0, 1.0);\n#else\n	hx_FragColor.xy = hx_floatToRG8(total.x);\n	hx_FragColor.zw = hx_floatToRG8(total.y);\n#endif\n}';
+
+	ShaderLibrary._files['default_skybox_fragment.glsl'] = 'varying_in vec3 viewWorldDir;\n\nuniform samplerCube hx_skybox;\nuniform float hx_intensity;\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n    data.color = textureCube(hx_skybox, viewWorldDir.xzy);\n    data.emission = vec3(0.0);\n    data.color = hx_gammaToLinear(data.color) * hx_intensity;\n    return data;\n}';
+
+	ShaderLibrary._files['default_skybox_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nuniform vec3 hx_cameraWorldPosition;\nuniform float hx_cameraFarPlaneDistance;\nuniform mat4 hx_viewProjectionMatrix;\n\nvarying_out vec3 viewWorldDir;\n\n// using 2D quad for rendering skyboxes rather than 3D cube causes jittering of the skybox\nvoid hx_geometry()\n{\n    viewWorldDir = hx_position.xyz;\n    vec4 pos = hx_position;\n    // use a decent portion of the frustum to prevent FP issues\n    pos.xyz = pos.xyz * hx_cameraFarPlaneDistance + hx_cameraWorldPosition;\n    pos = hx_viewProjectionMatrix * pos;\n    // make sure it\'s drawn behind everything else, so z = 1.0\n    pos.z = pos.w;\n    gl_Position = pos;\n}';
+
+	ShaderLibrary._files['dynamic_skybox_fragment.glsl'] = '#define NUM_SAMPLES 16\n\nuniform vec3 sunDir;\nuniform float earthRadius;\nuniform float atmosphereRadius;\nuniform vec3 rayleighScattering;\nuniform vec3 rayleighExtinction;\nuniform float rayleighHeightFalloff;\nuniform float mieScattering;\nuniform float mieExtinction;\nuniform float mieHeightFalloff;\nuniform float mieCoefficient;\nuniform float intensity;\nuniform vec3 groundColor;\n\nvarying_in vec3 viewDir;\n\n// sign is 1 for the furthest hit (or inside), - for the closest\nfloat getDistanceToSphere(vec3 origin, vec3 dir, float r, float sign)\n{\n    // a = 1, since dir is unit\n    float b = dot(dir, origin);\n    float c = dot(origin, origin) - r * r;\n    float det = max(b*b - c, 0.0);\n    return max(-b + sign * sqrt(det), 0.0);\n}\n\n// cylinder axis goes through origin!\n// if <= 0.0, consider no intersection found\nfloat getDistanceToCylinder(vec3 axis, float r, vec3 orig, vec3 dir)\n{\n    vec3 A = dir - dot(dir, axis) * axis;\n    vec3 C = orig - dot(orig, axis) * axis;\n    float a = dot(A, A);\n    float b = 2.0 * dot(A, C);\n    float c = dot(C, C) - r * r;\n    float det = max(b * b - 4.0 * a * c, 0.0);\n    float t = (-b + sqrt(det)) / (2.0 * a);\n    t = max(t, 0.0);\n    return t;\n}\n\nfloat getDistanceToGround(vec3 p, vec3 dir, float z)\n{\n    return (z - p.z) / dir.z;\n}\n\nvec3 expOpticalThickness(vec3 p1, vec3 p2, vec3 baseDensity, float falloff)\n{\n    float h0 = max(length(p1) - earthRadius, 0.0);\n    float h1 = max(length(p2) - earthRadius, 0.0);\n    float dist = distance(p1, p2);\n    float dz = (h1 - h0) / dist;\n\n    if (abs(dz) < .0001)\n        return baseDensity * exp(-falloff * h0) * dist;\n\n    float e0 = exp(-falloff * h0);\n	float em = exp(-falloff * h1);\n	// this is actually incorrect, because the height function is not linear from p1 to p2, but is in function of length\n	// but perhaps it\'s close enough\n	return baseDensity * (e0 - em) / (falloff * dz);\n}\n\nvec3 transmittance(vec3 p1, vec3 p2)\n{\n    vec3 t1 = expOpticalThickness(p1, p2, rayleighExtinction, rayleighHeightFalloff);\n    vec3 t2 = expOpticalThickness(p1, p2, vec3(mieExtinction), mieHeightFalloff);\n    return  exp(-(t1 + t2));\n}\n\nvec3 inscatterFactor(float height, float falloff, vec3 scatterFactor)\n{\n    return exp(-height * falloff) * scatterFactor;\n}\n\nvec3 inscatter(vec3 p, vec3 lightDir, vec3 scattering, float falloff)\n{\n    vec3 l = p - 2.0 * atmosphereRadius * lightDir;\n    float h = max(length(p) - earthRadius, 0.0);\n    return transmittance(p, l) * inscatterFactor(h, falloff, scattering);\n}\n\n\nvoid main()\n{\n    vec3 view = normalize(viewDir);\n\n    vec3 x0 = vec3(0.0, 0.0, earthRadius + 1.8);\n\n    float t0 = 0.0; // marching segment starts at origin\n    float t1 = getDistanceToSphere(x0, view, atmosphereRadius, 1.0); // marching segment ends at atmosphere\n\n    bool ground = false;\n    // this is the correct form, but it\'s indistuingishable from assuming a flat plane\n    /*float tp = getDistanceToSphere(x0, view, earthRadius, -1.0); // need closest hit\n    if (tp > 0.0) {\n        t1 = tp;\n        ground = true;\n    }*/\n    if (viewDir.z < 0.0) {\n        float tp = getDistanceToGround(x0, view, earthRadius);\n        t1 = min(t1, tp);\n        ground = true;\n    }\n\n    // normally, this should be a test whether the light ray arriving at x0 intersects the earth sphere, but it\'s\n    // *practically* the same as just checking whether it points up\n    if (sunDir.z > 0.0) {\n        // light intersects earth to get to us, so we\'re in shadow. We only need to start marching where the sun is visible.\n        // This is done by sweeping out a cylindrical shadow volume and finding the intersection.\n        t0 = getDistanceToCylinder(-sunDir, earthRadius, x0, view);\n        t0 = min(t0, t1);\n    }\n\n	float vDotL = dot(sunDir, view);\n	float dist = t1 - t0;\n    float dx = dist / float(NUM_SAMPLES);\n    vec3 rayleigh = vec3(0.0);\n    vec3 mie = vec3(0.0);\n\n    // start at t0\n    vec3 x1 = x0 + t0 * view;\n    vec3 tr;\n\n	for (int i = 0; i < NUM_SAMPLES; ++i) {\n        x1 += dx * view;\n        tr = transmittance(x0, x1);\n\n        // in-scattered amount also extinguished through the atmosphere\n        rayleigh += tr * inscatter(x1, sunDir, rayleighScattering, rayleighHeightFalloff);\n        mie += tr * inscatter(x1, sunDir, vec3(mieScattering), mieHeightFalloff);\n	}\n\n    vec3 col = rayleigh * hx_phaseRayleigh(vDotL) + mie * hx_phaseHG(vDotL, mieCoefficient);\n    col *= dx * intensity;\n\n    if (ground)\n        col += tr * groundColor * max(-sunDir.z, 0.0);\n\n	hx_FragColor = vec4(hx_linearToGamma(col), 1.0);\n}';
+
+	ShaderLibrary._files['dynamic_skybox_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvarying_out vec3 viewDir;\n\nuniform mat4 inverseViewProjectionMatrix;\n\nvoid main()\n{\n    vec4 unproj = inverseViewProjectionMatrix * hx_position;\n    viewDir = normalize(unproj.xyz / unproj.w);\n    gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['sh_skybox_fragment.glsl'] = 'varying_in vec3 viewWorldDir;\n\nuniform vec3 hx_sh[9];\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n    data.color = vec4(hx_evaluateSH(hx_sh, normalize(viewWorldDir.xzy)), 1.0);\n    data.emission = vec3(0.0);\n    return data;\n}';
 
 	ShaderLibrary._files['snippets_general.glsl'] = '#define HX_LOG_10 2.302585093\n#define HX_PI 3.1415926\n\n#ifdef HX_GLSL_300_ES\n    // replace some outdated function names\n    vec4 texture2D(sampler2D s, vec2 uv) { return texture(s, uv); }\n    vec4 textureCube(samplerCube s, vec3 uvw) { return texture(s, uvw); }\n\n    #define vertex_attribute in\n    #define varying_in in\n    #define varying_out out\n\n    #ifdef HX_FRAGMENT_SHADER\n        out vec4 hx_FragColor;\n    #endif\n#else\n    #define vertex_attribute attribute\n    #define varying_in varying\n    #define varying_out varying\n    #define hx_FragColor gl_FragColor\n#endif\n\nfloat saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);\n    // cannot fract first value or 1 would not be encodable\n    enc.yzw = fract(enc.yzw);\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc.y = fract(enc.y);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec2 hx_encodeNormal(vec3 normal)\n{\n    vec2 data;\n    float p = sqrt(-normal.y*8.0 + 8.0);\n    data = normal.xz / p + .5;\n    return data;\n}\n\nvec2 hx_decodeMotionVector(vec4 data)\n{\n    vec2 vel;\n    vel.x = hx_RG8ToFloat(data.xy);\n    vel.y = hx_RG8ToFloat(data.zw);\n    return vel * 2.0 - 1.0;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    vec3 normal;\n    data.xy = data.xy*4.0 - 2.0;\n    float f = dot(data.xy, data.xy);\n    float g = sqrt(1.0 - f * .25);\n    normal.xz = data.xy * g;\n    normal.y = -(1.0 - f * .5);\n    return normal;\n}\n\nfloat hx_log10(float val)\n{\n    return log(val) / HX_LOG_10;\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\n/*float hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}*/\n\nfloat hx_decodeLinearDepth(vec4 samp)\n{\n    return hx_RG8ToFloat(samp.zw);\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = 1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return unproj.xyz / unproj.y;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewY(float depth, mat4 projectionMatrix)\n{\n    return projectionMatrix[3][2] / (depth * 2.0 - 1.0 - projectionMatrix[1][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\n// https://seblagarde.wordpress.com/2011/08/17/hello-world/\nvec3 hx_fresnelProbe(vec3 normalSpecularReflectance, vec3 lightDir, vec3 normal, float roughness)\n{\n    float cosAngle = 1.0 - max(dot(normal, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    float gloss = (1.0 - roughness) * (1.0 - roughness);\n    vec3 bound = max(vec3(gloss), normalSpecularReflectance);\n    return normalSpecularReflectance + (bound - normalSpecularReflectance) * power;\n}\n\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}\n\nvec4 hx_sampleDefaultDither(sampler2D ditherTexture, vec2 uv)\n{\n    vec4 s = texture2D(ditherTexture, uv);\n\n    #ifndef HX_FLOAT_TEXTURES\n    s = s * 2.0 - 1.0;\n    #endif\n\n    return s;\n}\n\nvec3 hx_evaluateSH(vec3 sh[9], vec3 dir)\n{\n    dir = dir.xzy;\n    vec3 col =  sh[0] +\n                sh[1] * dir.y + sh[2] * dir.z + sh[3] * dir.x +\n                sh[4] * dir.x * dir.y + sh[5] * dir.y * dir.z + sh[6] * (3.0 * dir.z * dir.z - 1.0) +\n                sh[7] * dir.z * dir.x + sh[8] * (dir.x * dir.x - dir.y * dir.y);\n\n    col = max(col, vec3(0.0));\n    return col;\n}\n\n// I\'m keeping this for reference, even tho it doesn\'t work in iOS\nvoid hx_sumSH(in vec3 a[9], in float weight, inout vec3 b[9])\n{\n    // have to manually unroll this, on some platforms the loop is weirdly slow\n    b[0] += a[0] * weight;\n    b[1] += a[1] * weight;\n    b[2] += a[2] * weight;\n    b[3] += a[3] * weight;\n    b[4] += a[4] * weight;\n    b[5] += a[5] * weight;\n    b[6] += a[6] * weight;\n    b[7] += a[7] * weight;\n    b[8] += a[8] * weight;\n}\n\nvec3 hx_intersectCubeMap(vec3 rayOrigin, vec3 cubeCenter, vec3 rayDir, float cubeSize)\n{\n    vec3 t = (cubeSize * sign(rayDir) - (rayOrigin - cubeCenter)) / rayDir;\n    float minT = min(min(t.x, t.y), t.z);\n    return rayOrigin + minT * rayDir;\n}\n\n// this exists because hx_jointWeights etc do not necessarily exist and would cause a compilation error when accessed\n// with a macro, this is not an issue\n// But sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.\n#ifdef HX_USE_SKINNING_TEXTURE\n#define HX_SKELETON_PIXEL_SIZE (1.0 / float(3 * HX_MAX_SKELETON_JOINTS - 1))\nmat4 hx_getSkinningMatrixImpl(vec4 weights, vec4 indices, sampler2D tex)\n{\n    mat4 m = mat4(0.0);\n    for (int i = 0; i < 4; ++i) {\n        mat4 t;\n        float index = indices[i] * HX_SKELETON_PIXEL_SIZE * 3.0;\n        t[0] = texture2D(tex, vec2(index, 0.0));\n        t[1] = texture2D(tex, vec2(index + HX_SKELETON_PIXEL_SIZE, 0.0));\n        t[2] = texture2D(tex, vec2(index + 2.0 * HX_SKELETON_PIXEL_SIZE, 0.0));\n        t[3] = vec4(0.0, 0.0, 0.0, 1.0);\n        m += weights[i] * t;\n    }\n    return m;\n}\n#define hx_getSkinningMatrix(v) hx_getSkinningMatrixImpl(hx_jointWeights, hx_jointIndices, hx_skinningTexture)\n#else\n#define hx_getSkinningMatrix(v) ( hx_jointWeights.x * mat4(hx_skinningMatrices[int(hx_jointIndices.x) * 3], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.y * mat4(hx_skinningMatrices[int(hx_jointIndices.y) * 3], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.z * mat4(hx_skinningMatrices[int(hx_jointIndices.z) * 3], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.w * mat4(hx_skinningMatrices[int(hx_jointIndices.w) * 3], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) )\n#endif';
 
@@ -21797,6 +21797,80 @@
 		GL.setVertexLayout(this._vertexLayout);
 	};
 
+	function DynamicSkyTexture(textureSize)
+	{
+	    TextureCube.call(this);
+	    textureSize = textureSize || 128;
+	    this.initEmpty(textureSize, TextureFormat.RGBA, capabilities.HDR_DATA_TYPE);
+	    this.generateMipmap();
+	    this._initRendering();
+
+	    this.rayleighScattering = new Color(5.8e-6, 1.35e-5, 3.31e-5);
+	    this.groundColor = new Color(0.5, 0.5, 0.5);
+	    this.mieScattering = 5.216e-6;
+	    this.mieCoefficient = 0.3;
+	    this.rayleighHeightFalloff = 8000;
+	    this.mieHeightFalloff = 1200;
+	    this._sunDir = new Float4(1.0, 1.0, 1.0);
+	    this._sunDir.normalize();
+	    this.intensity = 1.0;
+	}
+
+	DynamicSkyTexture.prototype = Object.create(TextureCube.prototype, {
+	    sunDirection: {
+	        get: function() {
+	            return this._sunDir;
+	        },
+	        set: function(v) {
+	            this._sunDir.copyFrom(v).normalize();
+	        }
+	    }
+	});
+
+	DynamicSkyTexture.prototype.update = function()
+	{
+	    var g = this.mieCoefficient;
+	    var pass = this._pass;
+
+	    pass.setUniform("rayleighScattering", this.rayleighScattering);
+	    pass.setUniform("rayleighExtinction", this.rayleighScattering);
+	    pass.setUniform("rayleighHeightFalloff",  1.0 / this.rayleighHeightFalloff);
+	    pass.setUniform("mieHeightFalloff",  1.0 / this.mieHeightFalloff);
+	    pass.setUniform("mieCoefficient",  1.55 * g - 0.55 * g * g * g);
+	    pass.setUniform("mieScattering", this.mieScattering);
+	    pass.setUniform("mieExtinction", this.mieScattering * 1.11);
+	    pass.setUniform("groundColor",  this.groundColor.gammaToLinear());
+	    pass.setUniform("sunDir", this._sunDir);
+	    pass.setUniform("intensity", this.intensity);
+
+	    for (var i = 0; i < 6; ++i) {
+	        GL.setRenderTarget(this._fbos[i]);
+	        GL.clear();
+	        var camera = this._cubeCam.getFaceCamera(i);
+	        pass.setUniform("inverseViewProjectionMatrix", camera.inverseViewProjectionMatrix);
+	        pass.draw();
+	    }
+
+	    this.generateMipmap();
+	};
+
+	DynamicSkyTexture.prototype._initRendering = function()
+	{
+	    this._cubeCam = new CubeCamera();
+	    this._fbos = [];
+
+	    var cubeFaces = [ CubeFace.POSITIVE_X, CubeFace.NEGATIVE_X, CubeFace.POSITIVE_Y, CubeFace.NEGATIVE_Y, CubeFace.POSITIVE_Z, CubeFace.NEGATIVE_Z ];
+	    for (var i = 0; i < 6; ++i) {
+	        this._fbos[i] = new FrameBuffer(this, null, cubeFaces[i]);
+	        this._fbos[i].init();
+	    }
+
+	    var volumetric = ShaderLibrary.get("snippets_volumetric.glsl") + "\n";
+	    this._pass = new EffectPass(volumetric + ShaderLibrary.get("dynamic_skybox_vertex.glsl"), volumetric + ShaderLibrary.get("dynamic_skybox_fragment.glsl"));
+	    this._pass.setUniform("earthRadius", 6371000.0);
+	    this._pass.setUniform("atmosphereRadius", 6526000.0);
+	};
+
 	/**
 	 * @classdesc
 	 * DynamicSkybox provides a dynamic skybox and DirectionalLight.
@@ -21807,29 +21881,10 @@
 	 */
 	function DynamicSkybox(sun, textureSize)
 	{
-		textureSize = textureSize || 128;
-		this._texture = new TextureCube();
-		this._texture.initEmpty(textureSize, TextureFormat.RGBA, capabilities.HDR_DATA_TYPE);
-		this._texture.generateMipmap();
+		this._texture = new DynamicSkyTexture(textureSize);
 		Skybox.call(this, this._texture);
-		this._initRendering();
 
 		this.sun = sun;
-
-		this._rayleighScattering = new Color(5.8e-6, 1.35e-5, 3.31e-5);
-		this._groundColor = new Color(0.5, 0.5, 0.5);
-		this._mieScattering = 5.216e-6;
-		this._mieCoefficient = 0.3;
-		this._rayleighHeightFalloff = 8000;
-		this._mieHeightFalloff = 1200;
-
-		// stores previous state
-		this.rayleighScattering = this._rayleighScattering;
-		this.mieScattering = this._mieScattering;
-		this.mieCoefficient = this._mieCoefficient;
-		this.rayleighHeightFalloff = this._rayleighHeightFalloff;
-		this.mieHeightFalloff = this._mieHeightFalloff;
-		this.groundColor = this._groundColor;
 
 		this._invalidate();
 
@@ -21844,81 +21899,73 @@
 		rayleighScattering: {
 			get: function()
 			{
-				return this._rayleighScattering;
+				return this._texture.rayleighScattering;
 			},
 
 			set: function(value)
 			{
-				this._rayleighScattering = value;
-				this._invalid = true;
-				this._pass.setUniform("rayleighScattering", value);
-				this._pass.setUniform("rayleighExtinction", value);
+				this._invalid = this._texture.rayleighScattering !== value;
+				this._texture.rayleighScattering = true;
 			}
 		},
 		rayleighHeightFalloff: {
 			get: function()
 			{
-				return this._rayleighHeightFalloff;
+				return this._texture.rayleighHeightFalloff;
 			},
 
 			set: function(value)
 			{
-				this._rayleighHeightFalloff = value;
-				this._invalid = true;
-				this._pass.setUniform("rayleighHeightFalloff",  1.0 / value);
+				this._invalid = this._texture.rayleighHeightFalloff !== value;
+				this._texture.rayleighHeightFalloff = value;
 			}
 		},
 		mieScattering: {
 			get: function()
 			{
-				return this._mieScattering;
+				return this._texture.mieScattering;
 			},
 
 			set: function(value)
 			{
-				this._mieScattering = value;
-				this._invalid = true;
-				this._pass.setUniform("mieScattering", value);
-				this._pass.setUniform("mieExtinction", value * 1.11);
+				this._invalid = this._texture.mieScattering !== value;
+				this._texture.mieScattering = value;
 			}
 		},
 		mieCoefficient: {
 			get: function()
 			{
-				return this._mieCoefficient;
+				return this._texture.mieCoefficient;
 			},
 
-			set: function(g)
+			set: function(value)
 			{
-				this._mieCoefficient = g;
-				this._invalid = true;
-				this._pass.setUniform("mieCoefficient",  1.55 * g - 0.55 * g * g * g);
+				this._invalid = this._texture.mieCoefficient !== value;
+				this._texture.mieCoefficient = value;
 			}
 		},
 		mieHeightFalloff: {
 			get: function()
 			{
-				return this._mieHeightFalloff;
+				return this._texture.mieHeightFalloff;
 			},
 
 			set: function(value)
 			{
-				this._mieHeightFalloff = value;
-				this._invalid = true;
-				this._pass.setUniform("mieHeightFalloff",  1.0 / value);
+				this._invalid = this._texture.mieHeightFalloff !== value;
+				this._texture.mieHeightFalloff = value;
 			}
 		},
 		groundColor: {
 			get: function()
 			{
-				return this._groundColor;
+				return this._texture.groundColor;
 			},
 
 			set: function(value)
 			{
-				this._groundColor = value;
 				this._invalid = true;
-				this._pass.setUniform("groundColor",  value.gammaToLinear());
+				this._texture.groundColor = value;
 			}
 		}
 	});
@@ -21934,7 +21981,14 @@
 	DynamicSkybox.prototype.copyFrom = function(src)
 	{
 		Entity.prototype.copyFrom.call(this, src);
-		this.rayleighFactors = src.rayleighFactors;
+		this.groundColor = src.groundColor;
+		this.rayleighScattering = src.rayleighScattering;
+		this.rayleighHeightFalloff = src.rayleighHeightFalloff;
+		this.mieScattering = src.mieScattering;
+		this.mieCoefficient = src.mieCoefficient;
+		this.mieHeightFalloff = src.mieHeightFalloff;
+		this.groundColor = src.groundColor;
+		this._invalid = true;
 	};
 
 	/**
@@ -21959,21 +22013,11 @@
 	    this._dy = dir.y;
 	    this._dz = dir.z;
 	    this._intensity = intensity;
+	    this._texture.intensity = intensity;
+	    this._texture.sunDirection = dir;
 
-	    var pass = this._pass;
-	    pass.setUniform("sunDir", dir);
-	    pass.setUniform("intensity", intensity);
 		// light colour is ignored, because we may want to set it to use absorption
-
-	    for (var i = 0; i < 6; ++i) {
-	    	GL.setRenderTarget(this._fbos[i]);
-			GL.clear();
-	    	var camera = this._cubeCam.getFaceCamera(i);
-			pass.setUniform("inverseViewProjectionMatrix", camera.inverseViewProjectionMatrix);
-			pass.draw();
-		}
-
-		this._texture.generateMipmap();
+		this._texture.update();
 
 	    this._invalid = false;
 	};
@@ -21981,24 +22025,6 @@
 	DynamicSkybox.prototype._invalidate = function()
 	{
 	    this._invalid = true;
-	};
-
-	DynamicSkybox.prototype._initRendering = function()
-	{
-		this._cubeCam = new CubeCamera();
-		this._fbos = [];
-
-		var cubeFaces = [ CubeFace.POSITIVE_X, CubeFace.NEGATIVE_X, CubeFace.POSITIVE_Y, CubeFace.NEGATIVE_Y, CubeFace.POSITIVE_Z, CubeFace.NEGATIVE_Z ];
-		for (var i = 0; i < 6; ++i) {
-			this._fbos[i] = new FrameBuffer(this._texture, null, cubeFaces[i]);
-			this._fbos[i].init();
-		}
-
-		var volumetric = ShaderLibrary.get("snippets_volumetric.glsl") + "\n";
-		this._pass = new EffectPass(volumetric + ShaderLibrary.get("dynamic_skybox_vertex.glsl"), volumetric + ShaderLibrary.get("dynamic_skybox_fragment.glsl"));
-		this._pass.setUniform("earthRadius", 6371000.0);
-		this._pass.setUniform("atmosphereRadius", 6426000.0);
-
 	};
 
 	function DummyNode()
@@ -36180,6 +36206,7 @@
 	exports.FrameBuffer = FrameBuffer;
 	exports.Texture2D = Texture2D;
 	exports.TextureCube = TextureCube;
+	exports.DynamicSkyTexture = DynamicSkyTexture;
 	exports.TextureUtils = TextureUtils;
 	exports.WriteOnlyDepthBuffer = WriteOnlyDepthBuffer;
 	exports.AsyncTaskQueue = AsyncTaskQueue;

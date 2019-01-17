@@ -196,6 +196,7 @@ export {StencilState} from "./render/StencilState";
 export {FrameBuffer} from "./texture/FrameBuffer";
 export {Texture2D} from "./texture/Texture2D";
 export {TextureCube} from "./texture/TextureCube";
+export {DynamicSkyTexture} from "./texture/DynamicSkyTexture";
 export {TextureUtils} from "./texture/TextureUtils";
 export {WriteOnlyDepthBuffer} from "./texture/WriteOnlyDepthBuffer";
 
